@@ -21,6 +21,8 @@ export type Product = {
     image?: string;
     labels?: string[];
     isAvailable: boolean;
+    allergens?: string[]; // e.g. ['Gluten', 'Dairy']
+    isChefRecommendation?: boolean;
 };
 
 export type Venue = {

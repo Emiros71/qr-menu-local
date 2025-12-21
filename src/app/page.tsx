@@ -1,37 +1,129 @@
-import Link from "next/link";
-import { venues } from "@/data/db";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+"use client";
+
 import Image from "next/image";
+import Link from "next/link";
+import { Instagram, Globe, ArrowRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { DbService } from "@/services/db-service";
+import { Venue } from "@/data/db";
 
 export default function LandingPage() {
+    const [venues, setVenues] = useState<Venue[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Default settings
+    const [settings, setSettings] = useState({
+        backgroundImage: "/crowne_plaza_bg.jpg",
+        title: "CROWNE PLAZA",
+        subtitle: "ANKARA",
+        instagramUrl: "https://instagram.com",
+        websiteUrl: "https://crowneplaza.com"
+    });
+
+    useEffect(() => {
+        async function load() {
+            setLoading(true);
+            // Load venues
+            const vData = await DbService.getVenues();
+            setVenues(vData);
+
+            // Load global settings
+            const sData = await DbService.getAppSettings();
+            if (sData) {
+                setSettings(sData);
+            }
+
+            setLoading(false);
+        }
+        load();
+    }, []);
+
     return (
-        <div className="min-h-screen bg-zinc-50 flex flex-col items-center py-20 px-4">
-            <h1 className="text-4xl font-bold mb-8 text-center text-zinc-900">Oteller & Restoranlar</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl w-full">
-                {venues.map((venue) => (
-                    <Link href={`/${venue.slug}`} key={venue.id} className="group">
-                        <Card className="overflow-hidden hover:shadow-xl transition-shadow h-full border-zinc-200">
-                            <div className="relative h-48 w-full bg-zinc-100">
-                                {venue.coverImage && (
-                                    <Image
-                                        src={venue.coverImage}
-                                        alt={venue.name}
-                                        fill
-                                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                    />
-                                )}
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
-                            </div>
-                            <CardHeader>
-                                <CardTitle className="text-xl">{venue.name}</CardTitle>
-                                <CardDescription>{venue.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <span className="text-sm font-medium text-primary">Menüyü İncele &rarr;</span>
-                            </CardContent>
-                        </Card>
-                    </Link>
-                ))}
+        <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-black">
+
+            {/* Background Image with Overlay */}
+            <div className="absolute inset-0 z-0">
+                <Image
+                    src={settings.backgroundImage || "/crowne_plaza_bg.jpg"}
+                    alt="Background"
+                    fill
+                    className="object-cover opacity-60"
+                    priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+            </div>
+
+            {/* Main Content */}
+            <div className="relative z-10 w-full max-w-md px-6 py-12 flex flex-col items-center text-center space-y-8 animate-in fade-in zoom-in duration-700">
+
+                {/* Brand Logo / Title */}
+                <div className="space-y-2">
+                    <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center mx-auto border border-white/20 shadow-xl mb-4">
+                        {/* Logo Icon */}
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4 8 4v14M12 11v10" /></svg>
+                    </div>
+                    <h1 className="text-3xl font-bold text-white tracking-wide font-serif">
+                        {settings.title}
+                    </h1>
+                    <p className="text-white/70 text-sm tracking-widest uppercase">
+                        {settings.subtitle}
+                    </p>
+                </div>
+
+                {/* Social Links */}
+                <div className="flex items-center gap-4">
+                    {settings.instagramUrl && (
+                        <a href={settings.instagramUrl} target="_blank" className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition-all duration-300">
+                            <Instagram className="h-5 w-5" />
+                        </a>
+                    )}
+                    {settings.websiteUrl && (
+                        <a href={settings.websiteUrl} target="_blank" className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition-all duration-300">
+                            <Globe className="h-5 w-5" />
+                        </a>
+                    )}
+                </div>
+
+                <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+                {/* Venue Selection List */}
+                <div className="w-full space-y-3">
+                    <h2 className="text-white/90 text-sm font-medium mb-4">Lütfen bir mekan seçiniz</h2>
+
+                    {loading ? (
+                        <div className="text-white/50 text-sm">Yükleniyor...</div>
+                    ) : (
+                        <div className="grid gap-3">
+                            {venues.map((venue) => (
+                                <Link key={venue.id} href={`/${venue.slug}`} className="group relative overflow-hidden rounded-xl bg-white/5 border border-white/10 p-4 flex items-center justify-between hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] hover:border-white/30 hover:shadow-lg hover:shadow-[var(--shadow-color)]" style={{ "--shadow-color": venue.theme.primary + '40' } as React.CSSProperties}>
+                                    <div className="flex items-center gap-4 z-10">
+                                        <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden relative border border-white/10">
+                                            {venue.coverImage ? (
+                                                <Image src={venue.coverImage} alt={venue.name} fill className="object-cover" />
+                                            ) : (
+                                                <div className="w-2 h-2 rounded-full bg-white" />
+                                            )}
+                                        </div>
+                                        <div className="text-left">
+                                            <h3 className="text-white font-bold text-base">{venue.name}</h3>
+                                            <p className="text-white/50 text-xs truncate max-w-[150px]">{venue.description}</p>
+                                        </div>
+                                    </div>
+                                    <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-colors text-white">
+                                        <ArrowRight className="h-4 w-4" />
+                                    </div>
+
+                                    {/* Subtle colored glow based on venue theme */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[var(--glow-color)] opacity-0 group-hover:opacity-20 transition-opacity duration-500" style={{ "--glow-color": venue.theme.primary } as React.CSSProperties} />
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <footer className="absolute bottom-6 text-white/20 text-[10px] uppercase tracking-widest">
+                    Powered by QR Menu SaaS
+                </footer>
             </div>
         </div>
     );

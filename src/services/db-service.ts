@@ -21,12 +21,8 @@ export const DbService = {
         }
 
         // Transform Supabase structure to our Venue type if needed
-        // For now assuming 1:1 mapping mostly, but we need to fetch nested categories/products usually
-        // Supabase simple query:
-        // This is a simplified fetch. In reality, we'd probably want to join or fetch separately.
         return data.map((v: any) => ({
             ...v,
-            // Default empty arrays because simple 'select * from venues' won't return joined children
             categories: [],
             products: []
         })) as Venue[];
@@ -61,12 +57,233 @@ export const DbService = {
             .eq('venue_id', venueData.id)
             .order('order_index');
 
+        const products = (prodData || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            price: p.price,
+            image: p.image,
+            categoryId: p.category_id,
+            venueId: p.venue_id,
+            isAvailable: p.is_available,
+            allergens: p.allergens,
+            isChefRecommendation: p.is_chef_recommendation,
+            labels: p.labels, // jsonb usually stays same
+            currency: 'TRY'
+        }));
+
+        const categories = (catData || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            venueId: c.venue_id
+        }));
+
         const venue: Venue = {
-            ...venueData,
-            categories: catData || [],
-            products: prodData || []
+            id: venueData.id,
+            slug: venueData.slug,
+            name: venueData.name,
+            coverImage: venueData.cover_image || venueData.coverImage, // handle both casing just in case
+            theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme, // Handle JSONB if needed, or if supabase returns object
+            categories: categories,
+            products: products
         };
 
         return venue;
+    },
+
+    // Get single venue by ID (for admin editor)
+    getVenueById: async (id: string): Promise<Venue | null> => {
+        if (!isSupabaseConfigured()) {
+            return mockVenues.find(v => v.id === id) || null;
+        }
+
+        const { data: venueData, error: venueError } = await supabase
+            .from('venues')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (venueError || !venueData) return null;
+
+        const { data: catData } = await supabase
+            .from('categories')
+            .select('*')
+            .eq('venue_id', venueData.id)
+            .order('order_index');
+
+        const { data: prodData } = await supabase
+            .from('products')
+            .select('*')
+            .eq('venue_id', venueData.id)
+            .order('order_index');
+
+        const products = (prodData || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            price: p.price,
+            image: p.image,
+            categoryId: p.category_id,
+            venueId: p.venue_id,
+            isAvailable: p.is_available,
+            allergens: p.allergens,
+            isChefRecommendation: p.is_chef_recommendation,
+            labels: p.labels,
+            currency: 'TRY'
+        }));
+
+        const categories = (catData || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            venueId: c.venue_id
+        }));
+
+        const venue: Venue = {
+            id: venueData.id,
+            slug: venueData.slug,
+            name: venueData.name,
+            coverImage: venueData.cover_image || venueData.coverImage,
+            theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme,
+            categories: categories,
+            products: products
+        };
+
+
+        return venue;
+    },
+
+    updateVenue: async (id: string, updates: Partial<Venue>) => {
+        if (!isSupabaseConfigured()) return;
+
+        const dbUpdates: any = { ...updates };
+        if (updates.coverImage !== undefined) {
+            dbUpdates.cover_image = updates.coverImage;
+            delete dbUpdates.coverImage;
+        }
+
+        const { error } = await supabase.from('venues').update(dbUpdates).eq('id', id);
+        if (error) throw error;
+    },
+
+    updateVenueTheme: async (id: string, theme: any) => {
+        if (!isSupabaseConfigured()) {
+            console.log("Mock update theme", id, theme);
+            return;
+        }
+        const { error } = await supabase.from('venues').update({ theme }).eq('id', id);
+        if (error) throw error;
+    },
+
+    updateProduct: async (id: string, updates: Partial<Venue['products'][0]>) => {
+        if (!isSupabaseConfigured()) {
+            console.log("Mock update product", id, updates);
+            return;
+        }
+        // Map frontend camelCase to db snake_case if needed
+        const dbUpdates: any = { ...updates };
+        if (updates.isAvailable !== undefined) {
+            dbUpdates.is_available = updates.isAvailable;
+            delete dbUpdates.isAvailable;
+        }
+        if (updates.categoryId !== undefined) {
+            dbUpdates.category_id = updates.categoryId;
+            delete dbUpdates.categoryId;
+        }
+        if (updates.isChefRecommendation !== undefined) {
+            dbUpdates.is_chef_recommendation = updates.isChefRecommendation;
+            delete dbUpdates.isChefRecommendation;
+        }
+        // allergens usually maps directly if column name is same, but let's be safe if we change it.
+        // assuming column is 'allergens' (text array) in DB, and 'allergens' in update obj.
+
+
+        const { error } = await supabase.from('products').update(dbUpdates).eq('id', id);
+        if (error) throw error;
+    },
+
+    createProduct: async (product: any) => {
+        if (!isSupabaseConfigured()) return;
+        const dbProduct: any = { ...product };
+        if (product.isAvailable !== undefined) {
+            dbProduct.is_available = product.isAvailable;
+            delete dbProduct.isAvailable;
+        }
+        if (product.categoryId !== undefined) {
+            dbProduct.category_id = product.categoryId;
+            delete dbProduct.categoryId;
+        }
+        if (product.venueId !== undefined) {
+            dbProduct.venue_id = product.venueId;
+            delete dbProduct.venueId;
+        }
+
+        const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
+        if (error) throw error;
+
+        // Map back to camelCase for frontend use
+        return {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            price: data.price,
+            image: data.image,
+            categoryId: data.category_id,
+            venueId: data.venue_id,
+            isAvailable: data.is_available,
+            allergens: data.allergens,
+            isChefRecommendation: data.is_chef_recommendation,
+            labels: data.labels,
+            currency: 'TRY'
+        };
+    },
+
+    createCategory: async (category: any) => {
+        if (!isSupabaseConfigured()) return;
+
+        const dbCategory = {
+            venue_id: category.venueId,
+            name: category.name,
+            order_index: 0 // Correct column name
+        };
+
+        const { data, error } = await supabase.from('categories').insert(dbCategory).select().single();
+        if (error) throw error;
+
+        return {
+            id: data.id,
+            name: data.name,
+            venueId: data.venue_id
+        };
+    },
+
+    // App Settings (Landing Page)
+    getAppSettings: async (key: string = 'landing_page') => {
+
+        if (!isSupabaseConfigured()) {
+            return {
+                backgroundImage: "/crowne_plaza_bg.jpg",
+                title: "CROWNE PLAZA",
+                subtitle: "ANKARA",
+                instagramUrl: "https://instagram.com",
+                websiteUrl: "https://crowneplaza.com"
+            };
+        }
+
+        const { data, error } = await supabase.from('app_settings').select('value').eq('key', key).single();
+        if (error || !data) return null;
+        return data.value;
+    },
+
+    updateAppSettings: async (key: string, value: any) => {
+        if (!isSupabaseConfigured()) return;
+
+        // Upsert: update if exists, insert if not
+        const { error } = await supabase.from('app_settings').upsert({
+            key,
+            value,
+            updated_at: new Date().toISOString()
+        });
+
+        if (error) throw error;
     }
 };

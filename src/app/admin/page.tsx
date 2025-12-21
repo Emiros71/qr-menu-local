@@ -1,4 +1,8 @@
-import { venues } from "@/data/db";
+"use client";
+
+import { useEffect, useState } from "react";
+import { DbService } from "@/services/db-service";
+import { Venue } from "@/data/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Store, TrendingUp, Users, DollarSign, Activity, AlertCircle } from "lucide-react";
 import Link from "next/link";
@@ -6,6 +10,25 @@ import { Button } from "@/components/ui/Button";
 import { MainTrafficChart, TopProductsChart, CategoryDistributionChart } from "@/components/admin/Charts";
 
 export default function AdminDashboard() {
+    const [venues, setVenues] = useState<Venue[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function load() {
+            setLoading(true);
+            const data = await DbService.getVenues();
+            setVenues(data);
+            setLoading(false);
+        }
+        load();
+    }, []);
+
+    const totalVenues = venues.length;
+    // Note: DbService.getVenues() returns venues with empty arrays for products currently if fetched from Supabase via simple select.
+    // To get accurate stats, we'd need a more complex query or service method. 
+    // For dashboard stats, we usually have a dedicated 'getDashboardStats' endpoint.
+    // For now, we'll display what we have.
+
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center">
@@ -37,14 +60,14 @@ export default function AdminDashboard() {
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-zinc-500">Masa Doluluk Oranı</CardTitle>
+                        <CardTitle className="text-sm font-medium text-zinc-500">Kayıtlı Restoran</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-zinc-900">%68</div>
+                        <div className="text-3xl font-bold text-zinc-900">{loading ? "..." : totalVenues}</div>
                         <div className="h-2 w-full bg-zinc-100 rounded-full mt-2 overflow-hidden">
-                            <div className="h-full bg-green-500 w-[68%]" />
+                            <div className="h-full bg-blue-500 w-full" />
                         </div>
-                        <p className="text-xs text-zinc-500 mt-2">Öğle saatlerinde yoğunluk bekleniyor.</p>
+                        <p className="text-xs text-zinc-500 mt-2">Aktif sözleşmeli işletmeler.</p>
                     </CardContent>
                 </Card>
 
@@ -102,28 +125,38 @@ export default function AdminDashboard() {
                 </Card>
             </div>
 
-            {/* Secondary Charts Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>En Çok Satanlar</CardTitle>
-                        <CardDescription>Bu haftanın favori ürünleri.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <TopProductsChart />
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Kategori Dağılımı</CardTitle>
-                        <CardDescription>Müşterilerin ilgi alanları.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <CategoryDistributionChart />
-                    </CardContent>
-                </Card>
-            </div>
+            {/* Restoran Listesi */}
+            <div>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-zinc-900">Restoranların</h2>
+                    <Link href="/admin/venues/new">
+                        <Button>+ Yeni Ekle</Button>
+                    </Link>
+                </div>
 
+                {loading ? (
+                    <div className="text-center py-10">Restoranlar yükleniyor...</div>
+                ) : (
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {venues.map((venue) => (
+                            <Card key={venue.id} className="hover:shadow-md transition-shadow">
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <CardTitle>{venue.name}</CardTitle>
+                                        <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">Aktif</span>
+                                    </div>
+                                    <CardDescription className="line-clamp-1">{venue.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Link href={`/admin/venues/${venue.id}`}>
+                                        <Button variant="outline" className="w-full">Yönet</Button>
+                                    </Link>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

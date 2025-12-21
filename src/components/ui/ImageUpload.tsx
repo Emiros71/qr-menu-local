@@ -27,12 +27,41 @@ export default function ImageUpload({
         setIsUploading(true);
 
         try {
+            // Updated to use Signed Upload (More Secure)
+
+            // 1. Get Signature from our Server
+            const timestamp = Math.round((new Date()).getTime() / 1000);
+
+            // Params we want to sign
+            const paramsToSign = {
+                timestamp,
+                folder,
+                // We use process.env value passed from props or default
+                upload_preset: undefined // Signed uploads usually don't need preset if we sign params manually, OR we use a signed preset. Let's stick to manual signing without preset for maximum control, OR utilize a signed preset if configured.
+                // Actually, simplest signed flow:
+                // timestamp + folder -> sign it.
+            };
+
+            const signRes = await fetch('/api/sign-cloudinary', {
+                method: 'POST',
+                body: JSON.stringify({
+                    paramsToSign: {
+                        timestamp,
+                        folder
+                    }
+                })
+            });
+
+            if (!signRes.ok) throw new Error("Signature failed");
+            const { signature } = await signRes.json();
+
+            // 2. Upload to Cloudinary with Signature
             const formData = new FormData();
             formData.append("file", file);
-            // Note: You need to create an "Unsigned" upload preset in Cloudinary settings
-            // and replace 'your_upload_preset' with it.
-            formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "qr_menu_preset");
+            formData.append("timestamp", timestamp.toString());
             formData.append("folder", folder);
+            formData.append("signature", signature);
+            formData.append("api_key", process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "");
 
             const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
 
@@ -50,11 +79,11 @@ export default function ImageUpload({
                 onChange(data.secure_url);
             } else {
                 console.error("Upload failed", data);
-                alert("Resim yüklenemedi. Cloudinary ayarlarını kontrol edin.");
+                alert("Resim yüklenemedi: " + (data.error?.message || "Bilinmeyen hata"));
             }
         } catch (error) {
             console.error("Error uploading image:", error);
-            alert("Bir hata oluştu.");
+            alert("Yükleme sırasında hata oluştu. API Key/Secret kontrol edin.");
         } finally {
             setIsUploading(false);
         }

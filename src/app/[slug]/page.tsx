@@ -4,7 +4,8 @@ import Image from "next/image";
 import { useEffect, useState, use } from "react";
 import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { venues, Venue } from "@/data/db";
+import { Venue } from "@/data/db";
+import { DbService } from "@/services/db-service";
 import { AnalyticsService } from "@/lib/analytics";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
@@ -15,18 +16,31 @@ export default function RestaurantMenuPage({ params }: { params: Promise<{ slug:
     const [venue, setVenue] = useState<Venue | null>(null);
     const [activeCategory, setActiveCategory] = useState<string>("");
     const [isScrolled, setIsScrolled] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Find venue from DB
-        const foundVenue = venues.find(v => v.slug === unwrappedParams.slug);
-        if (!foundVenue) {
-            // In a real app we might redirect or show 404
-            return;
+        async function loadVenue() {
+            setLoading(true);
+            const data = await DbService.getVenueBySlug(unwrappedParams.slug);
+            if (data) {
+                setVenue(data);
+                if (data.categories.length > 0) {
+                    setActiveCategory(data.categories[0].id);
+                }
+
+                // Log analytics view
+                AnalyticsService.logEvent({
+                    eventType: 'view',
+                    targetId: data.id,
+                    targetType: 'venue',
+                    venueId: data.id,
+                    timestamp: Date.now(),
+                    sessionId: AnalyticsService.trackSession()
+                });
+            }
+            setLoading(false);
         }
-        setVenue(foundVenue);
-        if (foundVenue.categories.length > 0) {
-            setActiveCategory(foundVenue.categories[0].id);
-        }
+        loadVenue();
     }, [unwrappedParams.slug]);
 
     // Scroll handler
@@ -50,12 +64,9 @@ export default function RestaurantMenuPage({ params }: { params: Promise<{ slug:
         return () => window.removeEventListener("scroll", handleScroll);
     }, [venue]);
 
-    if (!venue && typeof window !== "undefined" && !venues.find(v => v.slug === unwrappedParams.slug)) {
-        // rudimentary 404 check
-        notFound();
-    }
 
-    if (!venue) return <div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>;
+    if (loading) return <div className="min-h-screen bg-white flex items-center justify-center">Yükleniyor...</div>;
+    if (!venue) return notFound();
 
     const scrollToCategory = (catId: string) => {
         const element = document.getElementById(catId);
@@ -189,7 +200,9 @@ export default function RestaurantMenuPage({ params }: { params: Promise<{ slug:
             {/* Menu Sections */}
             <main className="container mx-auto px-4 max-w-5xl">
                 {venue.categories.map((cat) => {
-                    const categoryProducts = venue.products.filter(p => p.categoryId === cat.id);
+                    const categoryProducts = venue.products.filter(p =>
+                        (p.categoryId === cat.id) && p.isAvailable
+                    );
 
                     if (categoryProducts.length === 0) return null;
 
@@ -223,19 +236,36 @@ export default function RestaurantMenuPage({ params }: { params: Promise<{ slug:
                                                     <MenuIcon className="h-8 w-8" />
                                                 </div>
                                             )}
+                                            {product.isChefRecommendation && (
+                                                <div className="absolute top-1 left-1 bg-amber-400 text-white text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm shadow-sm flex items-center gap-1">
+                                                    ★ Şefin Seçimi
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Content */}
                                         <div className="flex flex-col flex-1 justify-between py-1 relative z-10">
                                             <div>
                                                 <div className="flex justify-between items-start gap-2">
-                                                    <h4 className="font-bold text-lg text-[var(--foreground)] leading-tight">
+                                                    <h4 className="font-bold text-lg text-[var(--foreground)] leading-tight flex items-center gap-2">
                                                         {product.name}
                                                     </h4>
                                                 </div>
                                                 <p className="text-sm text-[var(--foreground)]/60 mt-2 line-clamp-2 leading-relaxed">
                                                     {product.description}
                                                 </p>
+
+                                                {/* Allergens */}
+                                                {product.allergens && product.allergens.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-2">
+                                                        {product.allergens.map(a => (
+                                                            <span key={a} className="text-[9px] uppercase tracking-wider font-semibold text-[var(--foreground)]/50 border border-black/5 px-1 rounded-sm">
+                                                                {a}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+
                                             </div>
 
                                             <div className="flex items-center justify-between mt-3">
