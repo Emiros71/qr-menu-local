@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-outfit);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  /* Light Theme - Premium Hospitality */
+  --background: #FAFAF9;
+  /* Stone 50 - Warm White */
+  --foreground: #1C1917;
+  /* Stone 900 - Soft Black */
+
+  --card: #FFFFFF;
+  --card-foreground: #1C1917;
+
+  /* Primary: Crowne Plaza Plum - Deep & Luxurious */
+  --primary: #860B5B;
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary: Gold Accent - Premium Feel */
+  --secondary: #C5A065;
+  --secondary-foreground: #FFFFFF;
+
+  --border: #E7E5E4;
+  /* Stone 200 */
+  --input: #E7E5E4;
+  --ring: #860B5B;
+
+  --muted: #F5F5F4;
+  --muted-foreground: #78716C;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Theme - Night Mode Luxury */
+    --background: #0C0A09;
+    /* Stone 950 */
+    --foreground: #FAFAF9;
+
+    --card: #1C1917;
+    --card-foreground: #FAFAF9;
+
+    --primary: #9C0D6B;
+    /* Slightly lighter plum for visibility */
+    --primary-foreground: #FFFFFF;
+
+    --secondary: #D4AF37;
+    /* Brighter gold */
+    --secondary-foreground: #000000;
+
+    --border: #292524;
+    --input: #292524;
+    --ring: #9C0D6B;
+
+    --muted: #292524;
+    --muted-foreground: #A8A29E;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base Styles */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
