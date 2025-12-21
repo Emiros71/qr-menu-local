@@ -1,4 +1,4 @@
-export type EventType = 'view' | 'click' | 'scan';
+export type EventType = 'view' | 'click' | 'scan' | 'VIEW_MENU' | 'CLICK_PRODUCT';
 export type TargetType = 'category' | 'product' | 'venue';
 
 export interface AnalyticsEvent {
@@ -24,9 +24,38 @@ export interface AdminActivityLog {
 // Mock service for analytics
 export const AnalyticsService = {
     logEvent: async (event: AnalyticsEvent) => {
-        // In production, this would write to Firestore:
-        // await db.collection(`restaurants/${event.venueId}/analytics`).add(event);
+        // In production, this would write to Supabase
         console.log("[Analytics]", event);
+    },
+
+    trackEvent: async (params: { type: string, venueId: string, productId?: string, metadata?: any }) => {
+        const sessionId = AnalyticsService.trackSession();
+
+        // Map simplified frontend events to structued AnalyticsEvent
+        let eventType: EventType = 'view';
+        let targetType: TargetType = 'venue';
+        let targetId = params.venueId;
+
+        if (params.type === 'VIEW_MENU') {
+            eventType = 'view';
+            targetType = 'venue';
+        } else if (params.type === 'CLICK_PRODUCT') {
+            eventType = 'click';
+            targetType = 'product';
+            targetId = params.productId || '';
+        }
+
+        const event: AnalyticsEvent = {
+            eventType,
+            targetId,
+            targetType,
+            venueId: params.venueId,
+            timestamp: Date.now(),
+            sessionId,
+            metadata: params.metadata
+        };
+
+        await AnalyticsService.logEvent(event);
     },
 
     trackSession: () => {
@@ -49,8 +78,7 @@ export const LoggerService = {
             id: crypto.randomUUID(),
             timestamp: Date.now(),
         };
-        // In production, write to Firestore:
-        // await db.collection('admin_logs').add(entry);
+        // In production, write to Supabase
         console.log("[Admin Log]", entry);
     }
 };

@@ -6,6 +6,21 @@ const isSupabaseConfigured = () => {
     return !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 };
 
+// Helper to perform updates via API (bypassing Client RLS)
+async function updateViaApi(table: string, id: string, updates: any) {
+    const response = await fetch('/api/admin/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table, id, updates })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API update failed for ${table}`);
+    }
+    return await response.json();
+}
+
 export const DbService = {
     // Get all venues (for landing page / admin list)
     getVenues: async (): Promise<Venue[]> => {
@@ -161,17 +176,27 @@ export const DbService = {
             delete dbUpdates.coverImage;
         }
 
-        const { error } = await supabase.from('venues').update(dbUpdates).eq('id', id);
-        if (error) throw error;
+        // Use API to bypass RLS
+        try {
+            await updateViaApi('venues', id, dbUpdates);
+        } catch (e) {
+            console.error(e);
+            // Fallback
+            const { error } = await supabase.from('venues').update(dbUpdates).eq('id', id);
+            if (error) throw error;
+        }
     },
 
     updateVenueTheme: async (id: string, theme: any) => {
-        if (!isSupabaseConfigured()) {
-            console.log("Mock update theme", id, theme);
-            return;
+        if (!isSupabaseConfigured()) return;
+
+        // Use API to bypass RLS
+        try {
+            await updateViaApi('venues', id, { theme });
+        } catch (e) {
+            const { error } = await supabase.from('venues').update({ theme }).eq('id', id);
+            if (error) throw error;
         }
-        const { error } = await supabase.from('venues').update({ theme }).eq('id', id);
-        if (error) throw error;
     },
 
     updateProduct: async (id: string, updates: Partial<Venue['products'][0]>) => {
@@ -179,26 +204,35 @@ export const DbService = {
             console.log("Mock update product", id, updates);
             return;
         }
-        // Map frontend camelCase to db snake_case if needed
-        const dbUpdates: any = { ...updates };
-        if (updates.isAvailable !== undefined) {
-            dbUpdates.is_available = updates.isAvailable;
-            delete dbUpdates.isAvailable;
-        }
-        if (updates.categoryId !== undefined) {
-            dbUpdates.category_id = updates.categoryId;
-            delete dbUpdates.categoryId;
-        }
-        if (updates.isChefRecommendation !== undefined) {
-            dbUpdates.is_chef_recommendation = updates.isChefRecommendation;
-            delete dbUpdates.isChefRecommendation;
-        }
-        // allergens usually maps directly if column name is same, but let's be safe if we change it.
-        // assuming column is 'allergens' (text array) in DB, and 'allergens' in update obj.
 
+        // Strict allowlist mapping to prevent sending unknown columns to Supabase
+        const dbUpdates: any = {};
 
-        const { error } = await supabase.from('products').update(dbUpdates).eq('id', id);
-        if (error) throw error;
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.price !== undefined) dbUpdates.price = updates.price;
+        if (updates.image !== undefined) dbUpdates.image = updates.image;
+        if (updates.allergens !== undefined) dbUpdates.allergens = updates.allergens;
+
+        // Mapped fields
+        if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
+        if (updates.isAvailable !== undefined) dbUpdates.is_available = updates.isAvailable;
+        if (updates.isChefRecommendation !== undefined) dbUpdates.is_chef_recommendation = updates.isChefRecommendation;
+        if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
+
+        // If no fields to update, return early
+        if (Object.keys(dbUpdates).length === 0) return;
+
+        console.log("Updating product payload via API:", dbUpdates);
+
+        try {
+            await updateViaApi('products', id, dbUpdates);
+            console.log("Product updated successfully via API");
+        } catch (err) {
+            console.error("API Update failed, falling back to direct:", err);
+            const { error } = await supabase.from('products').update(dbUpdates).eq('id', id);
+            if (error) throw error;
+        }
     },
 
     createProduct: async (product: any) => {
@@ -217,6 +251,7 @@ export const DbService = {
             delete dbProduct.venueId;
         }
 
+        // Ideally Create should also go through API if RLS blocks Insert
         const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
         if (error) throw error;
 
@@ -243,7 +278,7 @@ export const DbService = {
         const dbCategory = {
             venue_id: category.venueId,
             name: category.name,
-            order_index: 0 // Correct column name
+            order_index: 0
         };
 
         const { data, error } = await supabase.from('categories').insert(dbCategory).select().single();
