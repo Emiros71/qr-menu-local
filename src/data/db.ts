@@ -1,3 +1,8 @@
+export type TranslationData = {
+    name?: string;
+    description?: string;
+};
+
 export type Theme = {
     primary: string;
     secondary: string;
@@ -10,6 +15,7 @@ export type Category = {
     id: string;
     name: string;
     image?: string;
+    translations?: Record<string, TranslationData>;
 };
 
 export type Product = {
@@ -24,6 +30,7 @@ export type Product = {
     isAvailable: boolean;
     allergens?: string[]; // e.g. ['Gluten', 'Dairy']
     isChefRecommendation?: boolean;
+    translations?: Record<string, TranslationData>;
 };
 
 export type Venue = {
@@ -36,6 +43,8 @@ export type Venue = {
     theme: Theme;
     categories: Category[];
     products: Product[];
+    supportedLanguages?: string[];
+    defaultLanguage?: string;
 };
 
 export const venues: Venue[] = [

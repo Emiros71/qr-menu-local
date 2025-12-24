@@ -42,6 +42,29 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     // Get default image from venue theme settings, or use system fallback
     const venueDefaultImage = (venue.theme as any)?.defaultProductImage || FALLBACK_DEFAULT_IMAGE;
 
+    // --- i18n Logic ---
+    const supportedLangs = venue.supportedLanguages && venue.supportedLanguages.length > 0 ? venue.supportedLanguages : ['tr'];
+    const defaultLang = venue.defaultLanguage || 'tr';
+    const [currentLang, setCurrentLang] = useState(defaultLang);
+
+    useEffect(() => {
+        // Detect browser language on mount
+        if (typeof navigator !== 'undefined') {
+            const browserLang = navigator.language.split('-')[0];
+            if (supportedLangs.includes(browserLang) && browserLang !== currentLang) {
+                setCurrentLang(browserLang);
+            }
+        }
+    }, [supportedLangs]);
+
+    const localize = (obj: any, field: string) => {
+        if (!obj) return "";
+        // If current lang is default, return direct field
+        if (currentLang === defaultLang) return obj[field];
+        // Try translations, fallback to default field
+        return obj.translations?.[currentLang]?.[field] || obj[field];
+    };
+
     useEffect(() => {
         // Track page view on mount
         AnalyticsService.trackEvent({
@@ -193,11 +216,33 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                             className="object-cover opacity-60"
                         />
                     )}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white p-6">
-                        <h2 className="text-3xl md:text-4xl font-bold mb-2 font-serif">{venue.name}</h2>
-                        <p className="text-white/80 max-w-lg">
-                            {venue.description}
-                        </p>
+                    {/* Header Content */}
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white text-center p-6 bg-black/20">
+                        {venue.logo && (
+                            <div className="w-24 h-24 rounded-full bg-white p-2 mb-4 shadow-lg shrink-0">
+                                <Image src={venue.logo} alt="Logo" width={96} height={96} className="w-full h-full object-contain" />
+                            </div>
+                        )}
+                        <h1 className="text-4xl font-bold mb-2 drop-shadow-md tracking-tight">{venue.name}</h1>
+                        <p className="text-white/90 text-sm max-w-md drop-shadow font-medium">{venue.description}</p>
+
+                        {/* Language Selector */}
+                        {supportedLangs.length > 1 && (
+                            <div className="absolute top-4 right-4 z-50">
+                                <div className="relative">
+                                    <select
+                                        value={currentLang}
+                                        onChange={(e) => setCurrentLang(e.target.value)}
+                                        className="appearance-none bg-black/30 backdrop-blur-md text-white border border-white/20 rounded-full py-1.5 pl-8 pr-4 text-xs font-bold focus:outline-none cursor-pointer hover:bg-black/40 transition-colors uppercase"
+                                    >
+                                        {supportedLangs.map(l => (
+                                            <option key={l} value={l} className="text-black bg-white">{l.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                    <Globe className="absolute left-2.5 top-1/5 -translate-y-[1px] mt-2 h-3.5 w-3.5 text-white pointer-events-none" />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -214,7 +259,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                     return (
                         <section key={cat.id} id={cat.id} className="mb-12 scroll-mt-[200px]">
                             <div className="flex items-center gap-4 mb-6">
-                                <h3 className="text-2xl font-bold text-[var(--foreground)]">{cat.name}</h3>
+                                <h3 className="text-2xl font-bold text-[var(--foreground)]">{localize(cat, 'name')}</h3>
                                 <div className="h-[1px] flex-1 bg-black/10" />
                             </div>
 
@@ -237,10 +282,10 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                                         {/* Product Image */}
                                         <div className="relative w-28 h-28 shrink-0 rounded-lg overflow-hidden bg-black/5">
-                                            <ProductImage src={product.image} alt={product.name} defaultImage={venueDefaultImage} />
+                                            <ProductImage src={product.image} alt={localize(product, 'name')} defaultImage={venueDefaultImage} />
                                             {product.isChefRecommendation && (
                                                 <div className="absolute top-1 left-1 bg-amber-400 text-white text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm shadow-sm flex items-center gap-1">
-                                                    ★ Şefin Seçimi
+                                                    ★ {currentLang === 'tr' ? 'Şefin Seçimi' : 'Chef\'s Choice'}
                                                 </div>
                                             )}
                                         </div>
@@ -250,11 +295,11 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                             <div>
                                                 <div className="flex justify-between items-start gap-2">
                                                     <h4 className="font-bold text-lg text-[var(--foreground)] leading-tight flex items-center gap-2">
-                                                        {product.name}
+                                                        {localize(product, 'name')}
                                                     </h4>
                                                 </div>
-                                                <p className="text-sm text-[var(--foreground)]/60 mt-2 line-clamp-2 leading-relaxed">
-                                                    {product.description}
+                                                <p className="text-sm text-[var(--foreground)]/70 line-clamp-2 leading-relaxed">
+                                                    {localize(product, 'description')}
                                                 </p>
 
                                                 {/* Allergens */}

@@ -150,13 +150,15 @@ export const DbService = {
             allergens: p.allergens,
             isChefRecommendation: p.is_chef_recommendation,
             labels: p.labels,
-            currency: 'TRY'
+            currency: 'TRY',
+            translations: p.translations
         }));
 
         const categories = (catData || []).map((c: any) => ({
             id: c.id,
             name: c.name,
-            venueId: c.venue_id
+            venueId: c.venue_id,
+            translations: c.translations
         }));
 
         const venue: Venue = {
@@ -166,7 +168,9 @@ export const DbService = {
             coverImage: venueData.cover_image || venueData.coverImage,
             theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme,
             categories: categories,
-            products: products
+            products: products,
+            supportedLanguages: venueData.supported_languages,
+            defaultLanguage: venueData.default_language
         };
 
 
@@ -180,6 +184,14 @@ export const DbService = {
         if (updates.coverImage !== undefined) {
             dbUpdates.cover_image = updates.coverImage;
             delete dbUpdates.coverImage;
+        }
+        if (updates.supportedLanguages !== undefined) {
+            dbUpdates.supported_languages = updates.supportedLanguages;
+            delete dbUpdates.supportedLanguages;
+        }
+        if (updates.defaultLanguage !== undefined) {
+            dbUpdates.default_language = updates.defaultLanguage;
+            delete dbUpdates.defaultLanguage;
         }
 
         // Use API to bypass RLS
@@ -253,6 +265,7 @@ export const DbService = {
         if (updates.isAvailable !== undefined) dbUpdates.is_available = updates.isAvailable;
         if (updates.isChefRecommendation !== undefined) dbUpdates.is_chef_recommendation = updates.isChefRecommendation;
         if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
+        if (updates.translations !== undefined) dbUpdates.translations = updates.translations;
 
         if (Object.keys(dbUpdates).length === 0) return;
 
