@@ -12,14 +12,14 @@ interface RestaurantMenuProps {
     venue: Venue;
 }
 
-const DEFAULT_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/4/4b/Crowne_Plaza_Hotels_%26_Resorts_logo.svg";
+const FALLBACK_DEFAULT_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/4/4b/Crowne_Plaza_Hotels_%26_Resorts_logo.svg";
 
-function ProductImage({ src, alt }: { src?: string, alt: string }) {
-    const [imgSrc, setImgSrc] = useState(src || DEFAULT_IMAGE);
+function ProductImage({ src, alt, defaultImage }: { src?: string, alt: string, defaultImage: string }) {
+    const [imgSrc, setImgSrc] = useState(src || defaultImage);
 
     useEffect(() => {
-        setImgSrc(src?.startsWith("http") ? src : DEFAULT_IMAGE);
-    }, [src]);
+        setImgSrc(src?.startsWith("http") ? src : defaultImage);
+    }, [src, defaultImage]);
 
     return (
         <Image
@@ -28,9 +28,9 @@ function ProductImage({ src, alt }: { src?: string, alt: string }) {
             fill
             className={cn(
                 "object-cover transition-transform duration-500 group-hover:scale-110",
-                imgSrc === DEFAULT_IMAGE ? "object-contain p-4 opacity-50" : ""
+                imgSrc === defaultImage ? "object-contain p-4 opacity-50" : ""
             )}
-            onError={() => setImgSrc(DEFAULT_IMAGE)}
+            onError={() => setImgSrc(defaultImage)}
         />
     );
 }
@@ -38,6 +38,9 @@ function ProductImage({ src, alt }: { src?: string, alt: string }) {
 export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     const [activeCategory, setActiveCategory] = useState<string>(venue.categories[0]?.id || "");
     const [isScrolled, setIsScrolled] = useState(false);
+
+    // Get default image from venue theme settings, or use system fallback
+    const venueDefaultImage = (venue.theme as any)?.defaultProductImage || FALLBACK_DEFAULT_IMAGE;
 
     useEffect(() => {
         // Track page view on mount
@@ -47,6 +50,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
             metadata: { slug: venue.slug }
         });
     }, [venue.id, venue.slug]);
+
 
     useEffect(() => {
         const handleScroll = () => {
@@ -233,7 +237,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                                         {/* Product Image */}
                                         <div className="relative w-28 h-28 shrink-0 rounded-lg overflow-hidden bg-black/5">
-                                            <ProductImage src={product.image} alt={product.name} />
+                                            <ProductImage src={product.image} alt={product.name} defaultImage={venueDefaultImage} />
                                             {product.isChefRecommendation && (
                                                 <div className="absolute top-1 left-1 bg-amber-400 text-white text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm shadow-sm flex items-center gap-1">
                                                     ★ Şefin Seçimi

@@ -35,5 +35,6 @@
 
 ## Faz 6: Görünüm & UX (Devam Ediyor)
 - [x] **Varsayılan Görsel**: Görseli olmayan ürünler için kurumsal logo (Crowne Plaza) kullanımı.
+        **Varsayılan Görsel**: Burada mekanlara göre değişiklik gösterecek.
 - [ ] **Animasyonlar**: Sayfa geçişleri ve mikro etkileşimler.
 - [ ] **Görünüm & Performans**:

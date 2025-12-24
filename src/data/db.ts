@@ -3,6 +3,7 @@ export type Theme = {
     secondary: string;
     background: string;
     foreground: string;
+    defaultProductImage?: string;
 };
 
 export type Category = {

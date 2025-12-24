@@ -592,6 +592,16 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         <Input value={venueData.theme?.primary} onChange={(e) => handleVenueChange('theme', { primary: e.target.value })} className="bg-white text-zinc-900" />
                                     </div>
                                 </div>
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-sm font-medium">Varsayılan Ürün Görseli</label>
+                                    <p className="text-xs text-zinc-500 mb-2">Ürün resmi olmayan kartlarda bu görsel gösterilir.</p>
+                                    <ImageUpload
+                                        value={venueData.theme?.defaultProductImage || ""}
+                                        onChange={(url) => handleVenueChange('theme', { defaultProductImage: url })}
+                                        onRemove={() => handleVenueChange('theme', { defaultProductImage: "" })}
+                                        folder="qr-menu/venues"
+                                    />
+                                </div>
                             </div>
 
                             {/* Save button is now in sticky header, but we can keep one here too */}
