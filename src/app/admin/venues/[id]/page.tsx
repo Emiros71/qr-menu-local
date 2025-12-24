@@ -222,30 +222,40 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     const handleImportProducts = async (importedData: any[]) => {
         if (!venueData) return;
         setLoading(true);
-
         try {
-            let newProductsCount = 0;
+            // Find or create categories first
+            const catMap = new Map<string, string>(); // Name -> ID
+            categories.forEach(c => catMap.set(c.name.toLowerCase(), c.id));
 
-            // Process sequentially to handle category creation properly
             for (const item of importedData) {
-
-                // 1. Find or Create Category
-                let categoryId = categories.find(c => c.name.toLowerCase() === item.categoryName.toLowerCase())?.id;
-
+                const catName = (item.categoryName || "Genel").toLowerCase();
+                let categoryId = catMap.get(catName);
                 if (!categoryId) {
-                    const newCat = await DbService.createCategory({
-                        venueId: venueData.id,
-                        name: item.categoryName
-                    });
+                    // Create new category if not exists
+                    const newCat = await DbService.createCategory({ venueId: venueData.id, name: item.categoryName || "Genel" });
                     if (newCat) {
                         categoryId = newCat.id;
-                        // Update local state so next items can find it
+                        catMap.set(catName, categoryId);
+                        // Update local state immediately so next items find it
                         setCategories(prev => [...prev, newCat]);
                     }
                 }
 
-                if (categoryId) {
-                    // 2. Create Product
+                if (!categoryId) continue; // Should not happen
+
+                // Check if it is UPDATE (has ID) or CREATE
+                if (item.id) {
+                    await DbService.updateProduct(item.id, {
+                        name: item.name,
+                        description: item.description,
+                        price: item.price,
+                        categoryId: categoryId, // Allow category change
+                        image: item.image,
+                        isAvailable: item.isAvailable,
+                        isChefRecommendation: item.isChefRecommendation,
+                        allergens: item.allergens
+                    });
+                } else {
                     await DbService.createProduct({
                         venueId: venueData.id,
                         categoryId: categoryId,
@@ -253,26 +263,23 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         description: item.description,
                         price: item.price,
                         image: item.image,
-                        isAvailable: item.isAvailable, // Default true from importer
+                        isAvailable: item.isAvailable,
                         isChefRecommendation: item.isChefRecommendation,
                         allergens: item.allergens
                     });
-                    newProductsCount++;
                 }
             }
 
-            alert(`${newProductsCount} ürün başarıyla eklendi!`);
-
-            // Refresh Data
-            const freshData = await DbService.getVenueById(venueData.id);
-            if (freshData) {
-                setProducts(freshData.products);
-                setCategories(freshData.categories);
+            // Refresh Products
+            const updatedVenue = await DbService.getVenueById(venueData.id);
+            if (updatedVenue) {
+                setProducts(updatedVenue.products);
             }
+            alert("İçe aktırma/güncelleme tamamlandı.");
 
         } catch (err) {
-            console.error("Import failed:", err);
-            alert("İçe aktarma sırasında bir hata oluştu.");
+            console.error(err);
+            alert("İçe aktırma sırasında bir hata oluştu: " + err);
         } finally {
             setLoading(false);
         }
@@ -285,17 +292,22 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         const exportData = products.map(p => {
             const catName = categories.find(c => c.id === p.categoryId)?.name || "Genel";
             return {
+                "ID": p.id, // Export ID for update capability
                 "Ürün Adı": p.name,
                 "Açıklama": p.description,
                 "Fiyat": p.price,
                 "Kategori": catName,
                 "Alerjenler": p.allergens ? p.allergens.join(", ") : "",
                 "Şef": p.isChefRecommendation ? "Evet" : "Hayır",
-                "Durum": p.isAvailable ? "Aktif" : "Pasif"
+                "Durum": p.isAvailable ? "Aktif" : "Pasif",
+                "Görsel Dosya Adı": p.image ? p.image : "" // Export current URL as filename reference
             };
         });
 
         const ws = XLSX.utils.json_to_sheet(exportData);
+        // Hide ID column for cleaner look (optional, but better to keep visible for power users)
+        // ws['!cols'] = [{hidden: true}, ...]; 
+
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Menü");
         XLSX.writeFile(wb, `${venueData?.name || "menu"}_export.xlsx`);
