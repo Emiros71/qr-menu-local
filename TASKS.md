@@ -37,4 +37,24 @@
 - [x] **Varsayılan Görsel**: Görseli olmayan ürünler için kurumsal logo (Crowne Plaza) kullanımı.
         **Varsayılan Görsel**: Burada mekanlara göre değişiklik gösterecek.
 - [ ] **Animasyonlar**: Sayfa geçişleri ve mikro etkileşimler.
-- [ ] **Görünüm & Performans**:
+- [ ] **Görünüm & Performans**: Optimizasyon ve hız iyileştirmeleri.
+
+## Faz 7: Çoklu Dil & Alerjen Sistemi (Tamamlandı ✅ - 24.12.2024)
+- [x] **i18n Altyapısı**: Mekanlar için çoklu dil desteği (supportedLanguages, defaultLanguage).
+- [x] **Dil Değiştirici**: Müşteri menüsünde sticky header'da dil seçici.
+- [x] **Ürün/Kategori Çevirileri**: Admin panelde her ürün ve kategori için dil bazlı çeviri girişi.
+- [x] **React Hydration Hatası Düzeltmesi**: suppressHydrationWarning ile tarayıcı uzantı uyumsuzluğu çözümü.
+- [x] **Alerjen Kütüphanesi (Global)**: Tüm mekanlarda ortak kullanılan merkezi alerjen veritabanı.
+- [x] **Alerjen CRUD Yönetimi**: Admin panelde yeni tab ile alerjen ekleme, düzenleme, silme ve çeviri.
+- [x] **Alerjen Çoklu Dil**: Her alerjen için tüm desteklenen dillerde çeviri desteği.
+- [x] **Ürün Bazlı Alerjen İstatistiği**: Her alerjenin kaç üründe kullanıldığını gösterme.
+- [x] **Müşteri Menüsünde Alerjen Çevirileri**: DB'den dinamik alerjen çevirileri gösterimi.
+- [x] **Kaydet Butonu Geri Bildirimi**: Admin panelde değişikliklerin kaydedildiğini bildiren uyarılar.
+- [x] **E2E i18n Testleri**: Playwright ile dil değiştirme ve çeviri testleri.
+
+## Faz 8: Bekleyen Görevler (Yeni - 24.12.2024)
+- [ ] **Excel Formatları Güncelleme**: Alerjen sistemi için Excel import/export formatlarını güncelle.
+- [ ] **Excel Format Kontrolü**: Ürün/Kategori Excel şablonlarını yeni yapıya göre test et.
+- [ ] **Alerjen Sistemi E2E Testleri**: Global alerjen kütüphanesi için kapsamlı testler yaz.
+- [ ] **Admin Panel Alerjen Testleri**: CRUD işlemleri ve çoklu dil testleri.
+- [ ] **Müşteri Menü Alerjen Testleri**: Alerjen gösterimi ve çeviri değişimi testleri.

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Explicitly allow only specific tables
-        if (!['products', 'categories', 'venues'].includes(table)) {
+        if (!['products', 'categories', 'venues', 'allergens'].includes(table)) {
             return NextResponse.json({ error: "Invalid table" }, { status: 403 });
         }
 

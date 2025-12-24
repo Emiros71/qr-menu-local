@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import { Venue, Product, Category } from "@/data/db";
+import { Venue, Product, Category, Allergen } from "@/data/db";
 import { DbService } from "@/services/db-service";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -13,6 +13,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import ProductImporter from "@/components/admin/ProductImporter";
+import { AllergenManager } from "@/components/admin/AllergenManager";
 
 // Mock Allergens List
 const ALLERGENS_LIST = [
@@ -73,6 +74,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     const [venueData, setVenueData] = useState<Venue | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [allergens, setAllergens] = useState<Allergen[]>([]);
 
     // Dirty State (Track changes)
     const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set()); // Product IDs that changed
@@ -99,6 +101,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 setVenueData(data);
                 setProducts(data.products || []);
                 setCategories(data.categories || []);
+                setAllergens(data.allergens || []);
             }
             setLoading(false);
         }
@@ -450,6 +453,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     <button onClick={() => setActiveTab('settings')} className={cn("pb-3 text-sm font-medium border-b-2 transition-colors", activeTab === 'settings' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}>
                         Mekan Ayarları
                     </button>
+                    <button onClick={() => setActiveTab('allergens')} className={cn("pb-3 text-sm font-medium border-b-2 transition-colors", activeTab === 'allergens' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}>
+                        Alerjenler
+                    </button>
                 </div>
             </div>
 
@@ -724,6 +730,20 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 </div>
             )}
 
+            {/* 4. ALLERGENS TAB */}
+            {activeTab === 'allergens' && venueData && (
+                <AllergenManager
+                    allergens={allergens}
+                    products={products}
+                    supportedLanguages={venueData.supportedLanguages || ['tr']}
+                    defaultLanguage={venueData.defaultLanguage || 'tr'}
+                    onUpdate={async () => {
+                        const data = await DbService.getVenueById(unwrappedParams.id);
+                        if (data) setAllergens(data.allergens || []);
+                    }}
+                />
+            )}
+
             {/* Product Detail / Edit / Create Modal */}
             {isAllergenModalOpen && editingProduct && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -838,16 +858,16 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     <div className="space-y-3">
                                         <label className="text-sm font-medium block text-zinc-900">Alerjenler & Etiketler</label>
                                         <div className="flex flex-wrap gap-2">
-                                            {availableAllergens.map(allergen => {
-                                                const isActive = editingProduct.allergens?.includes(allergen);
+                                            {allergens.map(allergen => {
+                                                const isActive = editingProduct.allergens?.includes(allergen.name);
                                                 return (
                                                     <button
-                                                        key={allergen}
+                                                        key={allergen.id}
                                                         onClick={() => {
                                                             const current = editingProduct.allergens || [];
                                                             const newAllergens = isActive
-                                                                ? current.filter(a => a !== allergen)
-                                                                : [...current, allergen];
+                                                                ? current.filter(a => a !== allergen.name)
+                                                                : [...current, allergen.name];
                                                             setEditingProduct(prev => prev ? ({ ...prev, allergens: newAllergens }) : null);
                                                         }}
                                                         className={cn(
@@ -858,7 +878,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                         )}
                                                     >
                                                         {isActive && <Check className="h-3 w-3" />}
-                                                        {allergen}
+                                                        {allergen.name}
                                                     </button>
                                                 )
                                             })}
@@ -872,12 +892,26 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                         className="h-8 text-xs w-32 bg-white"
                                                         placeholder="Alerjen..."
                                                         autoFocus
-                                                        onKeyDown={e => {
+                                                        onKeyDown={async e => {
                                                             if (e.key === 'Enter') {
                                                                 e.preventDefault();
-                                                                if (newAllergen.trim()) {
+                                                                if (newAllergen.trim() && venueData) {
                                                                     const val = newAllergen.trim();
-                                                                    setAvailableAllergens(prev => prev.includes(val) ? prev : [...prev, val]);
+                                                                    // Check if already exists
+                                                                    if (!allergens.find(a => a.name.toLowerCase() === val.toLowerCase())) {
+                                                                        // Create in DB
+                                                                        try {
+                                                                            const created = await DbService.createAllergen({
+                                                                                name: val,
+                                                                                translations: {}
+                                                                            });
+                                                                            if (created) {
+                                                                                setAllergens(prev => [...prev, created]);
+                                                                            }
+                                                                        } catch (e) {
+                                                                            console.error("Failed to create allergen:", e);
+                                                                        }
+                                                                    }
                                                                     setEditingProduct(prev => prev ? ({ ...prev, allergens: [...(prev.allergens || []), val] }) : null);
                                                                     setNewAllergen("");
                                                                     setIsAddingAllergen(false);

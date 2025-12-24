@@ -33,6 +33,12 @@ export type Product = {
     translations?: Record<string, TranslationData>;
 };
 
+export type Allergen = {
+    id: string;
+    name: string;
+    translations?: Record<string, { name: string }>;
+};
+
 export type Venue = {
     id: string;
     slug: string; // e.g., "aura", "one-bar"
@@ -43,6 +49,7 @@ export type Venue = {
     theme: Theme;
     categories: Category[];
     products: Product[];
+    allergens?: Allergen[];
     supportedLanguages?: string[];
     defaultLanguage?: string;
 };

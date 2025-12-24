@@ -14,18 +14,6 @@ interface RestaurantMenuProps {
 
 const FALLBACK_DEFAULT_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/4/4b/Crowne_Plaza_Hotels_%26_Resorts_logo.svg";
 
-const ALLERGEN_LABELS: Record<string, Record<string, string>> = {
-    "Gluten": { en: "Gluten", de: "Gluten", fr: "Gluten", ar: "الغلوتين", ru: "Глютен" },
-    "Yumurta": { en: "Egg", de: "Ei", fr: "Œuf", ar: "بيض", ru: "Яйцо" },
-    "Süt": { en: "Milk", de: "Milch", fr: "Lait", ar: "حليب", ru: "Молоко" },
-    "Hardal": { en: "Mustard", de: "Senf", fr: "Moutarde", ar: "خردل", ru: "Горчица" },
-    "Yer Fıstığı": { en: "Peanut", de: "Erdnuss", fr: "Arachide", ar: "فول سوداني", ru: "Арахис" },
-    "Soya": { en: "Soy", de: "Soja", fr: "Soja", ar: "صويا", ru: "Соя" },
-    "Balık": { en: "Fish", de: "Fisch", fr: "Poisson", ar: "سمك", ru: "Рыба" },
-    "Kabuklu Deniz Ürünleri": { en: "Shellfish", de: "Schalentiere", fr: "Fruits de mer", ar: "محار", ru: "Моллюски" },
-    "Kereviz": { en: "Celery", de: "Sellerie", fr: "Céleri", ar: "كرفس", ru: "Сельдерей" },
-};
-
 function ProductImage({ src, alt, defaultImage }: { src?: string, alt: string, defaultImage: string }) {
     const [imgSrc, setImgSrc] = useState(src || defaultImage);
 
@@ -76,6 +64,15 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
         if (currentLang === defaultLang) return obj[field];
         // Try translations, fallback to default field
         return obj.translations?.[currentLang]?.[field] || obj[field];
+    };
+
+    // Allergen localization helper
+    const localizeAllergen = (allergenName: string) => {
+        if (currentLang === defaultLang) return allergenName;
+        // Find allergen in venue's allergen list
+        const allergen = venue.allergens?.find(a => a.name === allergenName);
+        // Return translation if exists, otherwise return original name
+        return allergen?.translations?.[currentLang]?.name || allergenName;
     };
 
     useEffect(() => {
@@ -342,7 +339,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                                     <div className="flex flex-wrap gap-1 mt-2">
                                                         {product.allergens.map(allergen => (
                                                             <span key={allergen} className="text-[10px] px-1.5 py-0.5 bg-zinc-100 text-zinc-500 rounded-full border border-zinc-200">
-                                                                {ALLERGEN_LABELS[allergen]?.[currentLang] || allergen}
+                                                                {localizeAllergen(allergen)}
                                                             </span>
                                                         ))}
                                                     </div>

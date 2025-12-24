@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { venues as mockVenues, Venue, Product, Category } from "@/data/db";
+import { venues as mockVenues, Venue, Product, Category, Allergen } from "@/data/db";
 
 // Helper to check if Supabase is configured
 const isSupabaseConfigured = () => {
@@ -76,7 +76,14 @@ export const DbService = {
             .from('products')
             .select('*')
             .eq('venue_id', venueData.id)
+            .eq('venue_id', venueData.id)
             .order('order_index');
+
+        // Fetch Allergens (Global Library)
+        const { data: allergenData } = await supabase
+            .from('allergens')
+            .select('*')
+            .order('name');
 
         const products = (prodData || []).map((p: any) => ({
             id: p.id,
@@ -109,8 +116,14 @@ export const DbService = {
             theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme,
             supportedLanguages: venueData.supported_languages,
             defaultLanguage: venueData.default_language,
+
             categories: categories,
-            products: products
+            products: products,
+            allergens: (allergenData || []).map((a: any) => ({
+                id: a.id,
+                name: a.name,
+                translations: typeof a.translations === 'string' ? JSON.parse(a.translations) : a.translations
+            }))
         };
 
         return venue;
@@ -141,6 +154,11 @@ export const DbService = {
             .select('*')
             .eq('venue_id', venueData.id)
             .order('order_index');
+
+        const { data: allergenData } = await supabase
+            .from('allergens')
+            .select('*')
+            .order('name');
 
         const products = (prodData || []).map((p: any) => ({
             id: p.id,
@@ -174,7 +192,12 @@ export const DbService = {
             categories: categories,
             products: products,
             supportedLanguages: venueData.supported_languages,
-            defaultLanguage: venueData.default_language
+            defaultLanguage: venueData.default_language,
+            allergens: (allergenData || []).map((a: any) => ({
+                id: a.id,
+                name: a.name,
+                translations: typeof a.translations === 'string' ? JSON.parse(a.translations) : a.translations
+            }))
         };
 
 
@@ -422,5 +445,51 @@ export const DbService = {
         });
 
         if (error) throw error;
+    },
+
+    // Allergens
+    createAllergen: async (allergen: any) => {
+        if (!isSupabaseConfigured()) return;
+        const dbAllergen: any = {
+            name: allergen.name,
+            translations: allergen.translations
+        };
+        try {
+            const result = await performActionViaApi('allergens', 'create', dbAllergen);
+            const data = result && result.length > 0 ? result[0] : null;
+            if (!data) throw new Error("Insert returned no data");
+            return {
+                id: data.id,
+                name: data.name,
+                translations: data.translations
+            };
+        } catch (e) {
+            console.error("Create Allergen failed:", e);
+            const { data, error } = await supabase.from('allergens').insert(dbAllergen).select().single();
+            if (error) throw error;
+            return { id: data.id, venueId: data.venue_id, name: data.name, translations: data.translations };
+        }
+    },
+
+    updateAllergen: async (id: string, updates: any) => {
+        if (!isSupabaseConfigured()) return;
+        const dbUpdates: any = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.translations !== undefined) dbUpdates.translations = updates.translations;
+
+        try {
+            await performActionViaApi('allergens', 'update', dbUpdates, id);
+        } catch (e) {
+            await supabase.from('allergens').update(dbUpdates).eq('id', id);
+        }
+    },
+
+    deleteAllergen: async (id: string) => {
+        if (!isSupabaseConfigured()) return;
+        try {
+            await performActionViaApi('allergens', 'delete', null, id);
+        } catch (e) {
+            await supabase.from('allergens').delete().eq('id', id);
+        }
     }
 };
