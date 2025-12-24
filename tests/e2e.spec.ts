@@ -1,64 +1,100 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('QR Menu SaaS E2E Tests', () => {
+test.describe.serial('QR Menu SaaS E2E Tests', () => {
+    let VENUE_ID: string;
+    let VENUE_SLUG: string;
+
+    // Setup: Create a fresh venue for testing
+    test.beforeAll(async ({ request }) => {
+        const timestamp = Date.now();
+        VENUE_SLUG = `e2e-venue-${timestamp}`;
+
+        const response = await request.post('/api/admin/update', {
+            data: {
+                table: 'venues',
+                action: 'create',
+                updates: {
+                    name: `E2E Test Venue ${timestamp}`,
+                    slug: VENUE_SLUG,
+                    theme: { primary: "#000000", secondary: "#ffffff", background: "#ffffff", foreground: "#000000" }
+                }
+            }
+        });
+
+        const json = await response.json();
+        expect(response.ok()).toBeTruthy();
+        VENUE_ID = json.data[0].id;
+        console.log(`Created E2E Venue: ${VENUE_ID} (${VENUE_SLUG})`);
+    });
+
+    const TEST_CAT_NAME = 'E2E Test Kategori';
+    const TEST_PROD_NAME = 'E2E Test Burger';
 
     // 1. Landing Page Test
     test('Landing page should load and display venues', async ({ page }) => {
         await page.goto('/');
-        await expect(page).toHaveTitle(/SaaS/i); // Title check
-        // Check if at least one venue card link exists
+        await expect(page).toHaveTitle(/SaaS/i);
         const venueLink = page.locator('a[href^="/"]');
         await expect(venueLink.first()).toBeVisible();
     });
 
     // 2. Customer Menu Flow
-    test('Customer should be able to view a venue menu', async ({ page }) => {
-        // Navigate to a known venue slug (First one usually is 'aura' or 'one-bar')
-        // We assume 'aura' exists from seed data
-        await page.goto('/aura');
+    test('Customer should be able to view the new venue menu', async ({ page }) => {
+        if (!VENUE_SLUG) test.skip();
+        await page.goto(`/${VENUE_SLUG}`);
 
-        // Check venue name
+        // It should be empty but page load should succeed
         const venueName = page.locator('h1');
-        await expect(venueName).toContainText(/Aura/i);
-
-        // Check Categories
-        const categoryButton = page.locator('button').filter({ hasText: /Yemek/i }).first();
-        // Assuming 'Yemek' or similar category exists. If dynamic, we check for *any* category button.
-        const categories = page.locator('header button');
-        await expect(categories.first()).toBeVisible();
-
-        // Check Products
-        const products = page.locator('main section div.group');
-        await expect(products.first()).toBeVisible();
+        await expect(venueName).toContainText(/E2E Test Venue/i);
     });
 
-    // 3. Admin Panel Access
-    test('Admin panel should be accessible', async ({ page }) => {
-        await page.goto('/admin');
-        await expect(page.locator('h1')).toContainText(/Genel Bakış/i);
+    // 3. Admin Panel - Venue Editor UI Interactions
+    test('Admin should be able to manage categories and products via UI', async ({ page }) => {
+        if (!VENUE_ID) test.skip();
 
-        // Check Sidebar
-        const sidebar = page.locator('aside');
-        await expect(sidebar).toBeVisible();
+        // Go to Admin Venue Page
+        await page.goto(`/admin/venues/${VENUE_ID}`);
 
-        // Check Venues List in Sidebar or Main Content
-        const venueItem = page.locator('text=Mekanlar');
-        await expect(venueItem).toBeVisible();
+        // Wait for page to load data (name should appear)
+        await expect(page.locator('h1')).toContainText(/E2E Test Venue/i);
+
+        // --- A. Create Category ---
+        await page.getByRole('tab', { name: 'Kategoriler' }).click();
+        const catInput = page.getByPlaceholder('Yeni Kategori Adı');
+        await expect(catInput).toBeVisible();
+        await catInput.fill(TEST_CAT_NAME);
+        await page.getByRole('button', { name: 'Ekle' }).click();
+        await expect(page.getByText(TEST_CAT_NAME)).toBeVisible();
+
+        // --- B. Create Product ---
+        await page.getByRole('tab', { name: 'Ürünler' }).click();
+        const newProductBtn = page.getByRole('button', { name: 'Yeni Ürün' });
+        await expect(newProductBtn).toBeVisible();
+        await newProductBtn.click();
+
+        const modal = page.locator('.fixed.inset-0');
+        await expect(modal).toBeVisible();
+
+        await modal.getByPlaceholder('Örn: Cheeseburger').fill(TEST_PROD_NAME);
+        await modal.locator('input[type="number"]').fill('150');
+        await modal.getByRole('button', { name: 'Kaydet' }).click();
+
+        await expect(modal).toBeHidden();
+        await expect(page.getByText(TEST_PROD_NAME)).toBeVisible();
     });
 
-    // 4. Admin Edit Flow (Simulated)
-    test('Admin should be able to open venue editor', async ({ page }) => {
-        await page.goto('/admin');
-
-        // Click on the first venue in the list (if available)
-        // This depends on the exact UI implementation, might need adjustment
-        // Ideally, navigate directly to an edit page if UUID is unknown
-        // For now, let's verify the route structure
-        await page.goto('/admin/venues/dummy-id');
-        // Since ID is dummy, it might show "Not Found" or loading, but page shouldn't crash 500
-        // Actually, let's check if we can reach the page component
-        // If it says "Mekan bulunamadı", it means the page loaded successfully but data failed. This is a PASS for the app structure.
-        await expect(page.locator('body')).toContainText(/Mekan bulunamadı|Yükleniyor/i);
+    // Cleanup via API
+    test.afterAll(async ({ request }) => {
+        if (VENUE_ID) {
+            console.log('Cleaning up venue...');
+            await request.post('/api/admin/update', {
+                data: {
+                    table: 'venues',
+                    action: 'delete',
+                    id: VENUE_ID
+                }
+            });
+        }
     });
 
 });
