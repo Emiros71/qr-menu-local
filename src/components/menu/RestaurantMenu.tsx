@@ -7,10 +7,32 @@ import { cn } from "@/lib/utils";
 import { Venue } from "@/data/db";
 import { AnalyticsService } from "@/lib/analytics";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 interface RestaurantMenuProps {
     venue: Venue;
+}
+
+const DEFAULT_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/4/4b/Crowne_Plaza_Hotels_%26_Resorts_logo.svg";
+
+function ProductImage({ src, alt }: { src?: string, alt: string }) {
+    const [imgSrc, setImgSrc] = useState(src || DEFAULT_IMAGE);
+
+    useEffect(() => {
+        setImgSrc(src?.startsWith("http") ? src : DEFAULT_IMAGE);
+    }, [src]);
+
+    return (
+        <Image
+            src={imgSrc}
+            alt={alt}
+            fill
+            className={cn(
+                "object-cover transition-transform duration-500 group-hover:scale-110",
+                imgSrc === DEFAULT_IMAGE ? "object-contain p-4 opacity-50" : ""
+            )}
+            onError={() => setImgSrc(DEFAULT_IMAGE)}
+        />
+    );
 }
 
 export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
@@ -211,18 +233,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                                         {/* Product Image */}
                                         <div className="relative w-28 h-28 shrink-0 rounded-lg overflow-hidden bg-black/5">
-                                            {product.image ? (
-                                                <Image
-                                                    src={product.image}
-                                                    alt={product.name}
-                                                    fill
-                                                    className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-black/20">
-                                                    <MenuIcon className="h-8 w-8" />
-                                                </div>
-                                            )}
+                                            <ProductImage src={product.image} alt={product.name} />
                                             {product.isChefRecommendation && (
                                                 <div className="absolute top-1 left-1 bg-amber-400 text-white text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm shadow-sm flex items-center gap-1">
                                                     ★ Şefin Seçimi

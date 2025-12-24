@@ -164,23 +164,36 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     if (!file) return; // File not found in selection
 
                     try {
-                        // 1. Sign
+                        // 1. Prepare Params
                         const timestamp = Math.round((new Date()).getTime() / 1000);
                         const folder = "qr-menu/products";
+                        // Use filename as public_id (remove extension) to avoid duplicates (overwrite mode)
+                        const public_id = filename.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "_");
 
+                        const paramsToSign = {
+                            timestamp,
+                            folder,
+                            public_id,
+                            use_filename: true,
+                            unique_filename: false,
+                            overwrite: true
+                        };
+
+                        // 2. Sign
                         const signRes = await fetch('/api/sign-cloudinary', {
                             method: 'POST',
-                            body: JSON.stringify({ paramsToSign: { timestamp, folder } })
+                            body: JSON.stringify({ paramsToSign })
                         });
 
                         if (!signRes.ok) throw new Error("Sign failed");
                         const { signature } = await signRes.json();
 
-                        // 2. Upload
+                        // 3. Upload
                         const formData = new FormData();
                         formData.append("file", file);
-                        formData.append("timestamp", timestamp.toString());
-                        formData.append("folder", folder);
+                        Object.entries(paramsToSign).forEach(([key, value]) => {
+                            formData.append(key, value.toString());
+                        });
                         formData.append("signature", signature);
                         formData.append("api_key", process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "");
 
