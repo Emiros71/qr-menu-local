@@ -277,6 +277,29 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         }
     };
 
+    const handleExportProducts = async () => {
+        // Dynamic import to avoid large bundle size on initial load if not needed
+        const XLSX = await import("xlsx");
+
+        const exportData = products.map(p => {
+            const catName = categories.find(c => c.id === p.categoryId)?.name || "Genel";
+            return {
+                "Ürün Adı": p.name,
+                "Açıklama": p.description,
+                "Fiyat": p.price,
+                "Kategori": catName,
+                "Alerjenler": p.allergens ? p.allergens.join(", ") : "",
+                "Şef": p.isChefRecommendation ? "Evet" : "Hayır",
+                "Durum": p.isAvailable ? "Aktif" : "Pasif"
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Menü");
+        XLSX.writeFile(wb, `${venueData?.name || "menu"}_export.xlsx`);
+    };
+
     const openAllergenModal = (product: Product) => {
         setEditingProduct(product);
         setIsAllergenModalOpen(true);
@@ -363,7 +386,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         </div>
 
                         <div className="flex gap-2">
-                            <ProductImporter onImport={handleImportProducts} />
+                            <ProductImporter onImport={handleImportProducts} onExport={handleExportProducts} />
                             <Button onClick={handleCreateProduct}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Yeni Ürün

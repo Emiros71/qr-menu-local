@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/Button";
-import { Upload, Loader2, FileSpreadsheet } from "lucide-react";
+import { Download, Upload, Loader2, FileSpreadsheet } from "lucide-react";
 import { Product } from "@/data/db";
 
 interface ImportedProduct {
@@ -18,11 +18,22 @@ interface ImportedProduct {
 
 interface ProductImporterProps {
     onImport: (products: any[]) => Promise<void>;
+    onExport?: () => void; // New optional prop for export
 }
 
-export default function ProductImporter({ onImport }: ProductImporterProps) {
+export default function ProductImporter({ onImport, onExport }: ProductImporterProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [importing, setImporting] = useState(false);
+
+    const handleDownloadTemplate = () => {
+        const headers = [
+            { "Ürün Adı": "Örnek Ürün", "Açıklama": "Lezzetli bir yemek", "Fiyat": 150, "Kategori": "Ana Yemekler", "Alerjenler": "Gluten, Süt", "Şef": false }
+        ];
+        const ws = XLSX.utils.json_to_sheet(headers);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Şablon");
+        XLSX.writeFile(wb, "qr_menu_sablon.xlsx");
+    };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -71,7 +82,7 @@ export default function ProductImporter({ onImport }: ProductImporterProps) {
     };
 
     return (
-        <div>
+        <div className="flex items-center gap-2">
             <input
                 type="file"
                 ref={fileInputRef}
@@ -79,15 +90,38 @@ export default function ProductImporter({ onImport }: ProductImporterProps) {
                 accept=".xlsx, .xls"
                 className="hidden"
             />
+
             <Button
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={importing}
-                className="gap-2"
+                title="Excel Yükle"
             >
-                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 text-green-600" />}
-                Excel'den Yükle
+                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-green-600" />}
+                <span className="hidden sm:inline ml-2">Yükle</span>
             </Button>
+
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDownloadTemplate}
+                title="Şablon İndir"
+                className="text-zinc-500 hover:text-zinc-900 px-2"
+            >
+                <FileSpreadsheet className="h-4 w-4" />
+            </Button>
+
+            {onExport && (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onExport}
+                    title="Mevcut Listeyi İndir"
+                    className="text-zinc-500 hover:text-zinc-900 px-2"
+                >
+                    <Download className="h-4 w-4" />
+                </Button>
+            )}
         </div>
     );
 }

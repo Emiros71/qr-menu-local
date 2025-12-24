@@ -25,11 +25,13 @@ export async function POST(req: NextRequest) {
 
         if (action === 'delete') {
             result = await supabase.from(table).delete().eq('id', id).select();
+        } else if (action === 'create') {
+            if (!updates) return NextResponse.json({ error: "Missing data" }, { status: 400 });
+            result = await supabase.from(table).insert(updates).select();
         } else {
             if (!updates) return NextResponse.json({ error: "Missing updates" }, { status: 400 });
             result = await supabase.from(table).update(updates).eq('id', id).select();
         }
-
         const { data, error } = result;
 
         if (error) {

@@ -6,67 +6,27 @@ const isSupabaseConfigured = () => {
     return !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 };
 
-// Helper to perform updates via API (bypassing Client RLS)
-async function updateViaApi(table: string, id: string, updates: any) {
+// Helper to perform generic actions via API (bypassing Client RLS)
+async function performActionViaApi(table: string, action: 'update' | 'delete' | 'create', data: any, id?: string) {
+    const payload: any = { table, action, updates: data };
+    if (id) payload.id = id;
+
     const response = await fetch('/api/admin/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table, id, updates })
+        body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `API update failed for ${table}`);
+        throw new Error(errorData.error || `API ${action} failed for ${table}`);
     }
-    return await response.json();
-}
-
-async function deleteViaApi(table: string, id: string) {
-    const response = await fetch('/api/admin/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table, id, action: 'delete' })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `API delete failed for ${table}`);
-    }
-    return await response.json();
+    const result = await response.json();
+    return result.data; // Supabase returns array of affected rows, we usually want first one
 }
 
 export const DbService = {
-    // ... (keep exisitng methods)
-
-    updateCategory: async (id: string, name: string) => {
-        if (!isSupabaseConfigured()) return;
-        try {
-            await updateViaApi('categories', id, { name });
-        } catch (e) {
-            console.error(e);
-            throw e;
-        }
-    },
-
-    deleteCategory: async (id: string) => {
-        if (!isSupabaseConfigured()) return;
-        try {
-            await deleteViaApi('categories', id);
-        } catch (e) {
-            console.error(e);
-            throw e;
-        }
-    },
-
-    deleteProduct: async (id: string) => {
-        if (!isSupabaseConfigured()) return;
-        try {
-            await deleteViaApi('products', id);
-        } catch (e) {
-            console.error(e);
-            throw e;
-        }
-    },
+    // ... (Getters remain same)
 
     // Get all venues (for landing page / admin list)
     getVenues: async (): Promise<Venue[]> => {
@@ -224,7 +184,7 @@ export const DbService = {
 
         // Use API to bypass RLS
         try {
-            await updateViaApi('venues', id, dbUpdates);
+            await performActionViaApi('venues', 'update', dbUpdates, id);
         } catch (e) {
             console.error(e);
             // Fallback
@@ -238,20 +198,48 @@ export const DbService = {
 
         // Use API to bypass RLS
         try {
-            await updateViaApi('venues', id, { theme });
+            await performActionViaApi('venues', 'update', { theme }, id);
         } catch (e) {
             const { error } = await supabase.from('venues').update({ theme }).eq('id', id);
             if (error) throw error;
         }
     },
 
-    updateProduct: async (id: string, updates: Partial<Venue['products'][0]>) => {
-        if (!isSupabaseConfigured()) {
-            console.log("Mock update product", id, updates);
-            return;
+    updateCategory: async (id: string, name: string) => {
+        if (!isSupabaseConfigured()) return;
+        try {
+            await performActionViaApi('categories', 'update', { name }, id);
+        } catch (e) {
+            console.error(e);
+            throw e;
         }
+    },
 
-        // Strict allowlist mapping to prevent sending unknown columns to Supabase
+    deleteCategory: async (id: string) => {
+        if (!isSupabaseConfigured()) return;
+        try {
+            // Note: Data is null for delete, but id is required
+            await performActionViaApi('categories', 'delete', null, id);
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    },
+
+    deleteProduct: async (id: string) => {
+        if (!isSupabaseConfigured()) return;
+        try {
+            await performActionViaApi('products', 'delete', null, id);
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    },
+
+    updateProduct: async (id: string, updates: Partial<Venue['products'][0]>) => {
+        if (!isSupabaseConfigured()) return;
+
+        // Strict allowlist mapping to prevent sending unknown columns
         const dbUpdates: any = {};
 
         if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -266,14 +254,10 @@ export const DbService = {
         if (updates.isChefRecommendation !== undefined) dbUpdates.is_chef_recommendation = updates.isChefRecommendation;
         if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
 
-        // If no fields to update, return early
         if (Object.keys(dbUpdates).length === 0) return;
 
-        console.log("Updating product payload via API:", dbUpdates);
-
         try {
-            await updateViaApi('products', id, dbUpdates);
-            console.log("Product updated successfully via API");
+            await performActionViaApi('products', 'update', dbUpdates, id);
         } catch (err) {
             console.error("API Update failed, falling back to direct:", err);
             const { error } = await supabase.from('products').update(dbUpdates).eq('id', id);
@@ -284,6 +268,8 @@ export const DbService = {
     createProduct: async (product: any) => {
         if (!isSupabaseConfigured()) return;
         const dbProduct: any = { ...product };
+
+        // Map keys
         if (product.isAvailable !== undefined) {
             dbProduct.is_available = product.isAvailable;
             delete dbProduct.isAvailable;
@@ -297,25 +283,47 @@ export const DbService = {
             delete dbProduct.venueId;
         }
 
-        // Ideally Create should also go through API if RLS blocks Insert
-        const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
-        if (error) throw error;
+        // Use API to bypass RLS for Create
+        try {
+            const result = await performActionViaApi('products', 'create', dbProduct);
+            const data = result && result.length > 0 ? result[0] : null;
+            if (!data) throw new Error("Insert returned no data");
 
-        // Map back to camelCase for frontend use
-        return {
-            id: data.id,
-            name: data.name,
-            description: data.description,
-            price: data.price,
-            image: data.image,
-            categoryId: data.category_id,
-            venueId: data.venue_id,
-            isAvailable: data.is_available,
-            allergens: data.allergens,
-            isChefRecommendation: data.is_chef_recommendation,
-            labels: data.labels,
-            currency: 'TRY'
-        };
+            // Map back to camelCase for frontend use
+            return {
+                id: data.id,
+                name: data.name,
+                description: data.description,
+                price: data.price,
+                image: data.image,
+                categoryId: data.category_id,
+                venueId: data.venue_id,
+                isAvailable: data.is_available,
+                allergens: data.allergens,
+                isChefRecommendation: data.is_chef_recommendation,
+                labels: data.labels,
+                currency: 'TRY'
+            };
+        } catch (e) {
+            console.error("API Create Product failed:", e);
+            // Direct Fallback? Only if RLS allows...
+            const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
+            if (error) throw error;
+            return {
+                id: data.id,
+                name: data.name,
+                description: data.description,
+                price: data.price,
+                image: data.image,
+                categoryId: data.category_id,
+                venueId: data.venue_id,
+                isAvailable: data.is_available,
+                allergens: data.allergens,
+                isChefRecommendation: data.is_chef_recommendation,
+                labels: data.labels,
+                currency: 'TRY'
+            };
+        }
     },
 
     createCategory: async (category: any) => {
@@ -327,14 +335,26 @@ export const DbService = {
             order_index: 0
         };
 
-        const { data, error } = await supabase.from('categories').insert(dbCategory).select().single();
-        if (error) throw error;
+        try {
+            const result = await performActionViaApi('categories', 'create', dbCategory);
+            const data = result && result.length > 0 ? result[0] : null;
+            if (!data) throw new Error("Insert returned no data");
 
-        return {
-            id: data.id,
-            name: data.name,
-            venueId: data.venue_id
-        };
+            return {
+                id: data.id,
+                name: data.name,
+                venueId: data.venue_id
+            };
+        } catch (e) {
+            console.error("API Create Category failed:", e);
+            const { data, error } = await supabase.from('categories').insert(dbCategory).select().single();
+            if (error) throw error;
+            return {
+                id: data.id,
+                name: data.name,
+                venueId: data.venue_id
+            };
+        }
     },
 
     // App Settings (Landing Page)
