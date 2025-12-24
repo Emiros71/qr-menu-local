@@ -252,6 +252,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         name: item.name,
                         description: item.description,
                         price: item.price,
+                        image: item.image,
                         isAvailable: item.isAvailable, // Default true from importer
                         isChefRecommendation: item.isChefRecommendation,
                         allergens: item.allergens

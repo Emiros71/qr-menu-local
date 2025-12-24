@@ -12,8 +12,13 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { id, updates, table, action = 'update' } = body;
 
-        if (!id || !table) {
-            return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+        // Table is always required. ID is required for update/delete but not create.
+        if (!table) {
+            return NextResponse.json({ error: "Missing table parameter" }, { status: 400 });
+        }
+
+        if (action !== 'create' && !id) {
+            return NextResponse.json({ error: "Missing ID parameter" }, { status: 400 });
         }
 
         // Explicitly allow only specific tables

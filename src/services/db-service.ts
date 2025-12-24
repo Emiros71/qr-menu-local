@@ -282,6 +282,14 @@ export const DbService = {
             dbProduct.venue_id = product.venueId;
             delete dbProduct.venueId;
         }
+        if (product.isChefRecommendation !== undefined) {
+            dbProduct.is_chef_recommendation = product.isChefRecommendation;
+            delete dbProduct.isChefRecommendation;
+        }
+        // Allergens and Labels don't change keys but ensuring they exist
+        if (product.allergens === undefined) dbProduct.allergens = [];
+
+        console.log("Creating product with payload:", dbProduct); // Debug log
 
         // Use API to bypass RLS for Create
         try {
