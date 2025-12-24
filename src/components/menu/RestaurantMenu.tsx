@@ -28,7 +28,7 @@ function ProductImage({ src, alt, defaultImage }: { src?: string, alt: string, d
             fill
             className={cn(
                 "object-cover transition-transform duration-500 group-hover:scale-110",
-                imgSrc === defaultImage ? "object-contain p-4 opacity-50" : ""
+                imgSrc === defaultImage ? "object-contain p-1" : ""
             )}
             onError={() => setImgSrc(defaultImage)}
         />

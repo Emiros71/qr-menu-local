@@ -19,6 +19,42 @@ const ALLERGENS_LIST = [
     "Gluten", "Yumurta", "Süt", "Hardal", "Yer Fıstığı", "Soya", "Balık", "Kabuklu Deniz Ürünleri", "Kereviz"
 ];
 
+const AdminProductImage = ({ product, defaultImage, onClick }: { product: Product, defaultImage?: string, onClick: () => void }) => {
+    const [src, setSrc] = useState(product.image || defaultImage);
+    const [hasError, setHasError] = useState(false);
+
+    useEffect(() => {
+        setSrc(product.image || defaultImage);
+        setHasError(false);
+    }, [product.image, defaultImage]);
+
+    return (
+        <div
+            className="h-24 w-24 min-w-[96px] rounded-lg bg-zinc-100 relative overflow-hidden border border-zinc-200 shadow-sm cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all group-hover:scale-105"
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            title="Görseli düzenlemek için tıkla"
+        >
+            {src && !hasError ? (
+                <Image
+                    src={src}
+                    alt={product.name}
+                    fill
+                    className={cn("object-cover", src === defaultImage ? "object-contain p-2 bg-white opacity-80" : "")}
+                    onError={() => {
+                        if (src !== defaultImage && defaultImage) {
+                            setSrc(defaultImage);
+                        } else {
+                            setHasError(true);
+                        }
+                    }}
+                />
+            ) : (
+                <ImageIcon className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-zinc-300" />
+            )}
+        </div>
+    );
+};
+
 export default function VenueEditor({ params }: { params: Promise<{ id: string }> }) {
     const unwrappedParams = use(params);
     const [loading, setLoading] = useState(true);
@@ -436,13 +472,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                                         {/* Image */}
                                         <td className="px-6 py-4">
-                                            <div className="h-10 w-10 rounded bg-zinc-100 relative overflow-hidden border border-zinc-200">
-                                                {product.image ? (
-                                                    <Image src={product.image} alt={product.name} fill className="object-cover" />
-                                                ) : (
-                                                    <ImageIcon className="h-5 w-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-zinc-300" />
-                                                )}
-                                            </div>
+                                            <AdminProductImage
+                                                product={product}
+                                                defaultImage={venueData?.theme?.defaultProductImage}
+                                                onClick={() => openAllergenModal(product)}
+                                            />
                                         </td>
 
                                         {/* Name & Description */}
