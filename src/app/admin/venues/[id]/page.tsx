@@ -35,9 +35,15 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     const [venueSettingsChanged, setVenueSettingsChanged] = useState(false);
 
     // UI States
-    const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'settings'>('products');
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null); // For Details Modal
+    const [activeTab, setActiveTab] = useState('menu');
+
+    // Allergen Management
+    const [availableAllergens, setAvailableAllergens] = useState<string[]>(ALLERGENS_LIST);
+    const [isAddingAllergen, setIsAddingAllergen] = useState(false);
+    const [newAllergen, setNewAllergen] = useState("");
+
     const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null); // For Details Modal
 
     // Load Data
     useEffect(() => {
@@ -399,7 +405,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         </div>
 
                         <div className="flex gap-2">
-                            <ProductImporter onImport={handleImportProducts} onExport={handleExportProducts} />
+                            <ProductImporter
+                                onImport={handleImportProducts}
+                                onExport={handleExportProducts}
+                                existingCategories={categories}
+                            />
                             <Button onClick={handleCreateProduct}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Yeni Ürün
@@ -689,7 +699,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             <div className="space-y-3">
                                 <label className="text-sm font-medium block text-zinc-900">Alerjenler & Etiketler</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {ALLERGENS_LIST.map(allergen => {
+                                    {availableAllergens.map(allergen => {
                                         const isActive = editingProduct.allergens?.includes(allergen);
                                         return (
                                             <button
@@ -713,6 +723,44 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             </button>
                                         )
                                     })}
+
+                                    {/* Add New Allergen Button */}
+                                    {isAddingAllergen ? (
+                                        <div className="flex items-center gap-1 animate-in fade-in zoom-in-95">
+                                            <Input
+                                                value={newAllergen}
+                                                onChange={e => setNewAllergen(e.target.value)}
+                                                className="h-8 text-xs w-32 bg-white"
+                                                placeholder="Alerjen..."
+                                                autoFocus
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (newAllergen.trim()) {
+                                                            const val = newAllergen.trim();
+                                                            setAvailableAllergens(prev => prev.includes(val) ? prev : [...prev, val]);
+                                                            setEditingProduct(prev => prev ? ({ ...prev, allergens: [...(prev.allergens || []), val] }) : null);
+                                                            setNewAllergen("");
+                                                            setIsAddingAllergen(false);
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => setIsAddingAllergen(false)}
+                                                className="p-1 hover:bg-zinc-100 rounded-full text-zinc-500"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setIsAddingAllergen(true)}
+                                            className="px-3 py-1.5 rounded-full text-xs border border-dashed border-zinc-300 hover:border-primary hover:text-primary text-zinc-500 flex items-center gap-1 transition-colors"
+                                        >
+                                            <Plus className="h-3 w-3" /> Ekle
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -731,7 +779,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     try {
                                         await DbService.updateProduct(editingProduct.id, editingProduct);
                                         // Update local list
-                                        setProducts(prev => prev.map(p => p.id === editingProduct.id ? editingProduct : p));
+                                        setProducts(prev => prev.map(p => p.id === editingProduct.id ? (editingProduct as Product) : p));
                                         setIsAllergenModalOpen(false);
                                     } catch (e) { alert("Güncellenemedi"); }
                                 }

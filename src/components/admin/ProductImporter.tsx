@@ -8,6 +8,7 @@ import { Download, Upload, Loader2, FileSpreadsheet, Image as ImageIcon, Check }
 interface ProductImporterProps {
     onImport: (products: any[]) => Promise<void>;
     onExport?: () => void;
+    existingCategories: { id: string; name: string }[];
 }
 
 // Helper for batched processing
@@ -19,13 +20,16 @@ const chunkArray = (array: any[], size: number) => {
     return chunked;
 };
 
-export default function ProductImporter({ onImport, onExport }: ProductImporterProps) {
+export default function ProductImporter({ onImport, onExport, existingCategories }: ProductImporterProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
 
     const [importing, setImporting] = useState(false);
-    const [step, setStep] = useState<'idle' | 'review' | 'uploading'>('idle');
+    const [step, setStep] = useState<'idle' | 'validate' | 'review' | 'uploading'>('idle');
     const [parsedProducts, setParsedProducts] = useState<any[]>([]);
+    const [unknownCategories, setUnknownCategories] = useState<string[]>([]);
+    const [categoryMapping, setCategoryMapping] = useState<Record<string, string>>({}); // "Unknown Name" -> "Target ID" (or "")
+
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -81,7 +85,23 @@ export default function ProductImporter({ onImport, onExport }: ProductImporterP
 
             if (mapped.length > 0) {
                 setParsedProducts(mapped);
-                setStep('review');
+
+                // Validation Step: Check Categories
+                const incomingCategories = Array.from(new Set(mapped.map(p => (p.categoryName || "Genel").trim()))).filter(Boolean);
+                const unknown = incomingCategories.filter(catName =>
+                    !existingCategories.some(ec => ec.name.toLowerCase() === catName.toLowerCase())
+                );
+
+                if (unknown.length > 0) {
+                    setUnknownCategories(unknown);
+                    // Initialize mapping with matching ID or empty (create new)
+                    const initialMap: Record<string, string> = {};
+                    unknown.forEach(u => initialMap[u] = "NEW");
+                    setCategoryMapping(initialMap);
+                    setStep('validate');
+                } else {
+                    setStep('review');
+                }
             } else {
                 alert("Excel dosyasında veri bulunamadı.");
             }
@@ -91,6 +111,27 @@ export default function ProductImporter({ onImport, onExport }: ProductImporterP
         } finally {
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
+    };
+
+    const handleCategoryMapConfirm = () => {
+        // Apply mapping to parsedProducts
+        const updated = parsedProducts.map(p => {
+            const catName = (p.categoryName || "Genel").trim();
+            const mappedId = categoryMapping[catName];
+
+            // If user selected an existing category ID, update the name to match system name
+            // If "NEW", keep original name (it will be created by parent)
+            if (mappedId && mappedId !== "NEW") {
+                const targetCat = existingCategories.find(c => c.id === mappedId);
+                if (targetCat) {
+                    return { ...p, categoryName: targetCat.name }; // Normalize name
+                }
+            }
+            return p;
+        });
+
+        setParsedProducts(updated);
+        setStep('review');
     };
 
     const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,15 +262,56 @@ export default function ProductImporter({ onImport, onExport }: ProductImporterP
                 )}
             </div>
 
-            {/* Manual Modal Implementation */}
-            {(step === 'review' || step === 'uploading') && (
+            {/* Modal for Review & Image Match & Validation */}
+            {(step === 'review' || step === 'uploading' || step === 'validate') && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="p-6">
-                            <h3 className="text-lg font-semibold mb-2 text-zinc-900">{importing ? "Yükleniyor..." : "Verileri Doğrula"}</h3>
-                            <p className="text-sm text-zinc-500 mb-4">{parsedProducts.length} adet ürün bulundu.</p>
+                            <h3 className="text-lg font-semibold mb-2 text-zinc-900">
+                                {step === 'validate' ? "Kategori Eşleştirme" :
+                                    importing ? "Yükleniyor..." : "Verileri Doğrula"}
+                            </h3>
 
-                            {step === 'uploading' ? (
+                            {step !== 'validate' && (
+                                <p className="text-sm text-zinc-500 mb-4">{parsedProducts.length} adet ürün bulundu.</p>
+                            )}
+
+                            {step === 'validate' ? (
+                                <div className="space-y-4">
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
+                                        <h4 className="font-semibold mb-1">Bilinmeyen Kategoriler</h4>
+                                        <p>Excel'deki bazı kategoriler sistemde bulunamadı. Eşleştirme yapabilir veya yeni oluşturabilirsiniz.</p>
+                                    </div>
+
+                                    <div className="max-h-60 overflow-y-auto space-y-3 p-1">
+                                        {unknownCategories.map(cat => (
+                                            <div key={cat} className="flex items-center justify-between bg-zinc-50 p-3 border rounded">
+                                                <span className="font-medium text-zinc-900 truncate max-w-[150px]" title={cat}>{cat}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-zinc-400">→</span>
+                                                    <select
+                                                        className="bg-white border border-zinc-200 rounded px-2 py-1 text-sm w-40 focus:ring-2 focus:ring-primary/20 outline-none"
+                                                        value={categoryMapping[cat] || "NEW"}
+                                                        onChange={(e) => setCategoryMapping(prev => ({ ...prev, [cat]: e.target.value }))}
+                                                    >
+                                                        <option value="NEW">+ Yeni Oluştur</option>
+                                                        <optgroup label="Mevcut Kategoriler">
+                                                            {existingCategories.map(ec => (
+                                                                <option key={ec.id} value={ec.id}>{ec.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex justify-end pt-4 bg-zinc-50 -mx-6 -mb-6 p-4 border-t border-zinc-100">
+                                        <Button variant="ghost" onClick={() => setStep('idle')} className="mr-2">İptal</Button>
+                                        <Button onClick={handleCategoryMapConfirm}>Onayla ve Devam Et</Button>
+                                    </div>
+                                </div>
+                            ) : step === 'uploading' ? (
                                 <div className="py-6 flex flex-col items-center justify-center gap-4">
                                     <Loader2 className="h-10 w-10 animate-spin text-primary" />
                                     <div className="text-sm text-zinc-500">
