@@ -10,9 +10,9 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { id, updates, table } = body;
+        const { id, updates, table, action = 'update' } = body;
 
-        if (!id || !updates || !table) {
+        if (!id || !table) {
             return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
         }
 
@@ -21,14 +21,19 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Invalid table" }, { status: 403 });
         }
 
-        const { data, error } = await supabase
-            .from(table)
-            .update(updates)
-            .eq('id', id)
-            .select();
+        let result;
+
+        if (action === 'delete') {
+            result = await supabase.from(table).delete().eq('id', id).select();
+        } else {
+            if (!updates) return NextResponse.json({ error: "Missing updates" }, { status: 400 });
+            result = await supabase.from(table).update(updates).eq('id', id).select();
+        }
+
+        const { data, error } = result;
 
         if (error) {
-            console.error("Update Error:", error);
+            console.error(`${action.toUpperCase()} Error:`, error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 

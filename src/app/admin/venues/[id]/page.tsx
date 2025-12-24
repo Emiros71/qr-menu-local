@@ -12,6 +12,7 @@ import ImageUpload from "@/components/ui/ImageUpload";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import ProductImporter from "@/components/admin/ProductImporter";
 
 // Mock Allergens List
 const ALLERGENS_LIST = [
@@ -131,16 +132,18 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
     const handleCreateProduct = async () => {
         if (!venueData) return;
-        const confirm = window.confirm("Yeni bir ürün oluşturulsun mu?");
+
+        // Just confirm, don't ask for name
+        const confirm = window.confirm("Yeni bir taslak ürün oluşturulsun mu?");
         if (!confirm) return;
 
         const newProduct = {
             name: "Yeni Ürün",
-            description: "",
-            price: 0,
+            description: "Ürün açıklaması buraya...",
+            price: 150,
             isAvailable: true,
             venueId: venueData.id,
-            categoryId: categories[0]?.id, // Default to first category
+            categoryId: categories[0]?.id,
             image: ""
         };
 
@@ -148,7 +151,6 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             const created = await DbService.createProduct(newProduct);
             if (created) {
                 setProducts(prev => [...prev, created]);
-                // No unsaved changes flag needed as it's already saved in DB upon creation
             }
         } catch (err) {
             console.error(err);
@@ -169,6 +171,109 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         } catch (err) {
             console.error(err);
             alert("Kategori oluşturulamadı.");
+        }
+    };
+
+    const handleEditCategory = async (cat: Category) => {
+        const newName = window.prompt("Yeni kategori adı:", cat.name);
+        if (newName && newName !== cat.name) {
+            try {
+                await DbService.updateCategory(cat.id, newName);
+                // Update local
+                setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, name: newName } : c));
+            } catch (e) {
+                alert("Kategori güncellenemedi.");
+            }
+        }
+    };
+
+    const handleDeleteCategory = async (catId: string) => {
+        const hasProducts = products.some(p => p.categoryId === catId);
+        if (hasProducts) {
+            alert("Bu kategoride ürünler var. Önce ürünleri silin veya taşıyın.");
+            return;
+        }
+        if (!window.confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) return;
+
+        try {
+            await DbService.deleteCategory(catId);
+            setCategories(prev => prev.filter(c => c.id !== catId));
+        } catch (e) {
+            alert("Silme işlemi başarısız.");
+        }
+    };
+
+    const handleDeleteProduct = async (prodId: string) => {
+        if (!window.confirm("Bu ürünü silmek istediğinize emin misiniz?")) return;
+        try {
+            await DbService.deleteProduct(prodId);
+            setProducts(prev => prev.filter(p => p.id !== prodId));
+            setUnsavedChanges(prev => {
+                const next = new Set(prev);
+                next.delete(prodId);
+                return next;
+            });
+        } catch (e) {
+            console.error(e);
+            alert("Ürün silinemedi.");
+        }
+    };
+
+    const handleImportProducts = async (importedData: any[]) => {
+        if (!venueData) return;
+        setLoading(true);
+
+        try {
+            let newProductsCount = 0;
+
+            // Process sequentially to handle category creation properly
+            for (const item of importedData) {
+
+                // 1. Find or Create Category
+                let categoryId = categories.find(c => c.name.toLowerCase() === item.categoryName.toLowerCase())?.id;
+
+                if (!categoryId) {
+                    const newCat = await DbService.createCategory({
+                        venueId: venueData.id,
+                        name: item.categoryName
+                    });
+                    if (newCat) {
+                        categoryId = newCat.id;
+                        // Update local state so next items can find it
+                        setCategories(prev => [...prev, newCat]);
+                    }
+                }
+
+                if (categoryId) {
+                    // 2. Create Product
+                    await DbService.createProduct({
+                        venueId: venueData.id,
+                        categoryId: categoryId,
+                        name: item.name,
+                        description: item.description,
+                        price: item.price,
+                        isAvailable: item.isAvailable, // Default true from importer
+                        isChefRecommendation: item.isChefRecommendation,
+                        allergens: item.allergens
+                    });
+                    newProductsCount++;
+                }
+            }
+
+            alert(`${newProductsCount} ürün başarıyla eklendi!`);
+
+            // Refresh Data
+            const freshData = await DbService.getVenueById(venueData.id);
+            if (freshData) {
+                setProducts(freshData.products);
+                setCategories(freshData.categories);
+            }
+
+        } catch (err) {
+            console.error("Import failed:", err);
+            alert("İçe aktarma sırasında bir hata oluştu.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -256,10 +361,14 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             />
                             <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                         </div>
-                        <Button onClick={handleCreateProduct}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Yeni Ürün
-                        </Button>
+
+                        <div className="flex gap-2">
+                            <ProductImporter onImport={handleImportProducts} />
+                            <Button onClick={handleCreateProduct}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Yeni Ürün
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
@@ -359,8 +468,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                                         {/* Actions */}
                                         <td className="px-6 py-4 text-right">
-                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openAllergenModal(product)}>
-                                                <MoreHorizontal className="h-4 w-4 text-zinc-400" />
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteProduct(product.id)}>
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </td>
                                     </tr>
@@ -385,9 +494,14 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     <div className="font-bold text-zinc-900">{cat.name}</div>
                                     <div className="text-xs text-zinc-500">{products.filter(p => p.categoryId === cat.id).length} Ürün</div>
                                 </div>
-                                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
-                                    <Edit2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleEditCategory(cat)}>
+                                        <Edit2 className="h-4 w-4 text-zinc-500" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-red-50" onClick={() => handleDeleteCategory(cat.id)}>
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     ))}

@@ -21,7 +21,53 @@ async function updateViaApi(table: string, id: string, updates: any) {
     return await response.json();
 }
 
+async function deleteViaApi(table: string, id: string) {
+    const response = await fetch('/api/admin/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table, id, action: 'delete' })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API delete failed for ${table}`);
+    }
+    return await response.json();
+}
+
 export const DbService = {
+    // ... (keep exisitng methods)
+
+    updateCategory: async (id: string, name: string) => {
+        if (!isSupabaseConfigured()) return;
+        try {
+            await updateViaApi('categories', id, { name });
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    },
+
+    deleteCategory: async (id: string) => {
+        if (!isSupabaseConfigured()) return;
+        try {
+            await deleteViaApi('categories', id);
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    },
+
+    deleteProduct: async (id: string) => {
+        if (!isSupabaseConfigured()) return;
+        try {
+            await deleteViaApi('products', id);
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    },
+
     // Get all venues (for landing page / admin list)
     getVenues: async (): Promise<Venue[]> => {
         if (!isSupabaseConfigured()) {
