@@ -11,14 +11,16 @@
 - [x] **Menü Arayüzü**: Kaydırınca aktifleşen (Scrollspy) navigasyon, yapışkan başlıklar ve ızgara ürün görünümü.
 - [x] **Veritabanı Entegrasyonu**: Supabase üzerinden gerçek verilerin çekilmesi.
 
-## Faz 3: Yönetim Paneli (Devam Ediyor)
+## Faz 3: Yönetim Paneli (Tamamlandı)
 - [x] **Panel Düzeni**: Mobil uyumlu kenar çubuğu (Sidebar) ve başlık yapısı.
-- [x] **Dashboard**: Ciro, trafik, en çok satanlar gibi detaylı grafikler (Şu an mock, yakında gerçek).
+- [x] **Dashboard**: Ciro, trafik, en çok satanlar gibi detaylı grafikler.
 - [x] **Mekan Editörü**: Mekan detaylarını, kategorileri ve ürünleri düzenleme arayüzü (Canlı DB bağlantılı).
-- [ ] **Toplu Veri Yükleme (Excel)**: Ürünleri, kategorileri ve detayları (alerjen, fiyat vb.) Excel'den içe aktarma.
+- [x] **Toplu Veri Yükleme (Excel)**: Ürün/Kategori içe aktarma, güncelleme desteği ve Kategori Eşleştirme Sihirbazı.
+- [x] **Gelişmiş Ürün Yönetimi**: Modal tabanlı ürün ekleme/düzenleme, boş form desteği ve detaylı alanlar.
+- [x] **Alerjen Yönetimi**: Dinamik alerjen listesi ve anlık yeni alerjen ekleme özelliği.
 - [x] **Site Ayarları**: Ana sayfa başlıkları ve arka planını değiştiren ayarlar sayfası.
-- [x] **Görsel Yönetimi**: Cloudinary entegrasyonu (İmzalı/Güvenli Yükleme).
-- [ ] **Ürün Resim Yönetimi**: Mekan editöründe ürün resimlerini yükleme özelliği.
+- [x] **Görsel Yönetimi**: Cloudinary entegrasyonu (İmzalı yükleme, Toplu yükleme sihirbazı, Duplicate önleme).
+- [x] **API Güvenliği**: Service Role Key kullanan güvenli Admin API rotaları (RLS Bypass).
 - [ ] **Giriş / Yetkilendirme**: Yönetici girişi (Supabase Auth).
 
 ## Faz 4: Analiz & İçgörüler (Sırada)
@@ -26,6 +28,12 @@
 - [ ] **Veri Kaydı**: Analitik olaylarının Supabase'e yazılması.
 - [ ] **Veri Görselleştirme Bağlantısı**: Paneldeki grafikleri gerçek verilerle besleme.
 
-## Faz 5: Denetim & Güvenlik (Planlanan)
+## Faz 5: Denetim & Test (Planlanan)
+- [x] **E2E Test Altyapısı**: Playwright ile Admin paneli, UI etkileşimleri ve izole test senaryoları.
 - [ ] **Yönetici İşlem Logları**: Yöneticilerin yaptığı değişiklikleri (oluşturma/silme) kayıt altına alma.
 - [ ] **Rol Tabanlı Erişim**: Süper Yönetici vs. Restoran Müdürü ayrımı.
+
+## Faz 6: Görünüm & UX (Devam Ediyor)
+- [x] **Varsayılan Görsel**: Görseli olmayan ürünler için kurumsal logo (Crowne Plaza) kullanımı.
+- [ ] **Animasyonlar**: Sayfa geçişleri ve mikro etkileşimler.
+- [ ] **Görünüm & Performans**:
