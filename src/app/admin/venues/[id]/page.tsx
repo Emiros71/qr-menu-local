@@ -597,34 +597,81 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 </div>
             )}
 
-            {/* Product Detail / Allergen Modal */}
+            {/* Product Detail / Edit / Create Modal */}
             {isAllergenModalOpen && editingProduct && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between p-4 border-b border-zinc-100 sticky top-0 bg-white z-10">
-                            <h3 className="font-bold text-lg text-zinc-900">{editingProduct.name} - Detaylar</h3>
+                            <h3 className="font-bold text-lg text-zinc-900">
+                                {editingProduct.id === 'new' ? 'Yeni Ürün Ekle' : 'Ürün Düzenle'}
+                            </h3>
                             <button onClick={() => setIsAllergenModalOpen(false)} className="p-2 hover:bg-zinc-100 rounded-full text-zinc-500">
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
                         <div className="p-6 space-y-6">
 
+                            {/* Basic Info */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-sm font-medium">Ürün Adı</label>
+                                    <Input
+                                        value={editingProduct.name}
+                                        onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
+                                        placeholder="Örn: Cheeseburger"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Fiyat (₺)</label>
+                                    <Input
+                                        type="number"
+                                        value={editingProduct.price}
+                                        onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, price: parseFloat(e.target.value) }) : null)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Kategori</label>
+                                    <select
+                                        className="w-full h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        value={editingProduct.categoryId}
+                                        onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, categoryId: e.target.value }) : null)}
+                                    >
+                                        {categories.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Toggles */}
+                            <div className="flex items-center gap-6 p-4 bg-zinc-50 rounded-lg border border-zinc-100">
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        checked={!!editingProduct.isAvailable}
+                                        onCheckedChange={(val) => setEditingProduct(prev => prev ? ({ ...prev, isAvailable: val }) : null)}
+                                    />
+                                    <label className="text-sm font-medium cursor-pointer" onClick={() => setEditingProduct(prev => prev ? ({ ...prev, isAvailable: !prev.isAvailable }) : null)}>Satışta</label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        checked={!!editingProduct.isChefRecommendation}
+                                        onCheckedChange={(val) => setEditingProduct(prev => prev ? ({ ...prev, isChefRecommendation: val }) : null)}
+                                        className="data-[state=checked]:bg-amber-500"
+                                    />
+                                    <label className="text-sm font-medium cursor-pointer" onClick={() => setEditingProduct(prev => prev ? ({ ...prev, isChefRecommendation: !prev.isChefRecommendation }) : null)}>Şefin Tavsiyesi</label>
+                                </div>
+                            </div>
+
                             {/* Image Details */}
                             <div className="flex flex-col gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium block">Ürün Görseli</label>
-                                    <div className="flex items-center gap-4">
-                                        <ImageUpload
-                                            value={editingProduct.image}
-                                            onChange={(url) => {
-                                                handleProductChange(editingProduct.id, 'image', url);
-                                            }}
-                                            onRemove={() => {
-                                                handleProductChange(editingProduct.id, 'image', '');
-                                            }}
-                                            folder="qr-menu/products"
-                                        />
-                                    </div>
+                                    <ImageUpload
+                                        value={editingProduct.image || ""}
+                                        onChange={(url) => setEditingProduct(prev => prev ? ({ ...prev, image: url }) : null)}
+                                        onRemove={() => setEditingProduct(prev => prev ? ({ ...prev, image: "" }) : null)}
+                                        folder="qr-menu/products"
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
@@ -632,13 +679,13 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     <textarea
                                         className="w-full h-24 rounded-lg border border-zinc-200 p-3 text-sm focus:border-primary outline-none resize-none bg-zinc-50 focus:bg-white transition-colors"
                                         placeholder="Ürün içeriği hakkında bilgi verin..."
-                                        value={editingProduct.description}
-                                        onChange={(e) => handleProductChange(editingProduct.id, 'description', e.target.value)}
+                                        value={editingProduct.description || ""}
+                                        onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, description: e.target.value }) : null)}
                                     />
                                 </div>
                             </div>
 
-
+                            {/* Allergens */}
                             <div className="space-y-3">
                                 <label className="text-sm font-medium block text-zinc-900">Alerjenler & Etiketler</label>
                                 <div className="flex flex-wrap gap-2">
@@ -652,7 +699,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                     const newAllergens = isActive
                                                         ? current.filter(a => a !== allergen)
                                                         : [...current, allergen];
-                                                    handleProductChange(editingProduct.id, 'allergens', newAllergens);
+                                                    setEditingProduct(prev => prev ? ({ ...prev, allergens: newAllergens }) : null);
                                                 }}
                                                 className={cn(
                                                     "px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
@@ -669,8 +716,26 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 </div>
                             </div>
                         </div>
-                        <div className="p-4 bg-zinc-50 flex justify-end sticky bottom-0 border-t border-zinc-100">
-                            <Button onClick={() => setIsAllergenModalOpen(false)}>Tamam</Button>
+                        <div className="p-4 bg-zinc-50 flex justify-end gap-2 sticky bottom-0 border-t border-zinc-100">
+                            <Button variant="ghost" onClick={() => setIsAllergenModalOpen(false)}>İptal</Button>
+                            <Button onClick={async () => {
+                                if (editingProduct.id === 'new') {
+                                    // Create
+                                    try {
+                                        const created = await DbService.createProduct(editingProduct);
+                                        if (created) setProducts(prev => [...prev, created]);
+                                        setIsAllergenModalOpen(false);
+                                    } catch (e) { alert("Oluşturulamadı"); }
+                                } else {
+                                    // Update
+                                    try {
+                                        await DbService.updateProduct(editingProduct.id, editingProduct);
+                                        // Update local list
+                                        setProducts(prev => prev.map(p => p.id === editingProduct.id ? editingProduct : p));
+                                        setIsAllergenModalOpen(false);
+                                    } catch (e) { alert("Güncellenemedi"); }
+                                }
+                            }}>Kaydet</Button>
                         </div>
                     </div>
                 </div>

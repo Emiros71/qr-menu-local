@@ -32,17 +32,18 @@ export default function ProductImporter({ onImport, onExport }: ProductImporterP
     const handleDownloadTemplate = () => {
         const headers = [
             {
+                "ID": "Yeni ürün için boş bırakınız",
                 "Ürün Adı": "Örnek Ürün",
                 "Açıklama": "Lezzetli bir yemek",
                 "Fiyat": 150,
                 "Kategori": "Ana Yemekler",
                 "Alerjenler": "Gluten, Süt",
                 "Şef": "Hayır",
-                "Görsel Dosya Adı": "burger.jpg (Bilgisayarınızdaki dosya adı)"
+                "Görsel Dosya Adı": "burger.jpg (Opsiyonel)"
             }
         ];
         const ws = XLSX.utils.json_to_sheet(headers);
-        ws['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 10 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 40 }];
+        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 30 }, { wch: 10 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 40 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Şablon");
         XLSX.writeFile(wb, "qr_menu_sablon.xlsx");
@@ -65,6 +66,7 @@ export default function ProductImporter({ onImport, onExport }: ProductImporterP
                 let imgFile = getVal("Görsel Dosya Adı") || getVal("Dosya") || getVal("Image") || "";
 
                 return {
+                    id: getVal("ID"), // Optional ID for updates
                     name: getVal("Name") || getVal("Ürün Adı") || "İsimsiz Ürün",
                     description: getVal("Description") || getVal("Açıklama") || "",
                     price: parseFloat(getVal("Price") || getVal("Fiyat") || "0"),

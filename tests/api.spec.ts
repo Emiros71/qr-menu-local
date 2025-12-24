@@ -63,6 +63,27 @@ test.describe.serial('Admin API Tests', () => {
         createdProductId = json.data[0].id;
     });
 
+    test('should update the created product via API', async ({ request }) => {
+        if (!createdProductId) test.skip();
+
+        const response = await request.post('/api/admin/update', {
+            data: {
+                table: 'products',
+                action: 'update',
+                id: createdProductId,
+                updates: {
+                    price: 200,
+                    name: 'API Test Product Updated'
+                }
+            }
+        });
+
+        expect(response.ok()).toBeTruthy();
+        const json = await response.json();
+        expect(json.data[0].price).toBe(200);
+        expect(json.data[0].name).toBe('API Test Product Updated');
+    });
+
     test('should delete the created product via API', async ({ request }) => {
         if (!createdProductId) test.skip();
 
