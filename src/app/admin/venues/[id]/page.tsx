@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Switch } from "@/components/ui/Switch";
-import { ArrowLeft, Save, Plus, Trash2, Image as ImageIcon, Loader2, Star, Edit2, MoreHorizontal, X, Check, Search as SearchIcon } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Image as ImageIcon, Loader2, Star, Edit2, MoreHorizontal, X, Check, Search as SearchIcon, Globe } from "lucide-react";
 import ImageUpload from "@/components/ui/ImageUpload";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,6 +17,15 @@ import ProductImporter from "@/components/admin/ProductImporter";
 // Mock Allergens List
 const ALLERGENS_LIST = [
     "Gluten", "Yumurta", "Süt", "Hardal", "Yer Fıstığı", "Soya", "Balık", "Kabuklu Deniz Ürünleri", "Kereviz"
+];
+
+const AVAILABLE_LANGUAGES = [
+    { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+    { code: 'en', name: 'English', flag: '🇬🇧' },
+    { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+    { code: 'fr', name: 'Français', flag: '🇫🇷' },
+    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+    { code: 'ru', name: 'Русский', flag: '🇷🇺' },
 ];
 
 const AdminProductImage = ({ product, defaultImage, onClick }: { product: Product, defaultImage?: string, onClick: () => void }) => {
@@ -54,7 +63,6 @@ const AdminProductImage = ({ product, defaultImage, onClick }: { product: Produc
         </div>
     );
 };
-
 export default function VenueEditor({ params }: { params: Promise<{ id: string }> }) {
     const unwrappedParams = use(params);
     const [loading, setLoading] = useState(true);
@@ -72,6 +80,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
     // UI States
     const [activeTab, setActiveTab] = useState('menu');
+    const [modalTab, setModalTab] = useState<'general' | 'translations'>('general');
 
     // Allergen Management
     const [availableAllergens, setAvailableAllergens] = useState<string[]>(ALLERGENS_LIST);
@@ -126,6 +135,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     };
 
     const handleSaveAll = async () => {
+        if (!venueSettingsChanged && unsavedChanges.size === 0) {
+            alert("Kaydedilecek yeni bir değişiklik yok.");
+            return;
+        }
+
         setSaving(true);
         try {
             // 1. Save Venue Settings if changed
@@ -133,7 +147,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 await DbService.updateVenue(venueData.id, {
                     name: venueData.name,
                     theme: venueData.theme,
-                    coverImage: venueData.coverImage
+                    coverImage: venueData.coverImage,
+                    supportedLanguages: venueData.supportedLanguages,
+                    defaultLanguage: venueData.defaultLanguage
                 });
                 setVenueSettingsChanged(false);
             }
@@ -200,32 +216,45 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         }
     };
 
-    const handleCreateCategory = async () => {
-        if (!venueData) return;
-        const name = window.prompt("Kategori Adı:");
-        if (!name) return;
+    // Category Management
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [categoryModalTab, setCategoryModalTab] = useState<'general' | 'translations'>('general');
 
-        try {
-            const created = await DbService.createCategory({ venueId: venueData.id, name });
-            if (created) {
-                setCategories(prev => [...prev, created]);
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Kategori oluşturulamadı.");
-        }
+    const handleCreateCategory = () => {
+        if (!venueData) return;
+        setEditingCategory({ id: 'new', name: '', translations: {} } as any);
+        setCategoryModalTab('general');
+        setIsCategoryModalOpen(true);
     };
 
-    const handleEditCategory = async (cat: Category) => {
-        const newName = window.prompt("Yeni kategori adı:", cat.name);
-        if (newName && newName !== cat.name) {
-            try {
-                await DbService.updateCategory(cat.id, newName);
-                // Update local
-                setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, name: newName } : c));
-            } catch (e) {
-                alert("Kategori güncellenemedi.");
+    const handleEditCategory = (cat: Category) => {
+        setEditingCategory({ ...cat, translations: cat.translations || {} });
+        setCategoryModalTab('general');
+        setIsCategoryModalOpen(true);
+    };
+
+    const handleSaveCategory = async () => {
+        if (!editingCategory) return;
+        try {
+            if (editingCategory.id === 'new') {
+                const created = await DbService.createCategory({
+                    venueId: venueData!.id,
+                    name: editingCategory.name,
+                    translations: editingCategory.translations
+                });
+                if (created) setCategories(prev => [...prev, created]);
+            } else {
+                await DbService.updateCategory(editingCategory.id, {
+                    name: editingCategory.name,
+                    translations: editingCategory.translations
+                });
+                setCategories(prev => prev.map(c => c.id === editingCategory.id ? editingCategory : c));
             }
+            setIsCategoryModalOpen(false);
+        } catch (e) {
+            console.error(e);
+            alert("Kategori kaydedilirken hata oluştu.");
         }
     };
 
@@ -274,7 +303,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 let categoryId = catMap.get(catName);
                 if (!categoryId) {
                     // Create new category if not exists
-                    const newCat = await DbService.createCategory({ venueId: venueData.id, name: item.categoryName || "Genel" });
+                    const newCat = await DbService.createCategory({ venueId: venueData!.id, name: item.categoryName || "Genel" });
                     if (newCat) {
                         categoryId = newCat.id;
                         catMap.set(catName, categoryId);
@@ -348,7 +377,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
         const ws = XLSX.utils.json_to_sheet(exportData);
         // Hide ID column for cleaner look (optional, but better to keep visible for power users)
-        // ws['!cols'] = [{hidden: true}, ...]; 
+        // ws['!cols'] = [{hidden: true}, ...];
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Menü");
@@ -638,6 +667,50 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 </div>
                             </div>
 
+                            <div className="space-y-4 pt-4 border-t border-zinc-100">
+                                <div>
+                                    <h4 className="font-medium mb-2">Dil Ayarları</h4>
+                                    <p className="text-sm text-zinc-500 mb-4">Müşterilerinizin menüyü görüntüleyebileceği dilleri seçin. En az bir varsayılan dil seçili kalmalıdır.</p>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {AVAILABLE_LANGUAGES.map(lang => (
+                                            <div
+                                                key={lang.code}
+                                                className={cn(
+                                                    "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                                    (venueData.supportedLanguages || ['tr']).includes(lang.code)
+                                                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                                                        : "border-zinc-200 hover:border-zinc-300"
+                                                )}
+                                                onClick={() => {
+                                                    const current = venueData.supportedLanguages || ['tr'];
+                                                    if (current.includes(lang.code)) {
+                                                        // Prevent removing if it's the only one or default
+                                                        // For simplicity, prevent removing if length is 1
+                                                        if (current.length > 1 && lang.code !== (venueData.defaultLanguage || 'tr')) {
+                                                            handleVenueChange('supportedLanguages', current.filter(c => c !== lang.code));
+                                                        } else if (current.length === 1) {
+                                                            alert("En az bir dil seçili olmalıdır.");
+                                                        }
+                                                    } else {
+                                                        handleVenueChange('supportedLanguages', [...current, lang.code]);
+                                                    }
+                                                }}
+                                            >
+                                                <span className="text-2xl drop-shadow-sm">{lang.flag}</span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-zinc-900">{lang.name}</span>
+                                                    <span className="text-xs text-zinc-400 uppercase font-mono">{lang.code}</span>
+                                                </div>
+                                                {(venueData.supportedLanguages || ['tr']).includes(lang.code) && (
+                                                    <Check className="h-4 w-4 text-primary ml-auto" />
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Save button is now in sticky header, but we can keep one here too */}
                             {/* <Button onClick={handleSaveAll} disabled={saving} className="w-full">
                             {saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
@@ -655,7 +728,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             {isAllergenModalOpen && editingProduct && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-center justify-between p-4 border-b border-zinc-100 sticky top-0 bg-white z-10">
+                        <div className="flex items-center justify-between px-4 pt-4 pb-0 sticky top-0 bg-white z-10">
                             <h3 className="font-bold text-lg text-zinc-900">
                                 {editingProduct.id === 'new' ? 'Yeni Ürün Ekle' : 'Ürün Düzenle'}
                             </h3>
@@ -663,150 +736,246 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
-                        <div className="p-6 space-y-6">
 
-                            {/* Basic Info */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2 col-span-2">
-                                    <label className="text-sm font-medium">Ürün Adı</label>
-                                    <Input
-                                        value={editingProduct.name}
-                                        onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
-                                        placeholder="Örn: Cheeseburger"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Fiyat (₺)</label>
-                                    <Input
-                                        type="number"
-                                        value={editingProduct.price}
-                                        onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, price: parseFloat(e.target.value) }) : null)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Kategori</label>
-                                    <select
-                                        className="w-full h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                        value={editingProduct.categoryId}
-                                        onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, categoryId: e.target.value }) : null)}
-                                    >
-                                        {categories.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
+                        {/* Tabs Navigation */}
+                        <div className="flex border-b border-zinc-100 px-4 mt-2">
+                            <button
+                                onClick={() => setModalTab('general')}
+                                className={cn("px-4 py-3 text-sm font-medium border-b-2 transition-colors", modalTab === 'general' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}
+                            >
+                                Genel Bilgiler
+                            </button>
+                            <button
+                                onClick={() => setModalTab('translations')}
+                                className={cn("px-4 py-3 text-sm font-medium border-b-2 transition-colors", modalTab === 'translations' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}
+                            >
+                                Çeviriler
+                                <span className={cn("ml-2 text-[10px] px-1.5 py-0.5 rounded-full", venueData?.supportedLanguages?.length && venueData.supportedLanguages.length > 1 ? "bg-primary/10 text-primary" : "bg-zinc-100 text-zinc-400")}>
+                                    {(venueData?.supportedLanguages?.length || 1) - 1}
+                                </span>
+                            </button>
+                        </div>
 
-                            {/* Toggles */}
-                            <div className="flex items-center gap-6 p-4 bg-zinc-50 rounded-lg border border-zinc-100">
-                                <div className="flex items-center gap-2">
-                                    <Switch
-                                        checked={!!editingProduct.isAvailable}
-                                        onCheckedChange={(val) => setEditingProduct(prev => prev ? ({ ...prev, isAvailable: val }) : null)}
-                                    />
-                                    <label className="text-sm font-medium cursor-pointer" onClick={() => setEditingProduct(prev => prev ? ({ ...prev, isAvailable: !prev.isAvailable }) : null)}>Satışta</label>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Switch
-                                        checked={!!editingProduct.isChefRecommendation}
-                                        onCheckedChange={(val) => setEditingProduct(prev => prev ? ({ ...prev, isChefRecommendation: val }) : null)}
-                                        className="data-[state=checked]:bg-amber-500"
-                                    />
-                                    <label className="text-sm font-medium cursor-pointer" onClick={() => setEditingProduct(prev => prev ? ({ ...prev, isChefRecommendation: !prev.isChefRecommendation }) : null)}>Şefin Tavsiyesi</label>
-                                </div>
-                            </div>
+                        <div className="p-6 space-y-6 min-h-[400px]">
 
-                            {/* Image Details */}
-                            <div className="flex flex-col gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium block">Ürün Görseli</label>
-                                    <ImageUpload
-                                        value={editingProduct.image || ""}
-                                        onChange={(url) => setEditingProduct(prev => prev ? ({ ...prev, image: url }) : null)}
-                                        onRemove={() => setEditingProduct(prev => prev ? ({ ...prev, image: "" }) : null)}
-                                        folder="qr-menu/products"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium block">Açıklama</label>
-                                    <textarea
-                                        className="w-full h-24 rounded-lg border border-zinc-200 p-3 text-sm focus:border-primary outline-none resize-none bg-zinc-50 focus:bg-white transition-colors"
-                                        placeholder="Ürün içeriği hakkında bilgi verin..."
-                                        value={editingProduct.description || ""}
-                                        onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, description: e.target.value }) : null)}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Allergens */}
-                            <div className="space-y-3">
-                                <label className="text-sm font-medium block text-zinc-900">Alerjenler & Etiketler</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {availableAllergens.map(allergen => {
-                                        const isActive = editingProduct.allergens?.includes(allergen);
-                                        return (
-                                            <button
-                                                key={allergen}
-                                                onClick={() => {
-                                                    const current = editingProduct.allergens || [];
-                                                    const newAllergens = isActive
-                                                        ? current.filter(a => a !== allergen)
-                                                        : [...current, allergen];
-                                                    setEditingProduct(prev => prev ? ({ ...prev, allergens: newAllergens }) : null);
-                                                }}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
-                                                    isActive
-                                                        ? "bg-primary text-white border-primary"
-                                                        : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
-                                                )}
-                                            >
-                                                {isActive && <Check className="h-3 w-3" />}
-                                                {allergen}
-                                            </button>
-                                        )
-                                    })}
-
-                                    {/* Add New Allergen Button */}
-                                    {isAddingAllergen ? (
-                                        <div className="flex items-center gap-1 animate-in fade-in zoom-in-95">
+                            {/* --- GENERAL TAB --- */}
+                            {modalTab === 'general' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-200">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2 col-span-2">
+                                            <label className="text-sm font-medium">Ürün Adı</label>
                                             <Input
-                                                value={newAllergen}
-                                                onChange={e => setNewAllergen(e.target.value)}
-                                                className="h-8 text-xs w-32 bg-white"
-                                                placeholder="Alerjen..."
-                                                autoFocus
-                                                onKeyDown={e => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        if (newAllergen.trim()) {
-                                                            const val = newAllergen.trim();
-                                                            setAvailableAllergens(prev => prev.includes(val) ? prev : [...prev, val]);
-                                                            setEditingProduct(prev => prev ? ({ ...prev, allergens: [...(prev.allergens || []), val] }) : null);
-                                                            setNewAllergen("");
-                                                            setIsAddingAllergen(false);
-                                                        }
-                                                    }
-                                                }}
+                                                value={editingProduct.name}
+                                                onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
+                                                placeholder="Örn: Cheeseburger"
                                             />
-                                            <button
-                                                onClick={() => setIsAddingAllergen(false)}
-                                                className="p-1 hover:bg-zinc-100 rounded-full text-zinc-500"
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Fiyat (₺)</label>
+                                            <Input
+                                                type="number"
+                                                value={editingProduct.price}
+                                                onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, price: parseFloat(e.target.value) }) : null)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Kategori</label>
+                                            <select
+                                                className="w-full h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                value={editingProduct.categoryId}
+                                                onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, categoryId: e.target.value }) : null)}
                                             >
-                                                <X className="h-4 w-4" />
+                                                {categories.map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Toggles */}
+                                    <div className="flex items-center gap-6 p-4 bg-zinc-50 rounded-lg border border-zinc-100">
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={!!editingProduct.isAvailable}
+                                                onCheckedChange={(val) => setEditingProduct(prev => prev ? ({ ...prev, isAvailable: val }) : null)}
+                                            />
+                                            <label className="text-sm font-medium cursor-pointer" onClick={() => setEditingProduct(prev => prev ? ({ ...prev, isAvailable: !prev.isAvailable }) : null)}>Satışta</label>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={!!editingProduct.isChefRecommendation}
+                                                onCheckedChange={(val) => setEditingProduct(prev => prev ? ({ ...prev, isChefRecommendation: val }) : null)}
+                                                className="data-[state=checked]:bg-amber-500"
+                                            />
+                                            <label className="text-sm font-medium cursor-pointer" onClick={() => setEditingProduct(prev => prev ? ({ ...prev, isChefRecommendation: !prev.isChefRecommendation }) : null)}>Şefin Tavsiyesi</label>
+                                        </div>
+                                    </div>
+
+                                    {/* Image Details */}
+                                    <div className="flex flex-col gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium block">Ürün Görseli</label>
+                                            <ImageUpload
+                                                value={editingProduct.image || ""}
+                                                onChange={(url) => setEditingProduct(prev => prev ? ({ ...prev, image: url }) : null)}
+                                                onRemove={() => setEditingProduct(prev => prev ? ({ ...prev, image: "" }) : null)}
+                                                folder="qr-menu/products"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium block">Açıklama</label>
+                                            <textarea
+                                                className="w-full h-24 rounded-lg border border-zinc-200 p-3 text-sm focus:border-primary outline-none resize-none bg-zinc-50 focus:bg-white transition-colors"
+                                                placeholder="Ürün içeriği hakkında bilgi verin..."
+                                                value={editingProduct.description || ""}
+                                                onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, description: e.target.value }) : null)}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Allergens */}
+                                    <div className="space-y-3">
+                                        <label className="text-sm font-medium block text-zinc-900">Alerjenler & Etiketler</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {availableAllergens.map(allergen => {
+                                                const isActive = editingProduct.allergens?.includes(allergen);
+                                                return (
+                                                    <button
+                                                        key={allergen}
+                                                        onClick={() => {
+                                                            const current = editingProduct.allergens || [];
+                                                            const newAllergens = isActive
+                                                                ? current.filter(a => a !== allergen)
+                                                                : [...current, allergen];
+                                                            setEditingProduct(prev => prev ? ({ ...prev, allergens: newAllergens }) : null);
+                                                        }}
+                                                        className={cn(
+                                                            "px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
+                                                            isActive
+                                                                ? "bg-primary text-white border-primary"
+                                                                : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
+                                                        )}
+                                                    >
+                                                        {isActive && <Check className="h-3 w-3" />}
+                                                        {allergen}
+                                                    </button>
+                                                )
+                                            })}
+
+                                            {/* Add New Allergen Button */}
+                                            {isAddingAllergen ? (
+                                                <div className="flex items-center gap-1 animate-in fade-in zoom-in-95">
+                                                    <Input
+                                                        value={newAllergen}
+                                                        onChange={e => setNewAllergen(e.target.value)}
+                                                        className="h-8 text-xs w-32 bg-white"
+                                                        placeholder="Alerjen..."
+                                                        autoFocus
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                if (newAllergen.trim()) {
+                                                                    const val = newAllergen.trim();
+                                                                    setAvailableAllergens(prev => prev.includes(val) ? prev : [...prev, val]);
+                                                                    setEditingProduct(prev => prev ? ({ ...prev, allergens: [...(prev.allergens || []), val] }) : null);
+                                                                    setNewAllergen("");
+                                                                    setIsAddingAllergen(false);
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        onClick={() => setIsAddingAllergen(false)}
+                                                        className="p-1 hover:bg-zinc-100 rounded-full text-zinc-500"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setIsAddingAllergen(true)}
+                                                    className="px-3 py-1.5 rounded-full text-xs border border-dashed border-zinc-300 hover:border-primary hover:text-primary text-zinc-500 flex items-center gap-1 transition-colors"
+                                                >
+                                                    <Plus className="h-3 w-3" /> Ekle
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* --- TRANSLATIONS TAB --- */}
+                            {modalTab === 'translations' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
+                                    <div className="p-4 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100">
+                                        <p>Aşağıdaki diller için ürün adı ve açıklama çevirilerini girebilirsiniz. Boş bırakılan alanlarda varsayılan dil ({venueData?.defaultLanguage || 'TR'}) gösterilecektir.</p>
+                                    </div>
+
+                                    {(!venueData?.supportedLanguages || venueData.supportedLanguages.length <= 1) ? (
+                                        <div className="text-center py-10 text-zinc-500">
+                                            <Globe className="h-10 w-10 mx-auto text-zinc-300 mb-2" />
+                                            <p>Ekstra dil tanımlanmamış.</p>
+                                            <button
+                                                onClick={() => { setIsAllergenModalOpen(false); setActiveTab('settings'); }}
+                                                className="text-primary hover:underline text-sm font-medium mt-2"
+                                            >
+                                                Ayarlardan yeni dil ekle
                                             </button>
                                         </div>
                                     ) : (
-                                        <button
-                                            onClick={() => setIsAddingAllergen(true)}
-                                            className="px-3 py-1.5 rounded-full text-xs border border-dashed border-zinc-300 hover:border-primary hover:text-primary text-zinc-500 flex items-center gap-1 transition-colors"
-                                        >
-                                            <Plus className="h-3 w-3" /> Ekle
-                                        </button>
+                                        <div className="space-y-6">
+                                            {venueData.supportedLanguages
+                                                .filter(lang => lang !== (venueData.defaultLanguage || 'tr'))
+                                                .map(lang => (
+                                                    <div key={lang} className="border border-zinc-200 rounded-lg overflow-hidden">
+                                                        <div className="bg-zinc-50 px-4 py-2 border-b border-zinc-200 flex items-center gap-2">
+                                                            <span className="font-bold text-xs uppercase bg-white border px-1.5 py-0.5 rounded text-zinc-700">{lang}</span>
+                                                            <span className="text-xs text-zinc-500 font-medium">Çeviri</span>
+                                                        </div>
+                                                        <div className="p-4 space-y-4 bg-white">
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-xs font-medium text-zinc-500">Ürün Adı ({lang.toUpperCase()})</label>
+                                                                <Input
+                                                                    value={editingProduct.translations?.[lang]?.name || ""}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setEditingProduct(prev => {
+                                                                            if (!prev) return null;
+                                                                            const newTrans = { ...prev.translations };
+                                                                            newTrans[lang] = { ...newTrans[lang], name: val };
+                                                                            return { ...prev, translations: newTrans };
+                                                                        });
+                                                                    }}
+                                                                    placeholder={`${editingProduct.name} için çeviri...`}
+                                                                    className="h-9"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-xs font-medium text-zinc-500">Açıklama ({lang.toUpperCase()})</label>
+                                                                <textarea
+                                                                    className="w-full h-20 rounded-md border border-zinc-200 p-2 text-sm focus:border-primary outline-none resize-none bg-zinc-50 focus:bg-white transition-colors"
+                                                                    placeholder={`${lang.toUpperCase()} açıklaması...`}
+                                                                    value={editingProduct.translations?.[lang]?.description || ""}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setEditingProduct(prev => {
+                                                                            if (!prev) return null;
+                                                                            const newTrans = { ...prev.translations };
+                                                                            newTrans[lang] = { ...newTrans[lang], description: val };
+                                                                            return { ...prev, translations: newTrans };
+                                                                        });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                        </div>
                                     )}
                                 </div>
-                            </div>
+                            )}
+
                         </div>
                         <div className="p-4 bg-zinc-50 flex justify-end gap-2 sticky bottom-0 border-t border-zinc-100">
                             <Button variant="ghost" onClick={() => setIsAllergenModalOpen(false)}>İptal</Button>
@@ -828,6 +997,104 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     } catch (e) { alert("Güncellenemedi"); }
                                 }
                             }}>Kaydet</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Category Edit Modal */}
+            {isCategoryModalOpen && editingCategory && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between px-4 pt-4 pb-0 bg-white z-10">
+                            <h3 className="font-bold text-lg text-zinc-900">
+                                {editingCategory.id === 'new' ? 'Yeni Kategori' : 'Kategori Düzenle'}
+                            </h3>
+                            <button onClick={() => setIsCategoryModalOpen(false)} className="p-2 hover:bg-zinc-100 rounded-full text-zinc-500">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex border-b border-zinc-100 px-4 mt-2">
+                            <button
+                                onClick={() => setCategoryModalTab('general')}
+                                className={cn("px-4 py-3 text-sm font-medium border-b-2 transition-colors", categoryModalTab === 'general' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}
+                            >
+                                Genel Bilgiler
+                            </button>
+                            <button
+                                onClick={() => setCategoryModalTab('translations')}
+                                className={cn("px-4 py-3 text-sm font-medium border-b-2 transition-colors", categoryModalTab === 'translations' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}
+                            >
+                                Çeviriler
+                                <span className={cn("ml-2 text-[10px] px-1.5 py-0.5 rounded-full", venueData?.supportedLanguages?.length && venueData.supportedLanguages.length > 1 ? "bg-primary/10 text-primary" : "bg-zinc-100 text-zinc-400")}>
+                                    {(venueData?.supportedLanguages?.length || 1) - 1}
+                                </span>
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {categoryModalTab === 'general' && (
+                                <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-200">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Kategori Adı</label>
+                                        <Input
+                                            value={editingCategory.name}
+                                            onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
+                                            placeholder="Örn: Ana Yemekler"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    {/* Future: Category Image Upload */}
+                                </div>
+                            )}
+
+                            {categoryModalTab === 'translations' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
+                                    <div className="p-4 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100">
+                                        <p>Kategori adı çevirilerini buradan yönetebilirsiniz.</p>
+                                    </div>
+
+                                    {(!venueData?.supportedLanguages || venueData.supportedLanguages.length <= 1) ? (
+                                        <div className="text-center py-8 text-zinc-500">
+                                            <p>Ekstra dil tanımlanmamış.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {venueData.supportedLanguages
+                                                .filter(lang => lang !== (venueData.defaultLanguage || 'tr'))
+                                                .map(lang => (
+                                                    <div key={lang} className="space-y-1.5">
+                                                        <label className="text-xs font-medium text-zinc-500 uppercase flex items-center gap-2">
+                                                            <span>{lang}</span>
+                                                            <span className="h-px bg-zinc-200 flex-1"></span>
+                                                        </label>
+                                                        <Input
+                                                            value={editingCategory.translations?.[lang]?.name || ""}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setEditingCategory(prev => {
+                                                                    if (!prev) return null;
+                                                                    const newTrans = { ...(prev.translations || {}) };
+                                                                    // Ensure object exists
+                                                                    if (!newTrans[lang]) newTrans[lang] = {};
+                                                                    newTrans[lang] = { ...newTrans[lang], name: val };
+                                                                    return { ...prev, translations: newTrans };
+                                                                });
+                                                            }}
+                                                            placeholder={`${lang.toUpperCase()} çevirisi...`}
+                                                        />
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 bg-zinc-50 flex justify-end gap-2 border-t border-zinc-100">
+                            <Button variant="ghost" onClick={() => setIsCategoryModalOpen(false)}>İptal</Button>
+                            <Button onClick={handleSaveCategory}>Kaydet</Button>
                         </div>
                     </div>
                 </div>

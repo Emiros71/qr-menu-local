@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { venues as mockVenues, Venue } from "@/data/db";
+import { venues as mockVenues, Venue, Product, Category } from "@/data/db";
 
 // Helper to check if Supabase is configured
 const isSupabaseConfigured = () => {
@@ -89,22 +89,26 @@ export const DbService = {
             isAvailable: p.is_available,
             allergens: p.allergens,
             isChefRecommendation: p.is_chef_recommendation,
-            labels: p.labels, // jsonb usually stays same
-            currency: 'TRY'
+            labels: p.labels,
+            currency: 'TRY',
+            translations: typeof p.translations === 'string' ? JSON.parse(p.translations) : p.translations
         }));
 
         const categories = (catData || []).map((c: any) => ({
             id: c.id,
             name: c.name,
-            venueId: c.venue_id
+            venueId: c.venue_id,
+            translations: typeof c.translations === 'string' ? JSON.parse(c.translations) : c.translations
         }));
 
         const venue: Venue = {
             id: venueData.id,
             slug: venueData.slug,
             name: venueData.name,
-            coverImage: venueData.cover_image || venueData.coverImage, // handle both casing just in case
-            theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme, // Handle JSONB if needed, or if supabase returns object
+            coverImage: venueData.cover_image || venueData.coverImage,
+            theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme,
+            supportedLanguages: venueData.supported_languages,
+            defaultLanguage: venueData.default_language,
             categories: categories,
             products: products
         };
@@ -217,10 +221,17 @@ export const DbService = {
         }
     },
 
-    updateCategory: async (id: string, name: string) => {
+    updateCategory: async (id: string, updates: Partial<Category>) => {
         if (!isSupabaseConfigured()) return;
+
+        const dbUpdates: any = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.translations !== undefined) dbUpdates.translations = updates.translations;
+
+        if (Object.keys(dbUpdates).length === 0) return;
+
         try {
-            await performActionViaApi('categories', 'update', { name }, id);
+            await performActionViaApi('categories', 'update', dbUpdates, id);
         } catch (e) {
             console.error(e);
             throw e;
@@ -350,11 +361,13 @@ export const DbService = {
     createCategory: async (category: any) => {
         if (!isSupabaseConfigured()) return;
 
-        const dbCategory = {
+        const dbCategory: any = {
             venue_id: category.venueId,
             name: category.name,
             order_index: 0
         };
+
+        if (category.translations) dbCategory.translations = category.translations;
 
         try {
             const result = await performActionViaApi('categories', 'create', dbCategory);
@@ -364,7 +377,8 @@ export const DbService = {
             return {
                 id: data.id,
                 name: data.name,
-                venueId: data.venue_id
+                venueId: data.venue_id,
+                translations: data.translations
             };
         } catch (e) {
             console.error("API Create Category failed:", e);
@@ -373,7 +387,8 @@ export const DbService = {
             return {
                 id: data.id,
                 name: data.name,
-                venueId: data.venue_id
+                venueId: data.venue_id,
+                translations: data.translations
             };
         }
     },

@@ -60,6 +60,8 @@ export const venues: Venue[] = [
             background: "#FAFAF9", // Stone 50
             foreground: "#1C1917", // Stone 900
         },
+        supportedLanguages: ['tr', 'en'],
+        defaultLanguage: 'tr',
         categories: [
             { id: "c_aura_1", name: "Ana Yemekler", image: "https://images.unsplash.com/photo-1546241072-48010ad2862c?q=80&w=2574&auto=format&fit=crop" },
             { id: "c_aura_2", name: "İçecekler", image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=2574&auto=format&fit=crop" },

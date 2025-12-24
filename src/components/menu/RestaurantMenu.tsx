@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft } from "lucide-react";
+import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Venue } from "@/data/db";
 import { AnalyticsService } from "@/lib/analytics";
@@ -13,6 +13,18 @@ interface RestaurantMenuProps {
 }
 
 const FALLBACK_DEFAULT_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/4/4b/Crowne_Plaza_Hotels_%26_Resorts_logo.svg";
+
+const ALLERGEN_LABELS: Record<string, Record<string, string>> = {
+    "Gluten": { en: "Gluten", de: "Gluten", fr: "Gluten", ar: "الغلوتين", ru: "Глютен" },
+    "Yumurta": { en: "Egg", de: "Ei", fr: "Œuf", ar: "بيض", ru: "Яйцо" },
+    "Süt": { en: "Milk", de: "Milch", fr: "Lait", ar: "حليب", ru: "Молоко" },
+    "Hardal": { en: "Mustard", de: "Senf", fr: "Moutarde", ar: "خردل", ru: "Горчица" },
+    "Yer Fıstığı": { en: "Peanut", de: "Erdnuss", fr: "Arachide", ar: "فول سوداني", ru: "Арахис" },
+    "Soya": { en: "Soy", de: "Soja", fr: "Soja", ar: "صويا", ru: "Соя" },
+    "Balık": { en: "Fish", de: "Fisch", fr: "Poisson", ar: "سمك", ru: "Рыба" },
+    "Kabuklu Deniz Ürünleri": { en: "Shellfish", de: "Schalentiere", fr: "Fruits de mer", ar: "محار", ru: "Моллюски" },
+    "Kereviz": { en: "Celery", de: "Sellerie", fr: "Céleri", ar: "كرفس", ru: "Сельдерей" },
+};
 
 function ProductImage({ src, alt, defaultImage }: { src?: string, alt: string, defaultImage: string }) {
     const [imgSrc, setImgSrc] = useState(src || defaultImage);
@@ -46,6 +58,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     const supportedLangs = venue.supportedLanguages && venue.supportedLanguages.length > 0 ? venue.supportedLanguages : ['tr'];
     const defaultLang = venue.defaultLanguage || 'tr';
     const [currentLang, setCurrentLang] = useState(defaultLang);
+    const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
 
     useEffect(() => {
         // Detect browser language on mount
@@ -144,12 +157,49 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                     </div>
 
                     <div className="flex gap-3">
-                        <button className="p-2 rounded-full bg-black/10 backdrop-blur-md hover:bg-black/20 transition-colors">
-                            <Search className="h-5 w-5" />
-                        </button>
-                        <button className="p-2 rounded-full bg-black/10 backdrop-blur-md hover:bg-black/20 transition-colors">
-                            <Globe className="h-5 w-5" />
-                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
+                                className="p-2 rounded-full bg-black/10 backdrop-blur-md hover:bg-black/20 transition-colors relative flex items-center justify-center"
+                            >
+                                <Globe className="h-5 w-5" />
+                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold px-1 min-w-[16px] h-[16px] flex items-center justify-center rounded-full border border-white/20 shadow-sm">
+                                    {currentLang.toUpperCase()}
+                                </span>
+                            </button>
+
+                            {isLangMenuOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setIsLangMenuOpen(false)} />
+                                    <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-2xl py-2 z-50 border border-zinc-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="px-4 py-2 text-xs font-semibold text-zinc-400 border-b border-zinc-50 mb-1">
+                                            DİL SEÇİNİZ
+                                        </div>
+                                        {supportedLangs.map(code => (
+                                            <button
+                                                key={code}
+                                                onClick={() => {
+                                                    setCurrentLang(code);
+                                                    setIsLangMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "w-full text-left px-4 py-3 text-sm hover:bg-zinc-50 flex items-center justify-between transition-colors",
+                                                    currentLang === code ? "text-primary font-bold bg-primary/5" : "text-zinc-700 font-medium"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg leading-none">
+                                                        {code === 'tr' ? '🇹🇷' : code === 'en' ? '🇬🇧' : code === 'de' ? '🇩🇪' : code === 'fr' ? '🇫🇷' : code === 'ru' ? '🇷🇺' : code === 'ar' ? '🇸🇦' : '🏳️'}
+                                                    </span>
+                                                    <span>{code === 'tr' ? 'Türkçe' : code === 'en' ? 'English' : code === 'de' ? 'Deutsch' : code === 'fr' ? 'Français' : code === 'ru' ? 'Русский' : code === 'ar' ? 'العربية' : code.toUpperCase()}</span>
+                                                </div>
+                                                {currentLang === code && <Check className="h-4 w-4 text-primary" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -193,7 +243,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                             activeCategory === cat.id ? "text-[var(--primary)] font-bold" : "text-[var(--foreground)]/80"
                                         )}
                                     >
-                                        {cat.name}
+                                        {localize(cat, 'name')}
                                     </span>
                                 </button>
                             ))}
@@ -227,22 +277,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                         <p className="text-white/90 text-sm max-w-md drop-shadow font-medium">{venue.description}</p>
 
                         {/* Language Selector */}
-                        {supportedLangs.length > 1 && (
-                            <div className="absolute top-4 right-4 z-50">
-                                <div className="relative">
-                                    <select
-                                        value={currentLang}
-                                        onChange={(e) => setCurrentLang(e.target.value)}
-                                        className="appearance-none bg-black/30 backdrop-blur-md text-white border border-white/20 rounded-full py-1.5 pl-8 pr-4 text-xs font-bold focus:outline-none cursor-pointer hover:bg-black/40 transition-colors uppercase"
-                                    >
-                                        {supportedLangs.map(l => (
-                                            <option key={l} value={l} className="text-black bg-white">{l.toUpperCase()}</option>
-                                        ))}
-                                    </select>
-                                    <Globe className="absolute left-2.5 top-1/5 -translate-y-[1px] mt-2 h-3.5 w-3.5 text-white pointer-events-none" />
-                                </div>
-                            </div>
-                        )}
+                        {/* Language Selector Removed from here to avoid duplication - moved to header */}
                     </div>
                 </div>
             </div>
@@ -305,9 +340,9 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                                 {/* Allergens */}
                                                 {product.allergens && product.allergens.length > 0 && (
                                                     <div className="flex flex-wrap gap-1 mt-2">
-                                                        {product.allergens.map(a => (
-                                                            <span key={a} className="text-[9px] uppercase tracking-wider font-semibold text-[var(--foreground)]/50 border border-black/5 px-1 rounded-sm">
-                                                                {a}
+                                                        {product.allergens.map(allergen => (
+                                                            <span key={allergen} className="text-[10px] px-1.5 py-0.5 bg-zinc-100 text-zinc-500 rounded-full border border-zinc-200">
+                                                                {ALLERGEN_LABELS[allergen]?.[currentLang] || allergen}
                                                             </span>
                                                         ))}
                                                     </div>
