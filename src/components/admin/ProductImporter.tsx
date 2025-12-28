@@ -38,16 +38,31 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             {
                 "ID": "Yeni ürün için boş bırakınız",
                 "Ürün Adı": "Örnek Ürün",
+                "Ürün Adı (EN)": "Example Product",
                 "Açıklama": "Lezzetli bir yemek",
+                "Açıklama (EN)": "A delicious meal",
                 "Fiyat": 150,
                 "Kategori": "Ana Yemekler",
+                "Kategori (EN)": "Main Courses",
                 "Alerjenler": "Gluten, Süt",
                 "Şef": "Hayır",
                 "Görsel Dosya Adı": "burger.jpg (Opsiyonel)"
             }
         ];
         const ws = XLSX.utils.json_to_sheet(headers);
-        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 30 }, { wch: 10 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 40 }];
+        ws['!cols'] = [
+            { wch: 30 }, // ID
+            { wch: 20 }, // Ad
+            { wch: 20 }, // Ad EN
+            { wch: 30 }, // Açıklama
+            { wch: 30 }, // Açıklama EN
+            { wch: 10 }, // Fiyat
+            { wch: 20 }, // Kategori
+            { wch: 20 }, // Kategori EN
+            { wch: 20 }, // Alerjenler
+            { wch: 10 }, // Şef
+            { wch: 40 }  // Görsel
+        ];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Şablon");
         XLSX.writeFile(wb, "qr_menu_sablon.xlsx");
@@ -69,6 +84,23 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 // Try to find image filename 
                 let imgFile = getVal("Görsel Dosya Adı") || getVal("Dosya") || getVal("Image") || "";
 
+                // i18n Parsing
+                const nameEn = getVal("Ürün Adı (EN)") || getVal("Product Name EN") || getVal("Name EN");
+                const descEn = getVal("Açıklama (EN)") || getVal("Description EN");
+                const catEn = getVal("Kategori (EN)") || getVal("Category EN");
+
+                const translations: any = {};
+                if (nameEn || descEn) {
+                    translations['en'] = {
+                        name: nameEn,
+                        description: descEn
+                    };
+                }
+
+                // Kategori çevirisi için geçici alan (daha sonra işlenebilir veya şimdilik sadece ürün bazlı tutulur)
+                // Not: Kategori çevirisi şu anki import yapısında karmaşık olabilir, çünkü kategori tek bir entity. 
+                // Şimdilik sadece ürün çevirilerine odaklanıyoruz.
+
                 return {
                     id: getVal("ID"), // Optional ID for updates
                     name: getVal("Name") || getVal("Ürün Adı") || "İsimsiz Ürün",
@@ -79,6 +111,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     isChefRecommendation: ["evet", "yes", "true", "1"].includes(String(getVal("Chef") || getVal("Şef")).toLowerCase()),
                     imageFilename: imgFile,
                     image: imgFile.startsWith("http") ? imgFile : "", // If already URL, use it
+                    translations: translations, // Add translations to product
                     isAvailable: true
                 };
             });

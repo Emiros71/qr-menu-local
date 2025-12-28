@@ -69,8 +69,8 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     // Allergen localization helper
     const localizeAllergen = (allergenName: string) => {
         if (currentLang === defaultLang) return allergenName;
-        // Find allergen in venue's allergen list
-        const allergen = venue.allergens?.find(a => a.name === allergenName);
+        // Find allergen in venue's allergen list (case-insensitive)
+        const allergen = venue.allergens?.find(a => a.name.toLowerCase() === allergenName.toLowerCase());
         // Return translation if exists, otherwise return original name
         return allergen?.translations?.[currentLang]?.name || allergenName;
     };

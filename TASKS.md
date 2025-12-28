@@ -21,21 +21,20 @@
 - [x] **Site Ayarları**: Ana sayfa başlıkları ve arka planını değiştiren ayarlar sayfası.
 - [x] **Görsel Yönetimi**: Cloudinary entegrasyonu (İmzalı yükleme, Toplu yükleme sihirbazı, Duplicate önleme).
 - [x] **API Güvenliği**: Service Role Key kullanan güvenli Admin API rotaları (RLS Bypass).
-- [ ] **Giriş / Yetkilendirme**: Yönetici girişi (Supabase Auth).
+- [ ] **Giriş / Yetkilendirme**: Yönetici girişi (Supabase Auth) - *Faz 9'a taşındı*.
 
-## Faz 4: Analiz & İçgörüler (Sırada)
+## Faz 4: Analiz & İçgörüler (Devam Eden - Kısmen Tamamlandı)
 - [x] **Veri Toplama Katmanı**: `[slug]/page.tsx` içinde Görüntüleme ve Tıklamaları takip etme yapısı.
 - [ ] **Veri Kaydı**: Analitik olaylarının Supabase'e yazılması.
 - [ ] **Veri Görselleştirme Bağlantısı**: Paneldeki grafikleri gerçek verilerle besleme.
 
-## Faz 5: Denetim & Test (Planlanan)
+## Faz 5: Denetim & Test (Planlanan - Faz 11'e Genişletildi)
 - [x] **E2E Test Altyapısı**: Playwright ile Admin paneli, UI etkileşimleri ve izole test senaryoları.
-- [ ] **Yönetici İşlem Logları**: Yöneticilerin yaptığı değişiklikleri (oluşturma/silme) kayıt altına alma.
-- [ ] **Rol Tabanlı Erişim**: Süper Yönetici vs. Restoran Müdürü ayrımı.
+- [ ] **Yönetici İşlem Logları**: Yöneticilerin yaptığı değişiklikleri kayıt altına alma - *Faz 11'de detaylandırıldı*.
+- [ ] **Rol Tabanlı Erişim**: Süper Yönetici vs. Restoran Müdürü ayrımı - *Faz 9'da detaylandırıldı*.
 
-## Faz 6: Görünüm & UX (Devam Ediyor)
+## Faz 6: Görünüm & UX (Devam Ediyor - Faz 12 ile Birleşecek)
 - [x] **Varsayılan Görsel**: Görseli olmayan ürünler için kurumsal logo (Crowne Plaza) kullanımı.
-        **Varsayılan Görsel**: Burada mekanlara göre değişiklik gösterecek.
 - [ ] **Animasyonlar**: Sayfa geçişleri ve mikro etkileşimler.
 - [ ] **Görünüm & Performans**: Optimizasyon ve hız iyileştirmeleri.
 
@@ -52,9 +51,44 @@
 - [x] **Kaydet Butonu Geri Bildirimi**: Admin panelde değişikliklerin kaydedildiğini bildiren uyarılar.
 - [x] **E2E i18n Testleri**: Playwright ile dil değiştirme ve çeviri testleri.
 
-## Faz 8: Bekleyen Görevler (Yeni - 24.12.2024)
-- [ ] **Excel Formatları Güncelleme**: Alerjen sistemi için Excel import/export formatlarını güncelle.
-- [ ] **Excel Format Kontrolü**: Ürün/Kategori Excel şablonlarını yeni yapıya göre test et.
+## Faz 8: Bekleyen & Son Tamamlanan Görevler (24.12.2024 ve 28.12.2024)
+- [x] **Excel Formatları Güncelleme**: Alerjen ve Çeviri (EN) desteği için Excel import şablonunu ve mantığını güncelle.
+- [x] **Excel Format Kontrolü**: Ürün/Kategori Excel şablonlarını yeni i18n yapısına göre güncelle.
+- [x] **Alerjen Eşleşme İyileştirmesi**: Büyük/küçük harf duyarsız (case-insensitive) alerjen eşleşmesi (Süt == süt).
 - [ ] **Alerjen Sistemi E2E Testleri**: Global alerjen kütüphanesi için kapsamlı testler yaz.
 - [ ] **Admin Panel Alerjen Testleri**: CRUD işlemleri ve çoklu dil testleri.
 - [ ] **Müşteri Menü Alerjen Testleri**: Alerjen gösterimi ve çeviri değişimi testleri.
+
+---
+
+## Faz 9: SaaS Altyapısı & Güvenlik (ÖNCELİKLİ - YENİ) 🔐
+*Gerçek bir SaaS deneyimi için çoklu kullanıcı ve rol yönetimi.*
+- [ ] **Supabase Auth Entegrasyonu**: Admin paneli için Login (Giriş) sayfası yap.
+- [ ] **Kullanıcı Profilleri**: `profiles` tablosu oluştur (User ID -> Venue ID eşleşmesi).
+- [ ] **Rol Tabanlı Erişim (RBAC)**:
+    - **Süper Admin**: Tüm mekanları görür/yönetir (SaaS sahibi).
+    - **Mekan Yöneticisi**: Sadece kendi mekanını görür/düzenler.
+    - **Personel**: Sadece temel işlemleri yapabilir (örn: ürün stok durumu).
+- [ ] **Middleware Koruması**: `/admin` rotalarını yetkisiz erişime kapat.
+
+## Faz 10: Akıllı Menü & Zaman Yönetimi (YENİ ⭐)
+*Gündüz/Gece menüsü gibi zamana bağlı gösterim senaryoları.*
+- [ ] **Zaman Çizelgesi Veri Yapısı**: Kategorilere `start_time` (09:00) ve `end_time` (14:00) kolonları ekle.
+- [ ] **Admin Ayarları**: Kategori düzenleme modunda saat aralığı seçici (Time Picker) ekle.
+- [ ] **Mekan Saat Dilimi**: Mekan ayarlarına `timezone` seçeneği ekle.
+- [ ] **Dinamik Müşteri Menüsü**:
+    - Müşteri siteye girdiğinde saati kontrol et.
+    - Saati gelmemiş kategorileri otomatik gizle veya "Şu an kapalı" olarak silik göster.
+
+## Faz 11: Denetim & Gözlemlenebilirlik (Audit Logs - YENİ) 👁️
+*Kim, ne zaman, neyi değiştirdi?*
+- [ ] **Audit Logs Tablosu**: `logs` tablosu oluştur (log_id, admin_id, action_type, resource, details, timestamp).
+- [ ] **Log Servisi**: Tüm kritik `DbService` işlemleri (create, update, delete) sonrasında otomatik log kaydı oluşturan yapı.
+- [ ] **Admin Aktivite Sayfası**: Yöneticilerin geçmiş işlemleri görebileceği, filtrelenebilir bir "İşlem Geçmişi" sayfası.
+
+## Faz 12: Frontend Cilalama & Analiz (UX Polish - YENİ) ✨
+*Daha akıcı ve ölçülebilir bir müşteri deneyimi.*
+- [ ] **Analitik Uyumluluğu**: Ürün kartlarına `data-product-id`, `data-category` gibi analiz tool'larının okuyabileceği attribute'lar.
+- [ ] **Loading Skeletons**: Sayfa yüklenirken içerik iskeletleri gösterimi.
+- [ ] **Framer Motion Animasyonları**: Kategori geçişleri, sepet hareketleri, dil değişimi efektleri.
+- [ ] **Empty States**: Boş durumlar için kullanıcı dostu tasarımlar.
