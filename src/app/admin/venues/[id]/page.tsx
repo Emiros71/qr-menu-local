@@ -5,6 +5,7 @@ import { Venue, Product, Category, Allergen } from "@/data/db";
 import { DbService } from "@/services/db-service";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { AuditService } from "@/services/audit-service";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Switch } from "@/components/ui/Switch";
 import { ArrowLeft, Save, Plus, Trash2, Image as ImageIcon, Loader2, Star, Edit2, MoreHorizontal, X, Check, Search as SearchIcon, Globe } from "lucide-react";
@@ -143,10 +144,66 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             return;
         }
 
+        // Helper to calc diff
+        const calculateProductDiff = (oldP: any, newP: any) => {
+            const changes: any = {};
+            if (oldP.name !== newP.name) changes.name = { from: oldP.name, to: newP.name };
+
+            // Number comparison fix
+            if (Number(oldP.price) !== Number(newP.price)) changes.price = { from: oldP.price, to: newP.price };
+
+            if (oldP.description !== newP.description) changes.description = { from: oldP.description, to: newP.description };
+            if (Boolean(oldP.isAvailable) !== Boolean(newP.isAvailable)) changes.isAvailable = { from: oldP.isAvailable, to: newP.isAvailable };
+            if (oldP.categoryId !== newP.categoryId) changes.categoryId = { from: oldP.categoryId, to: newP.categoryId };
+
+            // Detailed Allergen Diff
+            const oldAllergens = Array.isArray(oldP.allergens) ? oldP.allergens : [];
+            const newAllergens = Array.isArray(newP.allergens) ? newP.allergens : [];
+
+            const added = newAllergens.filter((a: string) => !oldAllergens.includes(a));
+            const removed = oldAllergens.filter((a: string) => !newAllergens.includes(a));
+
+            if (added.length > 0 || removed.length > 0) {
+                changes.allergens = {
+                    from: oldAllergens,
+                    to: newAllergens,
+                    diff: { added, removed }
+                };
+            }
+
+            // Simple image check
+            if (oldP.image !== newP.image) changes.image = { from: 'old_image', to: 'new_image' };
+
+            return Object.keys(changes).length > 0 ? changes : null;
+        };
+
+        const calculateVenueDiff = (oldV: any, newV: any) => {
+            const changes: any = {};
+            if (oldV.name !== newV.name) changes.name = { from: oldV.name, to: newV.name };
+            if (oldV.theme !== newV.theme) changes.theme = { from: oldV.theme, to: newV.theme };
+            if (oldV.defaultLanguage !== newV.defaultLanguage) changes.language = { from: oldV.defaultLanguage, to: newV.defaultLanguage };
+            return Object.keys(changes).length > 0 ? changes : null;
+        };
+
         setSaving(true);
         try {
-            // 1. Save Venue Settings if changed
+            // 1. Save Venue Settings
             if (venueSettingsChanged && venueData) {
+                // Fetch current venue state for diff
+                try {
+                    const originalVenue = await DbService.getVenueById(venueData.id);
+                    if (originalVenue) {
+                        const diff = calculateVenueDiff(originalVenue, venueData);
+                        if (diff) {
+                            await AuditService.log({
+                                action: 'UPDATE_VENUE',
+                                resource: 'venue',
+                                details: { id: venueData.id, name: venueData.name, changes: diff }
+                            });
+                        }
+                    }
+                } catch (e) { console.error("Validation log failed", e); }
+
                 await DbService.updateVenue(venueData.id, {
                     name: venueData.name,
                     theme: venueData.theme,
@@ -162,19 +219,50 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 const promises = Array.from(unsavedChanges).map(async (prodId) => {
                     const product = products.find(p => p.id === prodId);
                     if (product) {
-                        // Construct update object safely
-                        const updatePayload: any = {
-                            name: product.name,
-                            price: product.price,
-                            description: product.description,
-                            categoryId: product.categoryId,
-                            isAvailable: product.isAvailable,
-                            isChefRecommendation: product.isChefRecommendation,
-                            allergens: product.allergens,
-                            image: product.image
-                            // Add other fields as necessary
-                        };
-                        await DbService.updateProduct(prodId, updatePayload);
+                        try {
+                            // Fetch original state from DB to compare
+                            const originalProduct = await DbService.getProductById(prodId);
+
+                            const updatePayload: any = {
+                                name: product.name,
+                                price: product.price,
+                                description: product.description,
+                                categoryId: product.categoryId,
+                                isAvailable: product.isAvailable,
+                                isChefRecommendation: product.isChefRecommendation,
+                                allergens: product.allergens,
+                                image: product.image
+                            };
+
+                            // Update DB
+                            await DbService.updateProduct(prodId, updatePayload);
+
+                            // Log detailed diff
+                            if (originalProduct) {
+                                const diff = calculateProductDiff(originalProduct, updatePayload);
+                                if (diff) {
+                                    await AuditService.log({
+                                        action: 'UPDATE_PRODUCT',
+                                        resource: 'product',
+                                        details: {
+                                            id: prodId,
+                                            name: product.name,
+                                            changes: diff,
+                                            update_type: 'bulk_save'
+                                        }
+                                    });
+                                }
+                            } else {
+                                // Fallback if original not found (shouldn't happen usually)
+                                await AuditService.log({
+                                    action: 'UPDATE_PRODUCT',
+                                    resource: 'product',
+                                    details: { id: prodId, name: product.name, note: "Original not found to diff" }
+                                });
+                            }
+                        } catch (err) {
+                            console.error("Product update/log failed for", prodId, err);
+                        }
                     }
                 });
                 await Promise.all(promises);
@@ -246,13 +334,44 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     name: editingCategory.name,
                     translations: editingCategory.translations
                 });
-                if (created) setCategories(prev => [...prev, created]);
+                if (created) {
+                    setCategories(prev => [...prev, created]);
+                    AuditService.log({
+                        action: 'CREATE_CATEGORY',
+                        resource: 'category',
+                        details: { name: editingCategory.name, venue_id: venueData!.id, venue_name: venueData!.name }
+                    });
+                }
             } else {
-                await DbService.updateCategory(editingCategory.id, {
+                // Update
+                const catId = editingCategory.id || '';
+
+                // Fetch original for diff (optional but nice)
+                // Since we don't have getCategoryById in DbService yet easily exposed, 
+                // we can look at 'categories' state which holds the OLD state before this save!
+                const oldCat = categories.find(c => c.id === catId);
+
+                await DbService.updateCategory(catId, {
                     name: editingCategory.name,
                     translations: editingCategory.translations
                 });
-                setCategories(prev => prev.map(c => c.id === editingCategory.id ? editingCategory : c));
+
+                if (oldCat) {
+                    const changes: any = {};
+                    if (oldCat.name !== editingCategory.name) changes.name = { from: oldCat.name, to: editingCategory.name };
+
+                    AuditService.log({
+                        action: 'UPDATE_CATEGORY',
+                        resource: 'category',
+                        details: {
+                            id: catId,
+                            name: editingCategory.name,
+                            changes: Object.keys(changes).length > 0 ? changes : 'Translation or other update'
+                        }
+                    });
+                }
+
+                setCategories(prev => prev.map(c => c.id === editingCategory.id ? (editingCategory as Category) : c));
             }
             setIsCategoryModalOpen(false);
         } catch (e) {
@@ -1018,17 +1137,61 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     // Create
                                     try {
                                         const created = await DbService.createProduct(editingProduct);
-                                        if (created) setProducts(prev => [...prev, created]);
+                                        if (created) {
+                                            setProducts(prev => [...prev, created]);
+                                            AuditService.log({
+                                                action: 'CREATE_PRODUCT',
+                                                resource: 'product',
+                                                details: { name: created.name, venue_id: unwrappedParams.id }
+                                            });
+                                        }
                                         setIsAllergenModalOpen(false);
                                     } catch (e) { alert("Oluşturulamadı"); }
                                 } else {
                                     // Update
                                     try {
-                                        await DbService.updateProduct(editingProduct.id, editingProduct);
-                                        // Update local list
-                                        setProducts(prev => prev.map(p => p.id === editingProduct.id ? (editingProduct as Product) : p));
+                                        const productId = editingProduct.id || '';
+
+                                        // Find old product to compare
+                                        const oldProduct = products.find(p => p.id === productId);
+                                        const changes: Record<string, { from: any, to: any }> = {};
+
+                                        if (oldProduct) {
+                                            if (oldProduct.name !== editingProduct.name)
+                                                changes.name = { from: oldProduct.name, to: editingProduct.name };
+                                            if (oldProduct.price !== editingProduct.price)
+                                                changes.price = { from: oldProduct.price, to: editingProduct.price };
+                                            if (oldProduct.categoryId !== editingProduct.categoryId)
+                                                changes.category = { from: oldProduct.categoryId, to: editingProduct.categoryId };
+                                            if (oldProduct.description !== editingProduct.description)
+                                                changes.description = { from: oldProduct.description, to: editingProduct.description };
+                                        }
+
+                                        await DbService.updateProduct(productId, editingProduct);
+
+                                        // Logging with safety check
+                                        try {
+                                            console.log("Attempting to log UPDATE_PRODUCT", { productId, changes });
+                                            await AuditService.log({
+                                                action: 'UPDATE_PRODUCT',
+                                                resource: 'product',
+                                                details: {
+                                                    id: productId,
+                                                    name: editingProduct.name,
+                                                    changes: Object.keys(changes).length > 0 ? changes : 'No specific changes detected'
+                                                }
+                                            });
+                                            console.log("Log sent successfully");
+                                        } catch (logErr) {
+                                            console.error("Failed to log product update:", logErr);
+                                        }
+
+                                        setProducts(prev => prev.map(p => p.id === productId ? (editingProduct as Product) : p));
                                         setIsAllergenModalOpen(false);
-                                    } catch (e) { alert("Güncellenemedi"); }
+                                    } catch (e) {
+                                        console.error("Update failed:", e);
+                                        alert("Güncellenemedi");
+                                    }
                                 }
                             }}>Kaydet</Button>
                         </div>

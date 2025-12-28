@@ -108,6 +108,20 @@ export default function AdminSidebar({ venues }: SidebarProps) {
 
                     <div className="pt-2">
                         <Link
+                            href="/admin/logs"
+                            onClick={() => setIsSidebarOpen(false)}
+                            className={cn(
+                                "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                                isActive("/admin/logs") ? "bg-primary/5 text-primary" : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                            )}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            </svg>
+                            Sistem Kayıtları
+                        </Link>
+                        <Link
                             href="/admin/settings"
                             onClick={() => setIsSidebarOpen(false)}
                             className={cn(
@@ -122,18 +136,37 @@ export default function AdminSidebar({ venues }: SidebarProps) {
                 </nav>
 
                 <div className="p-4 border-t border-zinc-100 mt-auto">
-                    <button className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                    <button
+                        onClick={async () => {
+                            const { createClient } = await import('@/utils/supabase/client');
+                            const { AuditService } = await import('@/services/audit-service');
+                            const supabase = createClient();
+
+                            // Get user to log their email before signing out
+                            const { data: { user } } = await supabase.auth.getUser();
+
+                            await AuditService.log({
+                                action: 'LOGOUT',
+                                resource: 'auth',
+                                details: { email: user?.email || 'unknown' }
+                            });
+
+                            await supabase.auth.signOut();
+                            window.location.href = '/login';
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                    >
                         <LogOut className="h-4 w-4" />
                         Çıkış Yap
                     </button>
-                    {/* User Info Mock */}
+                    {/* User Info Mock - In future phases, fetch from profile */}
                     <div className="mt-4 flex items-center gap-3 px-2">
                         <div className="h-8 w-8 rounded-full bg-zinc-200 overflow-hidden">
                             <img src="https://ui-avatars.com/api/?name=Admin+User" alt="Admin" />
                         </div>
                         <div className="text-xs">
                             <div className="font-bold text-zinc-900">Admin User</div>
-                            <div className="text-zinc-500">admin@qrmenu.com</div>
+                            <div className="text-zinc-500">Süper Yönetici</div>
                         </div>
                     </div>
                 </div>

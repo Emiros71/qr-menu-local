@@ -129,6 +129,35 @@ export const DbService = {
         return venue;
     },
 
+    // Get single product mostly for audit logs
+    getProductById: async (id: string): Promise<Product | null> => {
+        if (!isSupabaseConfigured()) return null;
+
+        const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) return null;
+
+        return {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            price: data.price,
+            image: data.image,
+            categoryId: data.category_id,
+            venueId: data.venue_id,
+            isAvailable: data.is_available,
+            allergens: data.allergens,
+            isChefRecommendation: data.is_chef_recommendation,
+            labels: data.labels,
+            currency: 'TRY',
+            translations: typeof data.translations === 'string' ? JSON.parse(data.translations) : data.translations
+        };
+    },
+
     // Get single venue by ID (for admin editor)
     getVenueById: async (id: string): Promise<Venue | null> => {
         if (!isSupabaseConfigured()) {

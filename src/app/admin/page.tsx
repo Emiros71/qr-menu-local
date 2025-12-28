@@ -37,7 +37,7 @@ export default function AdminDashboard() {
                     <p className="text-zinc-500 mt-2">Pazarlama ve operasyon verileri.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline">Rapor İndir</Button>
+                    <Button variant="outline" className="text-zinc-900 border-zinc-300 hover:bg-zinc-50">Rapor İndir</Button>
                     <Button>Kampanya Oluştur</Button>
                 </div>
             </div>
