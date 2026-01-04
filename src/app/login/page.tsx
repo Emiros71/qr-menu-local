@@ -23,20 +23,46 @@ export default function LoginPage() {
     const router = useRouter();
     const supabase = createClient();
 
-    // Check Lockout Timer
+    // Check Lockout Timer and Load Persisted State
     useEffect(() => {
-        if (lockoutUntil) {
-            const interval = setInterval(() => {
-                const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
-                if (remaining <= 0) {
-                    setLockoutUntil(null);
-                    setFailedAttempts(0); // Reset attempts after lockout
-                } else {
-                    setTimeLeft(remaining);
-                }
-            }, 1000);
-            return () => clearInterval(interval);
+        // Load state from LocalStorage on mount
+        const storedLockout = localStorage.getItem('login_lockout_until');
+        const storedAttempts = localStorage.getItem('login_failed_attempts');
+
+        if (storedAttempts) {
+            setFailedAttempts(parseInt(storedAttempts, 10));
         }
+
+        if (storedLockout) {
+            const lockoutTime = parseInt(storedLockout, 10);
+            if (lockoutTime > Date.now()) {
+                setLockoutUntil(lockoutTime);
+            } else {
+                // Expired while away
+                localStorage.removeItem('login_lockout_until');
+                localStorage.removeItem('login_failed_attempts'); // Optional: reset attempts logic
+                setLockoutUntil(null);
+                setFailedAttempts(0);
+            }
+        }
+    }, []);
+
+    // Timer Interval logic
+    useEffect(() => {
+        if (!lockoutUntil) return;
+
+        const interval = setInterval(() => {
+            const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+            if (remaining <= 0) {
+                setLockoutUntil(null);
+                setFailedAttempts(0); // Reset attempts after lockout
+                localStorage.removeItem('login_lockout_until');
+                localStorage.removeItem('login_failed_attempts');
+            } else {
+                setTimeLeft(remaining);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
     }, [lockoutUntil]);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -64,6 +90,7 @@ export default function LoginPage() {
                 // Increase security counter
                 const newAttempts = failedAttempts + 1;
                 setFailedAttempts(newAttempts);
+                localStorage.setItem('login_failed_attempts', newAttempts.toString());
 
                 // Log Failure (High Priority Security Event)
                 AuditService.log({
@@ -74,11 +101,19 @@ export default function LoginPage() {
 
                 // Lockout logic: Lock for 30s after 3 attempts
                 if (newAttempts >= 3) {
-                    setLockoutUntil(Date.now() + 30000); // 30 seconds
+                    const lockoutTime = Date.now() + 30000; // 30 seconds
+                    setLockoutUntil(lockoutTime);
+                    localStorage.setItem('login_lockout_until', lockoutTime.toString());
                 }
 
             } else {
                 // Success!
+                // Clear Security State
+                setFailedAttempts(0);
+                setLockoutUntil(null);
+                localStorage.removeItem('login_failed_attempts');
+                localStorage.removeItem('login_lockout_until');
+
                 AuditService.log({
                     action: 'LOGIN',
                     resource: 'auth',

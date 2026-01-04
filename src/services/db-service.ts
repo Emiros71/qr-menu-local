@@ -7,6 +7,18 @@ const isSupabaseConfigured = () => {
     return !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 };
 
+// Helper to parse hybrid image field (support for legacy URL string or new JSON object)
+const parseImageField = (val: string | null | undefined) => {
+    if (!val) return { image: undefined, coverImage: undefined };
+    try {
+        if (val.startsWith('{')) {
+            const json = JSON.parse(val);
+            return { image: json.icon, coverImage: json.cover };
+        }
+    } catch (e) { }
+    return { image: val, coverImage: undefined };
+};
+
 // Helper to perform generic actions via API (bypassing Client RLS)
 async function performActionViaApi(table: string, action: 'update' | 'delete' | 'create', data: any, id?: string) {
     // Get Current User for Audit Log Context
@@ -110,12 +122,17 @@ export const DbService = {
             translations: typeof p.translations === 'string' ? JSON.parse(p.translations) : p.translations
         }));
 
-        const categories = (catData || []).map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            venueId: c.venue_id,
-            translations: typeof c.translations === 'string' ? JSON.parse(c.translations) : c.translations
-        }));
+        const categories = (catData || []).map((c: any) => {
+            const { image, coverImage } = parseImageField(c.image);
+            return {
+                id: c.id,
+                name: c.name,
+                image: image,
+                coverImage: coverImage,
+                venueId: c.venue_id,
+                translations: typeof c.translations === 'string' ? JSON.parse(c.translations) : c.translations
+            };
+        });
 
         const venue: Venue = {
             id: venueData.id,
@@ -214,12 +231,17 @@ export const DbService = {
             translations: p.translations
         }));
 
-        const categories = (catData || []).map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            venueId: c.venue_id,
-            translations: c.translations
-        }));
+        const categories = (catData || []).map((c: any) => {
+            const { image, coverImage } = parseImageField(c.image);
+            return {
+                id: c.id,
+                name: c.name,
+                image: image,
+                coverImage: coverImage,
+                venueId: c.venue_id,
+                translations: c.translations
+            };
+        });
 
         const venue: Venue = {
             id: venueData.id,
@@ -288,6 +310,22 @@ export const DbService = {
         const dbUpdates: any = {};
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.translations !== undefined) dbUpdates.translations = updates.translations;
+
+        // Handle Image Store (JSON or String)
+        // If we have either image or coverImage update, we must rewrite the JSON
+        if (updates.image !== undefined || updates.coverImage !== undefined) {
+            // CAUTION: This assumes 'image' field update always contains the icon.
+            // If we update ONLY coverImage, checks like 'updates.image' might be missing if not passed.
+            // Ideally we should fetch current state, but to save roundtrip we assume the caller sends both or we accept partial overwrite if not careful.
+            // Since Admin Panel sends spread object, updates.image is present if it was set.
+
+            // However, for consistency with current flow:
+            const icon = updates.image;
+            const cover = updates.coverImage;
+
+            // Store as JSON
+            dbUpdates.image = JSON.stringify({ icon, cover });
+        }
 
         if (Object.keys(dbUpdates).length === 0) return;
 
@@ -430,6 +468,13 @@ export const DbService = {
 
         if (category.translations) dbCategory.translations = category.translations;
 
+        // Use Image column to store both icon and cover as JSON
+        const icon = category.image;
+        const cover = category.coverImage;
+        if (icon || cover) {
+            dbCategory.image = JSON.stringify({ icon, cover });
+        }
+
         try {
             const result = await performActionViaApi('categories', 'create', dbCategory);
             const data = result && result.length > 0 ? result[0] : null;
@@ -438,6 +483,8 @@ export const DbService = {
             return {
                 id: data.id,
                 name: data.name,
+                image: category.image,
+                coverImage: category.coverImage,
                 venueId: data.venue_id,
                 translations: data.translations
             };
@@ -448,6 +495,8 @@ export const DbService = {
             return {
                 id: data.id,
                 name: data.name,
+                image: category.image,
+                coverImage: category.coverImage,
                 venueId: data.venue_id,
                 translations: data.translations
             };

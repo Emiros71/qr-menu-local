@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { AuditService } from "@/services/audit-service";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Switch } from "@/components/ui/Switch";
-import { ArrowLeft, Save, Plus, Trash2, Image as ImageIcon, Loader2, Star, Edit2, MoreHorizontal, X, Check, Search as SearchIcon, Globe } from "lucide-react";
+import { ArrowLeft, Plus, Save, Search as SearchIcon, Trash2, Edit2, Check, GripVertical, Download, X, MoreHorizontal, Star, Image as LucideImage, Globe, History, Info, Filter, Loader2 } from "lucide-react";
 import ImageUpload from "@/components/ui/ImageUpload";
 import Link from "next/link";
 import Image from "next/image";
@@ -65,6 +65,62 @@ const AdminProductImage = ({ product, defaultImage, onClick }: { product: Produc
         </div>
     );
 };
+
+const THEME_PRESETS = [
+    {
+        name: "Lüks (FineDine Dark)",
+        colors: {
+            primary: "#D4AF37",
+            secondary: "#27272a",
+            background: "#121212",
+            foreground: "#EDEDED",
+            headerColor: "#121212",
+            labelColor: "#D4AF37",
+            cardColor: "#1E1E1E",
+            cardStyle: 'modern'
+        }
+    },
+    {
+        name: "Ferah (FineDine Light)",
+        colors: {
+            primary: "#EA580C",
+            secondary: "#FFFFFF",
+            background: "#F3F4F6",
+            foreground: "#111827",
+            headerColor: "#FFFFFF",
+            labelColor: "#EA580C",
+            cardColor: "#FFFFFF",
+            cardStyle: 'minimal'
+        }
+    },
+    {
+        name: "Gece Mavisi (Midnight)",
+        colors: {
+            primary: "#38BDF8",
+            secondary: "#0F172A",
+            background: "#020617",
+            foreground: "#F0F9FF",
+            headerColor: "#020617",
+            labelColor: "#0EA5E9",
+            cardColor: "#111827",
+            cardStyle: 'modern'
+        }
+    },
+    {
+        name: "Organik (Doğal)",
+        colors: {
+            primary: "#15803d",
+            secondary: "#F0FDF4",
+            background: "#FCFAF7",
+            foreground: "#1c1917",
+            headerColor: "#FFFFFF",
+            labelColor: "#15803d",
+            cardColor: "#FFFFFF",
+            cardStyle: 'bordered'
+        }
+    }
+];
+
 export default function VenueEditor({ params }: { params: Promise<{ id: string }> }) {
     const unwrappedParams = use(params);
     const [loading, setLoading] = useState(true);
@@ -309,7 +365,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 const created = await DbService.createCategory({
                     venueId: venueData!.id,
                     name: editingCategory.name,
-                    translations: editingCategory.translations
+                    translations: editingCategory.translations,
+                    image: editingCategory.image,
+                    coverImage: editingCategory.coverImage
                 });
                 if (created) {
                     setCategories(prev => [...prev, created]);
@@ -320,7 +378,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                 await DbService.updateCategory(catId, {
                     name: editingCategory.name,
-                    translations: editingCategory.translations
+                    translations: editingCategory.translations,
+                    image: editingCategory.image,
+                    coverImage: editingCategory.coverImage
                 });
 
                 // Update local state
@@ -671,29 +731,32 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             {activeTab === 'categories' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {categories.map((cat) => (
-                        <Card key={cat.id} className="group hover:border-primary/50 transition-colors cursor-pointer bg-white">
+                        <Card key={cat.id} className="group hover:border-primary/50 transition-colors cursor-pointer bg-white relative" onClick={() => handleEditCategory(cat)}>
                             <CardContent className="p-4 flex items-center gap-4">
-                                <div className="h-12 w-12 bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-400">
-                                    {/* Category Image would go here */}
-                                    <MoreHorizontal className="h-6 w-6" />
+                                <div className="h-16 w-16 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-300 shrink-0 overflow-hidden border border-zinc-100 relative">
+                                    {cat.image ? (
+                                        <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <LucideImage className="h-6 w-6 opacity-50" />
+                                    )}
                                 </div>
-                                <div className="flex-1">
-                                    <div className="font-bold text-zinc-900">{cat.name}</div>
-                                    <div className="text-xs text-zinc-500">
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-zinc-900 truncate pr-8">{cat.name}</div>
+                                    <div className="text-xs text-zinc-500 mt-0.5">
                                         {products.filter(p => p.categoryId === cat.id).length} Ürün
                                         {products.filter(p => p.categoryId === cat.id).length > 0 && (
-                                            <div className="text-[10px] text-zinc-400 mt-0.5 truncate max-w-[150px]" title={products.filter(p => p.categoryId === cat.id).map(p => p.name).join(', ')}>
+                                            <div className="text-[10px] text-zinc-400 mt-1 truncate" title={products.filter(p => p.categoryId === cat.id).map(p => p.name).join(', ')}>
                                                 {products.filter(p => p.categoryId === cat.id).map(p => p.name).join(', ')}
                                             </div>
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleEditCategory(cat)}>
-                                        <Edit2 className="h-4 w-4 text-zinc-500" />
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-zinc-100" onClick={(e) => { e.stopPropagation(); handleEditCategory(cat); }}>
+                                        <Edit2 className="h-3.5 w-3.5 text-zinc-500" />
                                     </Button>
-                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-red-50" onClick={() => handleDeleteCategory(cat.id)}>
-                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}>
+                                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
                                     </Button>
                                 </div>
                             </CardContent>
@@ -733,11 +796,109 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     <label className="text-sm font-medium">Mekan Adı</label>
                                     <Input value={venueData.name} onChange={(e) => handleVenueChange('name', e.target.value)} className="bg-white text-zinc-900" />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Tema Rengi</label>
-                                    <div className="flex gap-2">
-                                        <div className="h-10 w-10 rounded border shrink-0" style={{ backgroundColor: venueData.theme?.primary }} />
-                                        <Input value={venueData.theme?.primary} onChange={(e) => handleVenueChange('theme', { primary: e.target.value })} className="bg-white text-zinc-900" />
+                                <div className="space-y-4 col-span-2">
+                                    <div className="flex items-center justify-between border-b pb-2 mb-2 mt-2">
+                                        <h4 className="font-medium text-sm text-zinc-700">Renk Ayarları</h4>
+                                        <span className="text-xs text-zinc-400">Temanızın renk paletini özelleştirin</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Tema Rengi (Vurgu)</label>
+                                            <div className="flex gap-2">
+                                                <div className="h-10 w-10 rounded-lg border shadow-sm shrink-0 transition-colors" style={{ backgroundColor: venueData.theme?.primary }} />
+                                                <Input value={venueData.theme?.primary} onChange={(e) => handleVenueChange('theme', { primary: e.target.value })} className="bg-white text-zinc-900 font-mono" />
+                                            </div>
+                                            <p className="text-[10px] text-zinc-500">Butonlar ve aktif öğeler.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">İkincil Renk</label>
+                                            <div className="flex gap-2">
+                                                <div className="h-10 w-10 rounded-lg border shadow-sm shrink-0 transition-colors" style={{ backgroundColor: venueData.theme?.secondary || '#ffffff' }} />
+                                                <Input value={venueData.theme?.secondary} onChange={(e) => handleVenueChange('theme', { secondary: e.target.value })} className="bg-white text-zinc-900 font-mono" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Arka Plan Rengi</label>
+                                            <div className="flex gap-2">
+                                                <div className="h-10 w-10 rounded-lg border shadow-sm shrink-0 transition-colors" style={{ backgroundColor: venueData.theme?.background }} />
+                                                <Input value={venueData.theme?.background} onChange={(e) => handleVenueChange('theme', { background: e.target.value })} className="bg-white text-zinc-900 font-mono" />
+                                            </div>
+                                            <p className="text-[10px] text-zinc-500">Sayfanın genel zemin rengi.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Yazı Rengi</label>
+                                            <div className="flex gap-2">
+                                                <div className="h-10 w-10 rounded-lg border shadow-sm shrink-0 transition-colors" style={{ backgroundColor: venueData.theme?.foreground }} />
+                                                <Input value={venueData.theme?.foreground} onChange={(e) => handleVenueChange('theme', { foreground: e.target.value })} className="bg-white text-zinc-900 font-mono" />
+                                            </div>
+                                            <p className="text-[10px] text-zinc-500">Başlık ve metin renkleri.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Etiket Rengi</label>
+                                            <div className="flex gap-2">
+                                                <div className="h-10 w-10 rounded-lg border shadow-sm shrink-0 transition-colors" style={{ backgroundColor: venueData.theme?.labelColor || '#F59E0B' }} />
+                                                <Input value={venueData.theme?.labelColor || '#F59E0B'} onChange={(e) => handleVenueChange('theme', { labelColor: e.target.value })} className="bg-white text-zinc-900 font-mono" />
+                                            </div>
+                                            <p className="text-[10px] text-zinc-500">İndirim, şefin tavsiyesi vb.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Header Rengi</label>
+                                            <div className="flex gap-2">
+                                                <div className="h-10 w-10 rounded-lg border shadow-sm shrink-0 transition-colors" style={{ backgroundColor: venueData.theme?.headerColor || '#ffffff' }} />
+                                                <Input value={venueData.theme?.headerColor || '#ffffff'} onChange={(e) => handleVenueChange('theme', { headerColor: e.target.value })} className="bg-white text-zinc-900 font-mono" />
+                                            </div>
+                                            <p className="text-[10px] text-zinc-500">Üst menü çubuğu arkaplanı.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Kart Rengi</label>
+                                            <div className="flex gap-2">
+                                                <div className="h-10 w-10 rounded-lg border shadow-sm shrink-0 transition-colors" style={{ backgroundColor: venueData.theme?.cardColor || 'transparent' }} />
+                                                <Input value={venueData.theme?.cardColor || ''} onChange={(e) => handleVenueChange('theme', { cardColor: e.target.value })} placeholder="Otomatik" className="bg-white text-zinc-900 font-mono" />
+                                            </div>
+                                            <p className="text-[10px] text-zinc-500">Ürün kutusu arkaplanı.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 pt-4 border-t border-dashed border-zinc-200">
+                                        <label className="text-sm font-medium block mb-2">Ürün Kart Tasarımı</label>
+                                        <div className="flex gap-2">
+                                            {['modern', 'minimal', 'bordered', 'glass'].map((style) => (
+                                                <button
+                                                    key={style}
+                                                    onClick={() => handleVenueChange('theme', { cardStyle: style })}
+                                                    className={cn(
+                                                        "px-3 py-1.5 text-xs border rounded-lg transition-all capitalize",
+                                                        (venueData.theme?.cardStyle || 'modern') === style ? "bg-primary text-white border-primary" : "bg-white text-zinc-700 hover:bg-zinc-50"
+                                                    )}
+                                                >
+                                                    {style === 'glass' ? style + ' 💧' : style}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="md:col-span-2 mt-4 space-y-3 pt-4 border-t border-dashed border-zinc-200">
+                                        <label className="text-sm font-medium block">Hızlı Tema Seçimi</label>
+                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                            {THEME_PRESETS.map(preset => (
+                                                <button
+                                                    key={preset.name}
+                                                    onClick={() => handleVenueChange('theme', preset.colors)}
+                                                    className="flex flex-col gap-2 p-3 border border-zinc-200 rounded-xl hover:border-primary hover:bg-zinc-50 transition-all text-left bg-white shadow-sm group"
+                                                >
+                                                    <div className="flex gap-1 mb-1">
+                                                        <div className="w-5 h-5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: preset.colors.background }} title="Background" />
+                                                        <div className="w-5 h-5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: preset.colors.primary }} title="Primary" />
+                                                        <div className="w-5 h-5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: preset.colors.foreground }} title="Text" />
+                                                        <div className="w-5 h-5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: preset.colors.headerColor }} title="Header" />
+                                                    </div>
+                                                    <span className="text-xs font-semibold text-zinc-700 group-hover:text-primary transition-colors">{preset.name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] text-zinc-500 italic">
+                                            * Tema seçtiğinizde renk ayarları otomatik güncellenir. Değişiklikleri uygulamak için yukarıdaki "Kaydet" butonunu kullanın.
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="space-y-2 col-span-2">
@@ -1205,7 +1366,25 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 autoFocus
                                             />
                                         </div>
-                                        {/* Future: Category Image Upload */}
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Kategori Görseli (Küçük İkon)</label>
+                                            <ImageUpload
+                                                value={editingCategory.image || ""}
+                                                onChange={(url) => setEditingCategory(prev => prev ? ({ ...prev, image: url }) : null)}
+                                                onRemove={() => setEditingCategory(prev => prev ? ({ ...prev, image: "" }) : null)}
+                                                folder="qr-menu/categories"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Kapak Görseli (Cover)</label>
+                                            <p className="text-[10px] text-zinc-500 mb-1">Kategori ürünlerinin üzerinde geniş banner olarak görünür.</p>
+                                            <ImageUpload
+                                                value={editingCategory.coverImage || ""}
+                                                onChange={(url) => setEditingCategory(prev => prev ? ({ ...prev, coverImage: url }) : null)}
+                                                onRemove={() => setEditingCategory(prev => prev ? ({ ...prev, coverImage: "" }) : null)}
+                                                folder="qr-menu/categories/covers"
+                                            />
+                                        </div>
                                     </div>
                                 )}
 

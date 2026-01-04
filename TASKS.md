@@ -73,6 +73,7 @@
     - **Mekan Yöneticisi**: Sadece kendi mekanını görür/düzenler.
     - **Personel**: Sadece temel işlemleri yapabilir (örn: ürün stok durumu).
 - [ ] **Middleware Koruması**: `/admin` rotalarını yetkisiz erişime kapat.
+- [ ] **Özel Domain Desteği (Custom Domains)**: Mekanların kendi alan adlarında (örn. www.aura.com) çalışabilmesi için middleware ve veri yapısı.
 
 ## Faz 10: Akıllı Menü & Zaman Yönetimi (YENİ ⭐)
 *Gündüz/Gece menüsü gibi zamana bağlı gösterim senaryoları.*
@@ -92,17 +93,13 @@
 
 ## Faz 12: Frontend Cilalama & Analiz (UX Polish - YENİ) ✨
 *Daha akıcı ve ölçülebilir bir müşteri deneyimi.*
+- [x] **Tema Presets**: FineDine benzeri profesyonel hazır temalar (Lüks, Ferah, Gece).
+- [x] **Kart Özelleştirme**: Ürün kartları için renk ve stil (Minimal, Glass, Bordered) seçenekleri.
+- [x] **Okunabilirlik İyileştirmesi**: Kategori başlıkları için kontrast sorununu çözen modern tasarım.
+- [x] **Renk Yönetimi**: Admin panelde Background, Foreground, Header ve Label renklerinin tam kontrolü.
 - [ ] **Analitik Uyumluluğu**: Ürün kartlarına `data-product-id`, `data-category` gibi analiz tool'larının okuyabileceği attribute'lar.
 - [ ] **Loading Skeletons**: Sayfa yüklenirken içerik iskeletleri gösterimi.
 - [ ] **Framer Motion Animasyonları**: Kategori geçişleri, sepet hareketleri, dil değişimi efektleri.
 - [ ] **Empty States**: Boş durumlar için kullanıcı dostu tasarımlar.
 
 
-debug
-1.kahvelerasd kategorisinin en çevirisi güncellendi ama ancak ham veride anlayabiliyoruz değişiklik özetine de ekle. 
-2. Ürün silindi ama hangi ürün silindiyi açıklama kısmına yaz örneğin San sebastian Ürünü silindi. 
-3. Kategori silindi ama hangi kategori silindi aynı ürün silindi gibi yap kırmızı yazsın açıklama.
-4. mesela kategoriler kırılımında tatlılarda 1 ürün görünüyor bunun hangi ürün olduğunu görmek istiyorum nasıl görüneceğini sana bırakıyorum. İleride büyük ihtimalle kategorilerinde resimleri olucak ona göre alt yapını yap.
-4.1 aynı olayı alerjenler içinde olsun.
-5. Kategori kahveler oluşturuldu ama hangi mekanda oluşturuldu mekan bilgisi görünmüyor.
-6. Mekan ayarı değiştirildi ama hangi mekan orası yine boş geldi.

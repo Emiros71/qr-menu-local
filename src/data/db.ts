@@ -9,12 +9,17 @@ export type Theme = {
     background: string;
     foreground: string;
     defaultProductImage?: string;
+    headerColor?: string;
+    labelColor?: string;
+    cardColor?: string;
+    cardStyle?: 'modern' | 'minimal' | 'glass' | 'bordered';
 };
 
 export type Category = {
     id: string;
     name: string;
     image?: string;
+    coverImage?: string;
     translations?: Record<string, TranslationData>;
 };
 
@@ -31,6 +36,7 @@ export type Product = {
     isAvailable: boolean;
     allergens?: string[]; // e.g. ['Gluten', 'Dairy']
     isChefRecommendation?: boolean;
+    calories?: number;
     translations?: Record<string, TranslationData>;
 };
 
