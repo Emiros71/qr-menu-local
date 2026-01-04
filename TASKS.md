@@ -48,6 +48,9 @@
 - [x] **Alerjen Çoklu Dil**: Her alerjen için tüm desteklenen dillerde çeviri desteği.
 - [x] **Ürün Bazlı Alerjen İstatistiği**: Her alerjenin kaç üründe kullanıldığını gösterme.
 - [x] **Müşteri Menüsünde Alerjen Çevirileri**: DB'den dinamik alerjen çevirileri gösterimi.
+
+## Faz 13: Dokümantasyon
+- [ ] **readme.md güncellenecek**: Proje kurulumu ve özellikleri hakkında güncel bilgi.
 - [x] **Kaydet Butonu Geri Bildirimi**: Admin panelde değişikliklerin kaydedildiğini bildiren uyarılar.
 - [x] **E2E i18n Testleri**: Playwright ile dil değiştirme ve çeviri testleri.
 
@@ -82,9 +85,10 @@
 
 ## Faz 11: Denetim & Gözlemlenebilirlik (Audit Logs - YENİ) 👁️
 *Kim, ne zaman, neyi değiştirdi?*
-- [ ] **Audit Logs Tablosu**: `logs` tablosu oluştur (log_id, admin_id, action_type, resource, details, timestamp).
-- [ ] **Log Servisi**: Tüm kritik `DbService` işlemleri (create, update, delete) sonrasında otomatik log kaydı oluşturan yapı.
-- [ ] **Admin Aktivite Sayfası**: Yöneticilerin geçmiş işlemleri görebileceği, filtrelenebilir bir "İşlem Geçmişi" sayfası.
+- [x] **Audit Logs Tablosu**: `logs` tablosu oluştur (log_id, admin_id, action_type, resource, details, timestamp).
+- [x] **Log Servisi**: Tüm kritik `DbService` işlemleri (create, update, delete) sonrasında otomatik log kaydı oluşturan yapı.
+- [x] **Admin Aktivite Sayfası**: Yöneticilerin geçmiş işlemleri görebileceği, filtrelenebilir bir "İşlem Geçmişi" sayfası.
+- [x] **Detaylı Loglama**: Alerjen, Ürün, Kategori ve Sistem Ayarları değişikliklerinin detaylı takibi (Resource Check, Global Venue).
 
 ## Faz 12: Frontend Cilalama & Analiz (UX Polish - YENİ) ✨
 *Daha akıcı ve ölçülebilir bir müşteri deneyimi.*
@@ -92,3 +96,13 @@
 - [ ] **Loading Skeletons**: Sayfa yüklenirken içerik iskeletleri gösterimi.
 - [ ] **Framer Motion Animasyonları**: Kategori geçişleri, sepet hareketleri, dil değişimi efektleri.
 - [ ] **Empty States**: Boş durumlar için kullanıcı dostu tasarımlar.
+
+
+debug
+1.kahvelerasd kategorisinin en çevirisi güncellendi ama ancak ham veride anlayabiliyoruz değişiklik özetine de ekle. 
+2. Ürün silindi ama hangi ürün silindiyi açıklama kısmına yaz örneğin San sebastian Ürünü silindi. 
+3. Kategori silindi ama hangi kategori silindi aynı ürün silindi gibi yap kırmızı yazsın açıklama.
+4. mesela kategoriler kırılımında tatlılarda 1 ürün görünüyor bunun hangi ürün olduğunu görmek istiyorum nasıl görüneceğini sana bırakıyorum. İleride büyük ihtimalle kategorilerinde resimleri olucak ona göre alt yapını yap.
+4.1 aynı olayı alerjenler içinde olsun.
+5. Kategori kahveler oluşturuldu ama hangi mekanda oluşturuldu mekan bilgisi görünmüyor.
+6. Mekan ayarı değiştirildi ama hangi mekan orası yine boş geldi.

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AuditService } from '@/services/audit-service';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Loader2, ShieldCheck, Clock, AlertTriangle, Filter, ChevronDown, ChevronRight, Activity, Edit2 } from 'lucide-react';
+import { Loader2, ShieldCheck, Clock, AlertTriangle, Filter, ChevronDown, ChevronRight, Activity, Edit2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -57,34 +57,104 @@ export default function LogsPage() {
     const getLogDescription = (log: any) => {
         const item = log.details?.name || 'bir kayıt';
 
-        // Smart Diff Description
-        if (log.action_type === 'UPDATE_PRODUCT' && log.details?.changes && !Array.isArray(log.details.changes)) {
-            const changes = Object.keys(log.details.changes);
-            const changeList = changes.map(key => {
-                if (key === 'price') return 'fiyatı';
-                if (key === 'name') return 'ismi';
-                if (key === 'isAvailable') return 'durumu';
-                if (key === 'image') return 'resmi';
-                if (key === 'allergens') return 'alerjenleri';
-                return key; // Fallback
-            }).filter(Boolean).join(', ');
+        // Normalize resource (Handle plural table names like 'allergens')
+        const resType = log.resource ? log.resource.toUpperCase() : '';
+        const isAllergen = resType.includes('ALLERGEN');
+        const isProduct = resType.includes('PRODUCT');
+        const isCategory = resType.includes('CATEGORY');
+        const isVenue = resType.includes('VENUE');
+        const isSettings = resType.includes('SETTING');
 
-            return <span className="text-zinc-600"><strong>{item}</strong> adlı ürünün {changeList} güncellendi.</span>;
+        const suffix = isAllergen ? 'alerjeni'
+            : isProduct ? 'ürünü'
+                : isCategory ? 'kategorisi'
+                    : isSettings ? 'sistem ayarlarını'
+                        : isVenue ? 'mekan ayarları' : 'kaydı';
+
+        // Helper for Field Names
+        const mapField = (key: string) => {
+            if (!isNaN(Number(key))) return null;
+            if (key === 'price') return 'fiyatı';
+            if (key === 'name') return 'ismi';
+            if (key === 'isAvailable' || key === 'is_available') return 'durumu';
+            if (key === 'image') return 'resmi';
+            if (key === 'allergens') return 'alerjenleri';
+            if (key === 'categoryId' || key === 'category_id') return 'kategorisi';
+            if (key === 'translations') return 'çevirileri';
+            return key;
+        };
+
+        // Translation Check
+        if (log.details?.changes?.translations || (log.details?.changes && Object.keys(log.details.changes).includes('translations'))) {
+            const context = isAllergen ? 'alerjeninin' : 'kaydının';
+            return <span className="text-zinc-600"><strong>{item}</strong> {context} (çevirileri) güncellendi.</span>;
+        }
+
+        if (log.action_type.includes('UPDATE')) {
+            const changes = Object.keys(log.details?.changes || {});
+
+            if (changes.length === 0) {
+                // Fallback if changes are missing but action is UPDATE
+                return <span className="text-zinc-600"><strong>{item}</strong> {suffix} güncellendi.</span>;
+            }
+
+            // Special: Single Status Change
+            if (changes.length === 1 && (changes[0] === 'isAvailable' || changes[0] === 'is_available')) {
+                const newVal = log.details.changes[changes[0]].to;
+                const isActive = newVal === true || newVal === 'true';
+                return <span className="text-zinc-600"><strong>{item}</strong> {suffix} {isActive ? 'aktif' : 'pasif'} duruma getirildi.</span>;
+            }
+
+            // Priority: Category Change with Lookup
+            const catKey = changes.find(k => k === 'categoryId' || k === 'category_id');
+            let catMsg: React.ReactNode = null;
+
+            if (catKey) {
+                const fromId = log.details.changes[catKey].from;
+                const toId = log.details.changes[catKey].to;
+
+                const lookup = log.details.lookup;
+                if (lookup) {
+                    const fromName = lookup[fromId] || 'Eski';
+                    const toName = lookup[toId] || 'Yeni';
+                    catMsg = <span>kategorisi <strong>{fromName} &rarr; {toName}</strong> olarak</span>;
+                }
+            }
+
+            // Other Changes List
+            const otherChanges = changes.filter(k => k !== catKey && k !== 'translations').map(mapField).filter(Boolean);
+
+            if (catMsg) {
+                if (otherChanges.length > 0) {
+                    return <span className="text-zinc-600"><strong>{item}</strong> {suffix} {catMsg} güncellendi (ayrıca {otherChanges.join(', ')}).</span>;
+                }
+                return <span className="text-zinc-600"><strong>{item}</strong> {suffix} {catMsg} güncellendi.</span>;
+            }
+
+            const changeList = otherChanges.join(', ');
+
+            if (!changeList) return <span className="text-zinc-600"><strong>{item}</strong> {suffix} güncellendi.</span>;
+            return <span className="text-zinc-600"><strong>{item}</strong> adlı {suffix}n {changeList} güncellendi.</span>;
         }
 
         switch (log.action_type) {
             case 'LOGIN': return <span className="text-zinc-600">Sisteme giriş yaptı.</span>;
             case 'LOGIN_FAILED': return <span className="text-red-600">Hatalı şifre denemesi.</span>;
             case 'LOGOUT': return <span className="text-zinc-600">Çıkış yaptı.</span>;
-            case 'CREATE_PRODUCT': return <span><strong>{item}</strong> adlı yeni ürün oluşturdu.</span>;
-            case 'DELETE_PRODUCT': return <span className="text-red-600">Ürün sildi.</span>;
+            case 'CREATE_PRODUCT': return <span><strong>{item}</strong> adlı yeni {suffix} oluşturdu.</span>;
+            case 'DELETE_PRODUCT': return <span className="text-red-600"><strong>{item}</strong> {suffix} silindi.</span>;
             case 'UPDATE_VENUE': return <span>Mekan ayarlarını güncelledi.</span>;
             case 'CREATE_CATEGORY':
-                return <span>{log.details?.venue_name ? <strong>{log.details.venue_name}</strong> : ''} <strong>{item}</strong> kategorisini oluşturdu.</span>;
-            case 'UPDATE_CATEGORY': return <span><strong>{item}</strong> kategorisini güncelledi.</span>;
-            default: return <span>{log.action_type} işlemi gerçekleştirdi.</span>;
+                return <span>{log.details?.venue_name ? <strong>{log.details.venue_name}</strong> : ''} <strong>{item}</strong> {suffix} oluşturdu.</span>;
+            case 'UPDATE_CATEGORY': return <span><strong>{item}</strong> {suffix} güncelledi.</span>;
+            case 'DELETE_CATEGORY': return <span className="text-red-600"><strong>{item}</strong> {suffix} silindi.</span>;
+            case 'CREATE_ALLERGEN': return <span>Yeni {suffix} kaydı (<strong>{item}</strong>) tanımladı.</span>;
+            case 'UPDATE_ALLERGEN': return <span><strong>{item}</strong> {suffix} düzenledi.</span>;
+            case 'DELETE_ALLERGEN': return <span className="text-red-600"><strong>{item}</strong> {suffix} silindi.</span>;
+            default: return <span>{log.action_type} işlemi gerçekleştirildi.</span>;
         }
     };
+
 
     const getUserLabel = (log: any) => {
         return log.details?.user_email || log.user_id?.substring(0, 8) || 'Sistem / Anonim';
@@ -180,17 +250,44 @@ export default function LogsPage() {
                     />
                 </div>
 
-                <Button variant="ghost" size="sm" onClick={() => { setFilterType('ALL'); setFilterResource('ALL'); setStartDate(''); setEndDate(''); setSearchUser(''); }} className="ml-auto text-zinc-400 hover:text-zinc-900 text-xs">
-                    Temizle
-                </Button>
+                <div className="ml-auto flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-zinc-600 border-zinc-200 h-8 text-xs gap-2 hover:bg-zinc-50"
+                        onClick={() => {
+                            const header = "Tarih,Kullanıcı,İşlem,Kaynak,Detay\n";
+                            const csv = logs.map(l => {
+                                const date = new Date(l.created_at).toLocaleString();
+                                const user = l.details?.user_email || 'Anonim';
+                                const detail = l.details?.name || '';
+                                return `"${date}","${user}","${l.action_type}","${l.resource}","${detail}"`;
+                            }).join("\n");
+                            const blob = new Blob(["\ufeff" + header + csv], { type: 'text/csv;charset=utf-8;' });
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `logs-${new Date().toISOString().split('T')[0]}.csv`;
+                            a.click();
+                        }}
+                    >
+                        <Download className="h-3.5 w-3.5" />
+                        Dışa Aktar
+                    </Button>
+
+                    <Button variant="ghost" size="sm" onClick={() => { setFilterType('ALL'); setFilterResource('ALL'); setStartDate(''); setEndDate(''); setSearchUser(''); }} className="text-zinc-400 hover:text-zinc-900 text-xs">
+                        Temizle
+                    </Button>
+                </div>
             </div>
 
             <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
                 <div className="min-w-full">
                     <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-zinc-50/80 border-b border-zinc-200 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
                         <div className="col-span-1">Tür</div>
-                        <div className="col-span-3">Kullanıcı</div>
-                        <div className="col-span-5">Açıklama</div>
+                        <div className="col-span-2">Kullanıcı</div>
+                        <div className="col-span-2">Mekan</div>
+                        <div className="col-span-4">Açıklama</div>
                         <div className="col-span-2 text-right">Zaman</div>
                         <div className="col-span-1"></div>
                     </div>
@@ -217,10 +314,13 @@ export default function LogsPage() {
                                             <div className="col-span-1">
                                                 {getActionBadge(log.action_type)}
                                             </div>
-                                            <div className="col-span-3 text-sm font-medium text-zinc-800 truncate" title={getUserLabel(log)}>
+                                            <div className="col-span-2 text-sm font-medium text-zinc-800 truncate" title={getUserLabel(log)}>
                                                 {getUserLabel(log)}
                                             </div>
-                                            <div className="col-span-5 text-sm text-zinc-600 truncate pr-4">
+                                            <div className="col-span-2 text-xs text-zinc-500 truncate" title={log.details?.venue_name || log.details?.venue_id}>
+                                                {log.details?.venue_name || ((log.resource?.toUpperCase().includes('ALLERGEN') || log.resource?.toUpperCase().includes('SETTING')) ? 'Global' : '-')}
+                                            </div>
+                                            <div className="col-span-4 text-sm text-zinc-600 truncate pr-4">
                                                 {getLogDescription(log)}
                                             </div>
                                             <div className="col-span-2 text-right text-xs text-zinc-400 font-mono">
@@ -273,18 +373,49 @@ export default function LogsPage() {
                                                                                 )
                                                                             }
 
+                                                                            // Special handling for translations (Deep Diff)
+                                                                            if (field === 'translations') {
+                                                                                return (
+                                                                                    <tr key={field} className="hover:bg-zinc-50/50">
+                                                                                        <td className="px-3 py-2 font-medium text-zinc-700 capitalize border-r border-zinc-200">Çeviriler</td>
+                                                                                        <td className="px-3 py-2 text-zinc-600 border-r border-zinc-200 font-mono text-[10px]" colSpan={2}>
+                                                                                            {Object.entries(change).map(([lang, diff]: [string, any]) => (
+                                                                                                <div key={lang} className="mb-1">
+                                                                                                    <span className="font-bold uppercase text-zinc-800">{lang}:</span>
+                                                                                                    {diff.from?.name && <span className="text-red-600 line-through mx-1">{diff.from.name}</span>}
+                                                                                                    {diff.to?.name && <span className="text-green-600">{diff.to.name}</span>}
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                )
+                                                                            }
+
+                                                                            // Render Helper with Lookup
+                                                                            const renderValue = (val: any, lookup?: Record<string, string>) => {
+                                                                                if (typeof val === 'boolean') return val ? 'Aktif' : 'Pasif';
+                                                                                if (typeof val === 'object' && val !== null) return JSON.stringify(val, null, 2);
+                                                                                // Lookup check
+                                                                                if (lookup && typeof val === 'string' && lookup[val]) {
+                                                                                    return <span title={val}>{lookup[val]}</span>;
+                                                                                }
+                                                                                return String(val);
+                                                                            };
+
                                                                             return (
                                                                                 <tr key={field} className="hover:bg-zinc-50/50">
                                                                                     <td className="px-3 py-2 font-medium text-zinc-700 capitalize border-r border-zinc-200">
-                                                                                        {field === 'isAvailable' ? 'Durum' :
+                                                                                        {field === 'isAvailable' || field === 'is_available' ? 'Durum' :
                                                                                             field === 'price' ? 'Fiyat' :
-                                                                                                field === 'name' ? 'Ürün Adı' : field}
+                                                                                                field === 'name' ? 'Ürün Adı' :
+                                                                                                    field === 'categoryId' || field === 'category_id' ? 'Kategori' :
+                                                                                                        field === 'translations' ? 'Çeviriler' : field}
                                                                                     </td>
-                                                                                    <td className="px-3 py-2 text-zinc-600 border-r border-zinc-200 font-mono">
-                                                                                        {typeof change.from === 'boolean' ? (change.from ? 'Aktif' : 'Pasif') : String(change.from)}
+                                                                                    <td className="px-3 py-2 text-zinc-600 border-r border-zinc-200 font-mono text-[10px] whitespace-pre-wrap">
+                                                                                        {renderValue(change.from, log.details?.lookup)}
                                                                                     </td>
-                                                                                    <td className="px-3 py-2 text-zinc-900 font-medium font-mono">
-                                                                                        {typeof change.to === 'boolean' ? (change.to ? 'Aktif' : 'Pasif') : String(change.to)}
+                                                                                    <td className="px-3 py-2 text-zinc-900 font-medium font-mono text-[10px] whitespace-pre-wrap">
+                                                                                        {renderValue(change.to, log.details?.lookup)}
                                                                                     </td>
                                                                                 </tr>
                                                                             )

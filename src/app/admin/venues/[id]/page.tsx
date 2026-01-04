@@ -102,7 +102,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 setVenueData(data);
                 setProducts(data.products || []);
                 setCategories(data.categories || []);
-                setAllergens(data.allergens || []);
+                // Load global allergens
+                const globalAllergens = await DbService.getAllergens();
+                setAllergens(globalAllergens);
             }
             setLoading(false);
         }
@@ -195,11 +197,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     if (originalVenue) {
                         const diff = calculateVenueDiff(originalVenue, venueData);
                         if (diff) {
-                            await AuditService.log({
-                                action: 'UPDATE_VENUE',
-                                resource: 'venue',
-                                details: { id: venueData.id, name: venueData.name, changes: diff }
-                            });
+                            if (diff) {
+                                // Log Removed
+                            }
                         }
                     }
                 } catch (e) { console.error("Validation log failed", e); }
@@ -237,31 +237,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             // Update DB
                             await DbService.updateProduct(prodId, updatePayload);
 
-                            // Log detailed diff
-                            if (originalProduct) {
-                                const diff = calculateProductDiff(originalProduct, updatePayload);
-                                if (diff) {
-                                    await AuditService.log({
-                                        action: 'UPDATE_PRODUCT',
-                                        resource: 'product',
-                                        details: {
-                                            id: prodId,
-                                            name: product.name,
-                                            changes: diff,
-                                            update_type: 'bulk_save'
-                                        }
-                                    });
-                                }
-                            } else {
-                                // Fallback if original not found (shouldn't happen usually)
-                                await AuditService.log({
-                                    action: 'UPDATE_PRODUCT',
-                                    resource: 'product',
-                                    details: { id: prodId, name: product.name, note: "Original not found to diff" }
-                                });
-                            }
                         } catch (err) {
-                            console.error("Product update/log failed for", prodId, err);
+                            console.error("Product update failed for", prodId, err);
                         }
                     }
                 });
@@ -336,41 +313,17 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 });
                 if (created) {
                     setCategories(prev => [...prev, created]);
-                    AuditService.log({
-                        action: 'CREATE_CATEGORY',
-                        resource: 'category',
-                        details: { name: editingCategory.name, venue_id: venueData!.id, venue_name: venueData!.name }
-                    });
                 }
             } else {
                 // Update
                 const catId = editingCategory.id || '';
-
-                // Fetch original for diff (optional but nice)
-                // Since we don't have getCategoryById in DbService yet easily exposed, 
-                // we can look at 'categories' state which holds the OLD state before this save!
-                const oldCat = categories.find(c => c.id === catId);
 
                 await DbService.updateCategory(catId, {
                     name: editingCategory.name,
                     translations: editingCategory.translations
                 });
 
-                if (oldCat) {
-                    const changes: any = {};
-                    if (oldCat.name !== editingCategory.name) changes.name = { from: oldCat.name, to: editingCategory.name };
-
-                    AuditService.log({
-                        action: 'UPDATE_CATEGORY',
-                        resource: 'category',
-                        details: {
-                            id: catId,
-                            name: editingCategory.name,
-                            changes: Object.keys(changes).length > 0 ? changes : 'Translation or other update'
-                        }
-                    });
-                }
-
+                // Update local state
                 setCategories(prev => prev.map(c => c.id === editingCategory.id ? (editingCategory as Category) : c));
             }
             setIsCategoryModalOpen(false);
@@ -647,7 +600,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             {/* Badges preview */}
                                             {product.allergens && product.allergens.length > 0 && (
                                                 <div className="flex items-center gap-1 mt-1">
-                                                    {product.allergens.map(a => (
+                                                    {Array.from(new Set(product.allergens)).map(a => (
                                                         <span key={a} className="text-[9px] px-1 bg-zinc-100 text-zinc-500 border border-zinc-200 rounded">{a}</span>
                                                     ))}
                                                 </div>
@@ -726,7 +679,14 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 </div>
                                 <div className="flex-1">
                                     <div className="font-bold text-zinc-900">{cat.name}</div>
-                                    <div className="text-xs text-zinc-500">{products.filter(p => p.categoryId === cat.id).length} Ürün</div>
+                                    <div className="text-xs text-zinc-500">
+                                        {products.filter(p => p.categoryId === cat.id).length} Ürün
+                                        {products.filter(p => p.categoryId === cat.id).length > 0 && (
+                                            <div className="text-[10px] text-zinc-400 mt-0.5 truncate max-w-[150px]" title={products.filter(p => p.categoryId === cat.id).map(p => p.name).join(', ')}>
+                                                {products.filter(p => p.categoryId === cat.id).map(p => p.name).join(', ')}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleEditCategory(cat)}>
@@ -851,16 +811,45 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
             {/* 4. ALLERGENS TAB */}
             {activeTab === 'allergens' && venueData && (
-                <AllergenManager
-                    allergens={allergens}
-                    products={products}
-                    supportedLanguages={venueData.supportedLanguages || ['tr']}
-                    defaultLanguage={venueData.defaultLanguage || 'tr'}
-                    onUpdate={async () => {
-                        const data = await DbService.getVenueById(unwrappedParams.id);
-                        if (data) setAllergens(data.allergens || []);
-                    }}
-                />
+                <div className="space-y-4">
+                    <div className="flex justify-end p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                        <Button
+                            variant="danger"
+                            size="sm"
+                            className="text-xs"
+                            onClick={async () => {
+                                if (!confirm("DİKKAT! Tüm ürünlerin üzerindeki alerjen etiketleri temizlenecek. Bu işlem geri alınamaz. Emin misiniz?")) return;
+                                try {
+                                    setSaving(true);
+                                    for (const p of products) {
+                                        await DbService.updateProduct(p.id, { allergens: [] });
+                                        // Update local state
+                                        setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, allergens: [] } : pr));
+                                    }
+                                    alert("Tüm ürünlerin alerjenleri temizlendi.");
+                                } catch (e) {
+                                    alert("Hata oluştu.");
+                                    console.error(e);
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                        >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Tüm Ürün Alerjenlerini Temizle (Reset)
+                        </Button>
+                    </div>
+                    <AllergenManager
+                        allergens={allergens}
+                        products={products}
+                        supportedLanguages={venueData.supportedLanguages || ['tr']}
+                        defaultLanguage={venueData.defaultLanguage || 'tr'}
+                        onUpdate={async () => {
+                            const globalAllergens = await DbService.getAllergens();
+                            setAllergens(globalAllergens);
+                        }}
+                    />
+                </div>
             )}
 
             {/* Product Detail / Edit / Create Modal */}
@@ -1031,7 +1020,13 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                                             console.error("Failed to create allergen:", e);
                                                                         }
                                                                     }
-                                                                    setEditingProduct(prev => prev ? ({ ...prev, allergens: [...(prev.allergens || []), val] }) : null);
+                                                                    setEditingProduct(prev => {
+                                                                        if (!prev) return null;
+                                                                        const current = prev.allergens || [];
+                                                                        // Prevent Duplicate
+                                                                        if (current.includes(val)) return prev;
+                                                                        return { ...prev, allergens: [...current, val] };
+                                                                    });
                                                                     setNewAllergen("");
                                                                     setIsAddingAllergen(false);
                                                                 }
@@ -1139,164 +1134,133 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         const created = await DbService.createProduct(editingProduct);
                                         if (created) {
                                             setProducts(prev => [...prev, created]);
-                                            AuditService.log({
-                                                action: 'CREATE_PRODUCT',
-                                                resource: 'product',
-                                                details: { name: created.name, venue_id: unwrappedParams.id }
-                                            });
                                         }
                                         setIsAllergenModalOpen(false);
                                     } catch (e) { alert("Oluşturulamadı"); }
                                 } else {
                                     // Update
                                     try {
-                                        const productId = editingProduct.id || '';
-
-                                        // Find old product to compare
-                                        const oldProduct = products.find(p => p.id === productId);
-                                        const changes: Record<string, { from: any, to: any }> = {};
-
-                                        if (oldProduct) {
-                                            if (oldProduct.name !== editingProduct.name)
-                                                changes.name = { from: oldProduct.name, to: editingProduct.name };
-                                            if (oldProduct.price !== editingProduct.price)
-                                                changes.price = { from: oldProduct.price, to: editingProduct.price };
-                                            if (oldProduct.categoryId !== editingProduct.categoryId)
-                                                changes.category = { from: oldProduct.categoryId, to: editingProduct.categoryId };
-                                            if (oldProduct.description !== editingProduct.description)
-                                                changes.description = { from: oldProduct.description, to: editingProduct.description };
-                                        }
-
+                                        const productId = editingProduct.id!;
                                         await DbService.updateProduct(productId, editingProduct);
 
-                                        // Logging with safety check
-                                        try {
-                                            console.log("Attempting to log UPDATE_PRODUCT", { productId, changes });
-                                            await AuditService.log({
-                                                action: 'UPDATE_PRODUCT',
-                                                resource: 'product',
-                                                details: {
-                                                    id: productId,
-                                                    name: editingProduct.name,
-                                                    changes: Object.keys(changes).length > 0 ? changes : 'No specific changes detected'
-                                                }
-                                            });
-                                            console.log("Log sent successfully");
-                                        } catch (logErr) {
-                                            console.error("Failed to log product update:", logErr);
-                                        }
+                                        // Update local state
+                                        // We assume success if no error thrown
+                                        setProducts(prev => prev.map(p => p.id === productId ? editingProduct : p));
 
-                                        setProducts(prev => prev.map(p => p.id === productId ? (editingProduct as Product) : p));
                                         setIsAllergenModalOpen(false);
                                     } catch (e) {
-                                        console.error("Update failed:", e);
+                                        console.error(e);
                                         alert("Güncellenemedi");
                                     }
                                 }
                             }}>Kaydet</Button>
+
                         </div>
                     </div>
                 </div>
-            )}
+            )
+            }
             {/* Category Edit Modal */}
-            {isCategoryModalOpen && editingCategory && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between px-4 pt-4 pb-0 bg-white z-10">
-                            <h3 className="font-bold text-lg text-zinc-900">
-                                {editingCategory.id === 'new' ? 'Yeni Kategori' : 'Kategori Düzenle'}
-                            </h3>
-                            <button onClick={() => setIsCategoryModalOpen(false)} className="p-2 hover:bg-zinc-100 rounded-full text-zinc-500">
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
+            {
+                isCategoryModalOpen && editingCategory && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex items-center justify-between px-4 pt-4 pb-0 bg-white z-10">
+                                <h3 className="font-bold text-lg text-zinc-900">
+                                    {editingCategory.id === 'new' ? 'Yeni Kategori' : 'Kategori Düzenle'}
+                                </h3>
+                                <button onClick={() => setIsCategoryModalOpen(false)} className="p-2 hover:bg-zinc-100 rounded-full text-zinc-500">
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
 
-                        {/* Tabs Navigation */}
-                        <div className="flex border-b border-zinc-100 px-4 mt-2">
-                            <button
-                                onClick={() => setCategoryModalTab('general')}
-                                className={cn("px-4 py-3 text-sm font-medium border-b-2 transition-colors", categoryModalTab === 'general' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}
-                            >
-                                Genel Bilgiler
-                            </button>
-                            <button
-                                onClick={() => setCategoryModalTab('translations')}
-                                className={cn("px-4 py-3 text-sm font-medium border-b-2 transition-colors", categoryModalTab === 'translations' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}
-                            >
-                                Çeviriler
-                                <span className={cn("ml-2 text-[10px] px-1.5 py-0.5 rounded-full", venueData?.supportedLanguages?.length && venueData.supportedLanguages.length > 1 ? "bg-primary/10 text-primary" : "bg-zinc-100 text-zinc-400")}>
-                                    {(venueData?.supportedLanguages?.length || 1) - 1}
-                                </span>
-                            </button>
-                        </div>
+                            {/* Tabs Navigation */}
+                            <div className="flex border-b border-zinc-100 px-4 mt-2">
+                                <button
+                                    onClick={() => setCategoryModalTab('general')}
+                                    className={cn("px-4 py-3 text-sm font-medium border-b-2 transition-colors", categoryModalTab === 'general' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}
+                                >
+                                    Genel Bilgiler
+                                </button>
+                                <button
+                                    onClick={() => setCategoryModalTab('translations')}
+                                    className={cn("px-4 py-3 text-sm font-medium border-b-2 transition-colors", categoryModalTab === 'translations' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}
+                                >
+                                    Çeviriler
+                                    <span className={cn("ml-2 text-[10px] px-1.5 py-0.5 rounded-full", venueData?.supportedLanguages?.length && venueData.supportedLanguages.length > 1 ? "bg-primary/10 text-primary" : "bg-zinc-100 text-zinc-400")}>
+                                        {(venueData?.supportedLanguages?.length || 1) - 1}
+                                    </span>
+                                </button>
+                            </div>
 
-                        <div className="p-6 space-y-6">
-                            {categoryModalTab === 'general' && (
-                                <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-200">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Kategori Adı</label>
-                                        <Input
-                                            value={editingCategory.name}
-                                            onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
-                                            placeholder="Örn: Ana Yemekler"
-                                            autoFocus
-                                        />
-                                    </div>
-                                    {/* Future: Category Image Upload */}
-                                </div>
-                            )}
-
-                            {categoryModalTab === 'translations' && (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
-                                    <div className="p-4 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100">
-                                        <p>Kategori adı çevirilerini buradan yönetebilirsiniz.</p>
-                                    </div>
-
-                                    {(!venueData?.supportedLanguages || venueData.supportedLanguages.length <= 1) ? (
-                                        <div className="text-center py-8 text-zinc-500">
-                                            <p>Ekstra dil tanımlanmamış.</p>
+                            <div className="p-6 space-y-6">
+                                {categoryModalTab === 'general' && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-200">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Kategori Adı</label>
+                                            <Input
+                                                value={editingCategory.name}
+                                                onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
+                                                placeholder="Örn: Ana Yemekler"
+                                                autoFocus
+                                            />
                                         </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {venueData.supportedLanguages
-                                                .filter(lang => lang !== (venueData.defaultLanguage || 'tr'))
-                                                .map(lang => (
-                                                    <div key={lang} className="space-y-1.5">
-                                                        <label className="text-xs font-medium text-zinc-500 uppercase flex items-center gap-2">
-                                                            <span>{lang}</span>
-                                                            <span className="h-px bg-zinc-200 flex-1"></span>
-                                                        </label>
-                                                        <Input
-                                                            value={editingCategory.translations?.[lang]?.name || ""}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value;
-                                                                setEditingCategory(prev => {
-                                                                    if (!prev) return null;
-                                                                    const newTrans = { ...(prev.translations || {}) };
-                                                                    // Ensure object exists
-                                                                    if (!newTrans[lang]) newTrans[lang] = {};
-                                                                    newTrans[lang] = { ...newTrans[lang], name: val };
-                                                                    return { ...prev, translations: newTrans };
-                                                                });
-                                                            }}
-                                                            placeholder={`${lang.toUpperCase()} çevirisi...`}
-                                                        />
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                                        {/* Future: Category Image Upload */}
+                                    </div>
+                                )}
 
-                        <div className="p-4 bg-zinc-50 flex justify-end gap-2 border-t border-zinc-100">
-                            <Button variant="ghost" onClick={() => setIsCategoryModalOpen(false)}>İptal</Button>
-                            <Button onClick={handleSaveCategory}>Kaydet</Button>
+                                {categoryModalTab === 'translations' && (
+                                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
+                                        <div className="p-4 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100">
+                                            <p>Kategori adı çevirilerini buradan yönetebilirsiniz.</p>
+                                        </div>
+
+                                        {(!venueData?.supportedLanguages || venueData.supportedLanguages.length <= 1) ? (
+                                            <div className="text-center py-8 text-zinc-500">
+                                                <p>Ekstra dil tanımlanmamış.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {venueData.supportedLanguages
+                                                    .filter(lang => lang !== (venueData.defaultLanguage || 'tr'))
+                                                    .map(lang => (
+                                                        <div key={lang} className="space-y-1.5">
+                                                            <label className="text-xs font-medium text-zinc-500 uppercase flex items-center gap-2">
+                                                                <span>{lang}</span>
+                                                                <span className="h-px bg-zinc-200 flex-1"></span>
+                                                            </label>
+                                                            <Input
+                                                                value={editingCategory.translations?.[lang]?.name || ""}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditingCategory(prev => {
+                                                                        if (!prev) return null;
+                                                                        const newTrans = { ...(prev.translations || {}) };
+                                                                        // Ensure object exists
+                                                                        if (!newTrans[lang]) newTrans[lang] = {};
+                                                                        newTrans[lang] = { ...newTrans[lang], name: val };
+                                                                        return { ...prev, translations: newTrans };
+                                                                    });
+                                                                }}
+                                                                placeholder={`${lang.toUpperCase()} çevirisi...`}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 bg-zinc-50 flex justify-end gap-2 border-t border-zinc-100">
+                                <Button variant="ghost" onClick={() => setIsCategoryModalOpen(false)}>İptal</Button>
+                                <Button onClick={handleSaveCategory}>Kaydet</Button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-        </div>
+        </div >
     );
 }

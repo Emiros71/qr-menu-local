@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Allergen, Product } from '@/data/db';
 import { DbService } from '@/services/db-service';
 import { Trash2, Plus, Globe, Check, X, AlertCircle } from 'lucide-react';
+import { AuditService } from '@/services/audit-service';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
@@ -59,6 +60,7 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
                 name: editName,
                 translations: editTranslations
             });
+
             setEditingId(null);
             onUpdate();
         } catch (e) {
@@ -69,6 +71,7 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
     const handleDelete = async (id: string) => {
         if (!confirm("Bu alerjeni silmek istediğinize emin misiniz?")) return;
         try {
+            const toDelete = allergens.find(a => a.id === id);
             await DbService.deleteAllergen(id);
             onUpdate();
         } catch (e) {
@@ -119,19 +122,28 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
                                         <Button size="sm" variant="ghost" onClick={cancelEditing} className="h-8"><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
-                                    <div className="flex-1 font-medium text-zinc-800 flex items-center gap-2">
-                                        <span>{allergen.name}</span>
-                                        <span className="text-xs text-zinc-500">({products.filter(p => p.allergens?.includes(allergen.name)).length} üründe)</span>
-                                        {/* Show translation status badges */}
-                                        <div className="flex gap-1">
-                                            {supportedLanguages.filter(l => l !== defaultLanguage).map(lang => (
-                                                <span key={lang} className={cn(
-                                                    "text-[9px] px-1 rounded border uppercase",
-                                                    allergen.translations?.[lang]?.name ? "bg-green-50 text-green-600 border-green-200" : "bg-zinc-100 text-zinc-400 border-zinc-200"
-                                                )}>
-                                                    {lang}
+                                    <div className="flex-1 font-medium text-zinc-800 flex flex-col gap-0.5">
+                                        <div className="flex items-center gap-2">
+                                            <span>{allergen.name}</span>
+                                            {/* Show translation status badges */}
+                                            <div className="flex gap-1">
+                                                {supportedLanguages.filter(l => l !== defaultLanguage).map(lang => (
+                                                    <span key={lang} className={cn(
+                                                        "text-[9px] px-1 rounded border uppercase font-normal",
+                                                        allergen.translations?.[lang]?.name ? "bg-green-50 text-green-600 border-green-200" : "bg-zinc-100 text-zinc-400 border-zinc-200"
+                                                    )}>
+                                                        {lang}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-zinc-500 flex items-center gap-1">
+                                            <span>({products.filter(p => p.allergens?.includes(allergen.name)).length} üründe)</span>
+                                            {products.filter(p => p.allergens?.includes(allergen.name)).length > 0 && (
+                                                <span className="text-[10px] text-zinc-400 truncate max-w-[300px]" title={products.filter(p => p.allergens?.includes(allergen.name)).map(p => p.name).join(', ')}>
+                                                    — {products.filter(p => p.allergens?.includes(allergen.name)).map(p => p.name).join(', ')}
                                                 </span>
-                                            ))}
+                                            )}
                                         </div>
                                     </div>
                                 )}

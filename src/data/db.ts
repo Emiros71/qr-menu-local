@@ -21,6 +21,7 @@ export type Category = {
 export type Product = {
     id: string;
     categoryId: string;
+    venueId?: string;
     name: string;
     description: string;
     price: number;

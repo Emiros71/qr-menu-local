@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@/utils/supabase/client";
 import { venues as mockVenues, Venue, Product, Category, Allergen } from "@/data/db";
 
 // Helper to check if Supabase is configured
@@ -8,7 +9,15 @@ const isSupabaseConfigured = () => {
 
 // Helper to perform generic actions via API (bypassing Client RLS)
 async function performActionViaApi(table: string, action: 'update' | 'delete' | 'create', data: any, id?: string) {
-    const payload: any = { table, action, updates: data };
+    // Get Current User for Audit Log Context
+    let userEmail = 'Anonim';
+    try {
+        const browserClient = createClient();
+        const { data: { session } } = await browserClient.auth.getSession();
+        if (session?.user?.email) userEmail = session.user.email;
+    } catch (e) { console.error("Session check failed", e); }
+
+    const payload: any = { table, action, updates: data, user_email: userEmail };
     if (id) payload.id = id;
 
     const response = await fetch('/api/admin/update', {
@@ -22,7 +31,7 @@ async function performActionViaApi(table: string, action: 'update' | 'delete' | 
         throw new Error(errorData.error || `API ${action} failed for ${table}`);
     }
     const result = await response.json();
-    return result.data; // Supabase returns array of affected rows, we usually want first one
+    return result.data; // Supabase returns array of affected rows
 }
 
 export const DbService = {
@@ -466,17 +475,37 @@ export const DbService = {
     updateAppSettings: async (key: string, value: any) => {
         if (!isSupabaseConfigured()) return;
 
-        // Upsert: update if exists, insert if not
-        const { error } = await supabase.from('app_settings').upsert({
-            key,
-            value,
-            updated_at: new Date().toISOString()
-        });
-
-        if (error) throw error;
+        // Upsert via API for Audit Logging
+        try {
+            await performActionViaApi('app_settings', 'update', { value, updated_at: new Date().toISOString() }, key);
+        } catch (e) {
+            console.error("API Update Settings failed:", e);
+            // Fallback
+            const { error } = await supabase.from('app_settings').upsert({
+                key,
+                value,
+                updated_at: new Date().toISOString()
+            });
+            if (error) throw error;
+        }
     },
 
     // Allergens
+    getAllergens: async (): Promise<Allergen[]> => {
+        if (!isSupabaseConfigured()) return [];
+        const { data, error } = await supabase.from('allergens').select('*').order('name');
+        if (error) {
+            console.error("Error fetching allergens:", error);
+            return [];
+        }
+        return data.map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            translations: a.translations,
+            venueId: a.venue_id
+        }));
+    },
+
     createAllergen: async (allergen: any) => {
         if (!isSupabaseConfigured()) return;
         const dbAllergen: any = {
@@ -520,5 +549,5 @@ export const DbService = {
         } catch (e) {
             await supabase.from('allergens').delete().eq('id', id);
         }
-    }
+    },
 };
