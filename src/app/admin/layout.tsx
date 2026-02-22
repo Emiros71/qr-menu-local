@@ -1,4 +1,4 @@
-import { DbService } from "@/services/db-service";
+import { VenueService } from "@/services/venue-service";
 import AdminSidebar from "@/components/admin/Sidebar";
 
 export default async function AdminLayout({
@@ -7,7 +7,7 @@ export default async function AdminLayout({
     children: React.ReactNode;
 }) {
     // Fetch venues on the server
-    const venues = await DbService.getVenues();
+    const venues = await VenueService.getVenues();
 
     return (
         <div className="min-h-screen bg-zinc-50 flex flex-col md:flex-row font-sans">

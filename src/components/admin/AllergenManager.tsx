@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Allergen, Product } from '@/data/db';
-import { DbService } from '@/services/db-service';
+import { AllergenService } from '@/services/allergen-service';
 import { Trash2, Plus, Globe, Check, X, AlertCircle } from 'lucide-react';
 import { AuditService } from '@/services/audit-service';
 import { Button } from '@/components/ui/Button';
@@ -28,7 +28,7 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
         if (!newAllergenName.trim()) return;
         setIsCreating(true);
         try {
-            await DbService.createAllergen({
+            await AllergenService.createAllergen({
                 name: newAllergenName.trim(),
                 translations: {}
             });
@@ -56,7 +56,7 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
     const handleSaveEdit = async () => {
         if (!editingId) return;
         try {
-            await DbService.updateAllergen(editingId, {
+            await AllergenService.updateAllergen(editingId, {
                 name: editName,
                 translations: editTranslations
             });
@@ -72,7 +72,7 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
         if (!confirm("Bu alerjeni silmek istediğinize emin misiniz?")) return;
         try {
             const toDelete = allergens.find(a => a.id === id);
-            await DbService.deleteAllergen(id);
+            await AllergenService.deleteAllergen(id);
             onUpdate();
         } catch (e) {
             alert("Silme başarısız.");

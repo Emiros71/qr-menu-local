@@ -90,6 +90,7 @@
 - [x] **Log Servisi**: Tüm kritik `DbService` işlemleri (create, update, delete) sonrasında otomatik log kaydı oluşturan yapı.
 - [x] **Admin Aktivite Sayfası**: Yöneticilerin geçmiş işlemleri görebileceği, filtrelenebilir bir "İşlem Geçmişi" sayfası.
 - [x] **Detaylı Loglama**: Alerjen, Ürün, Kategori ve Sistem Ayarları değişikliklerinin detaylı takibi (Resource Check, Global Venue).
+- [ ] **Servis Durumu Ekranı**: Admin panelde ayrıştırılan servislerin (VenueService, vb.) durumunu ve sağlık kontrolünü görüntüleyen bir bölüm.
 
 ## Faz 12: Frontend Cilalama & Analiz (UX Polish - YENİ) ✨
 *Daha akıcı ve ölçülebilir bir müşteri deneyimi.*
@@ -102,4 +103,8 @@
 - [ ] **Framer Motion Animasyonları**: Kategori geçişleri, sepet hareketleri, dil değişimi efektleri.
 - [ ] **Empty States**: Boş durumlar için kullanıcı dostu tasarımlar.
 
+## Faz 13: Dokümantasyon (YENİ) 📚
+*Proje kurulumu ve özellikleri hakkında güncel bilgi.*
+- [ ] **readme.md güncellenecek**: Proje kurulumu ve özellikleri hakkında güncel bilgi.
+- [ ] **E2E i18n Testleri**: Playwright ile dil değiştirme ve çeviri testleri.
 

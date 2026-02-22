@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Instagram, Globe, ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import { DbService } from "@/services/db-service";
+import { VenueService } from "@/services/venue-service";
+import { SettingsService } from "@/services/settings-service";
 import { Venue } from "@/data/db";
 
 export default function LandingPage() {
@@ -24,11 +25,11 @@ export default function LandingPage() {
         async function load() {
             setLoading(true);
             // Load venues
-            const vData = await DbService.getVenues();
+            const vData = await VenueService.getVenues();
             setVenues(vData);
 
             // Load global settings
-            const sData = await DbService.getAppSettings();
+            const sData = await SettingsService.getAppSettings();
             if (sData) {
                 setSettings(sData);
             }

@@ -18,8 +18,8 @@ async function seed() {
     console.log("🌱 Seeding database...");
 
     // IDs Mapping (Mock ID -> Real UUID)
-    const venueIdMap = {};
-    const categoryIdMap = {};
+    const venueIdMap: Record<string, string> = {};
+    const categoryIdMap: Record<string, string> = {};
 
     for (const ven of venues) {
         console.log(`Processing Venue: ${ven.name}`);

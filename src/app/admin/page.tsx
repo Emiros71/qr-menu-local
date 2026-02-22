@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DbService } from "@/services/db-service";
+import { VenueService } from "@/services/venue-service";
 import { Venue } from "@/data/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Store, TrendingUp, Users, DollarSign, Activity, AlertCircle } from "lucide-react";
@@ -16,7 +16,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const data = await DbService.getVenues();
+            const data = await VenueService.getVenues();
             setVenues(data);
             setLoading(false);
         }
@@ -24,7 +24,7 @@ export default function AdminDashboard() {
     }, []);
 
     const totalVenues = venues.length;
-    // Note: DbService.getVenues() returns venues with empty arrays for products currently if fetched from Supabase via simple select.
+    // Note: VenueService.getVenues() returns venues with empty arrays for products currently if fetched from Supabase via simple select.
     // To get accurate stats, we'd need a more complex query or service method. 
     // For dashboard stats, we usually have a dedicated 'getDashboardStats' endpoint.
     // For now, we'll display what we have.

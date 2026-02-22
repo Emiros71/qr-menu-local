@@ -2,7 +2,10 @@
 
 import { use, useState, useEffect, useCallback } from "react";
 import { Venue, Product, Category, Allergen } from "@/data/db";
-import { DbService } from "@/services/db-service";
+import { VenueService } from "@/services/venue-service";
+import { CategoryService } from "@/services/category-service";
+import { ProductService } from "@/services/product-service";
+import { AllergenService } from "@/services/allergen-service";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AuditService } from "@/services/audit-service";
@@ -60,7 +63,7 @@ const AdminProductImage = ({ product, defaultImage, onClick }: { product: Produc
                     }}
                 />
             ) : (
-                <ImageIcon className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-zinc-300" />
+                <LucideImage className="h-8 w-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-zinc-300" />
             )}
         </div>
     );
@@ -153,13 +156,13 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const data = await DbService.getVenueById(unwrappedParams.id);
+            const data = await VenueService.getVenueById(unwrappedParams.id);
             if (data) {
                 setVenueData(data);
                 setProducts(data.products || []);
                 setCategories(data.categories || []);
                 // Load global allergens
-                const globalAllergens = await DbService.getAllergens();
+                const globalAllergens = await AllergenService.getAllergens();
                 setAllergens(globalAllergens);
             }
             setLoading(false);
@@ -249,7 +252,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             if (venueSettingsChanged && venueData) {
                 // Fetch current venue state for diff
                 try {
-                    const originalVenue = await DbService.getVenueById(venueData.id);
+                    const originalVenue = await VenueService.getVenueById(venueData.id);
                     if (originalVenue) {
                         const diff = calculateVenueDiff(originalVenue, venueData);
                         if (diff) {
@@ -260,7 +263,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     }
                 } catch (e) { console.error("Validation log failed", e); }
 
-                await DbService.updateVenue(venueData.id, {
+                await VenueService.updateVenue(venueData.id, {
                     name: venueData.name,
                     theme: venueData.theme,
                     coverImage: venueData.coverImage,
@@ -277,7 +280,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     if (product) {
                         try {
                             // Fetch original state from DB to compare
-                            const originalProduct = await DbService.getProductById(prodId);
+                            const originalProduct = await ProductService.getProductById(prodId);
 
                             const updatePayload: any = {
                                 name: product.name,
@@ -291,7 +294,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             };
 
                             // Update DB
-                            await DbService.updateProduct(prodId, updatePayload);
+                            await ProductService.updateProduct(prodId, updatePayload);
 
                         } catch (err) {
                             console.error("Product update failed for", prodId, err);
@@ -330,7 +333,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         };
 
         try {
-            const created = await DbService.createProduct(newProduct);
+            const created = await ProductService.createProduct(newProduct);
             if (created) {
                 setProducts(prev => [...prev, created]);
             }
@@ -362,7 +365,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         if (!editingCategory) return;
         try {
             if (editingCategory.id === 'new') {
-                const created = await DbService.createCategory({
+                const created = await CategoryService.createCategory({
                     venueId: venueData!.id,
                     name: editingCategory.name,
                     translations: editingCategory.translations,
@@ -376,7 +379,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 // Update
                 const catId = editingCategory.id || '';
 
-                await DbService.updateCategory(catId, {
+                await CategoryService.updateCategory(catId, {
                     name: editingCategory.name,
                     translations: editingCategory.translations,
                     image: editingCategory.image,
@@ -402,7 +405,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         if (!window.confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) return;
 
         try {
-            await DbService.deleteCategory(catId);
+            await CategoryService.deleteCategory(catId);
             setCategories(prev => prev.filter(c => c.id !== catId));
         } catch (e) {
             alert("Silme işlemi başarısız.");
@@ -412,7 +415,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     const handleDeleteProduct = async (prodId: string) => {
         if (!window.confirm("Bu ürünü silmek istediğinize emin misiniz?")) return;
         try {
-            await DbService.deleteProduct(prodId);
+            await ProductService.deleteProduct(prodId);
             setProducts(prev => prev.filter(p => p.id !== prodId));
             setUnsavedChanges(prev => {
                 const next = new Set(prev);
@@ -438,10 +441,10 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 let categoryId = catMap.get(catName);
                 if (!categoryId) {
                     // Create new category if not exists
-                    const newCat = await DbService.createCategory({ venueId: venueData!.id, name: item.categoryName || "Genel" });
-                    if (newCat) {
+                    const newCat = await CategoryService.createCategory({ venueId: venueData!.id, name: item.categoryName || "Genel" });
+                    if (newCat && newCat.id) {
                         categoryId = newCat.id;
-                        catMap.set(catName, categoryId);
+                        catMap.set(catName, newCat.id);
                         // Update local state immediately so next items find it
                         setCategories(prev => [...prev, newCat]);
                     }
@@ -451,7 +454,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                 // Check if it is UPDATE (has ID) or CREATE
                 if (item.id) {
-                    await DbService.updateProduct(item.id, {
+                    await ProductService.updateProduct(item.id, {
                         name: item.name,
                         description: item.description,
                         price: item.price,
@@ -462,7 +465,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         allergens: item.allergens
                     });
                 } else {
-                    await DbService.createProduct({
+                    await ProductService.createProduct({
                         venueId: venueData.id,
                         categoryId: categoryId,
                         name: item.name,
@@ -477,7 +480,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             }
 
             // Refresh Products
-            const updatedVenue = await DbService.getVenueById(venueData.id);
+            const updatedVenue = await VenueService.getVenueById(venueData.id);
             if (updatedVenue) {
                 setProducts(updatedVenue.products);
             }
@@ -983,7 +986,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 try {
                                     setSaving(true);
                                     for (const p of products) {
-                                        await DbService.updateProduct(p.id, { allergens: [] });
+                                        await ProductService.updateProduct(p.id, { allergens: [] });
                                         // Update local state
                                         setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, allergens: [] } : pr));
                                     }
@@ -1006,7 +1009,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         supportedLanguages={venueData.supportedLanguages || ['tr']}
                         defaultLanguage={venueData.defaultLanguage || 'tr'}
                         onUpdate={async () => {
-                            const globalAllergens = await DbService.getAllergens();
+                            const globalAllergens = await AllergenService.getAllergens();
                             setAllergens(globalAllergens);
                         }}
                     />
@@ -1170,7 +1173,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                                     if (!allergens.find(a => a.name.toLowerCase() === val.toLowerCase())) {
                                                                         // Create in DB
                                                                         try {
-                                                                            const created = await DbService.createAllergen({
+                                                                            const created = await AllergenService.createAllergen({
                                                                                 name: val,
                                                                                 translations: {}
                                                                             });
@@ -1292,7 +1295,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 if (editingProduct.id === 'new') {
                                     // Create
                                     try {
-                                        const created = await DbService.createProduct(editingProduct);
+                                        const created = await ProductService.createProduct(editingProduct);
                                         if (created) {
                                             setProducts(prev => [...prev, created]);
                                         }
@@ -1302,11 +1305,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     // Update
                                     try {
                                         const productId = editingProduct.id!;
-                                        await DbService.updateProduct(productId, editingProduct);
+                                        await ProductService.updateProduct(productId, editingProduct);
 
                                         // Update local state
                                         // We assume success if no error thrown
-                                        setProducts(prev => prev.map(p => p.id === productId ? editingProduct : p));
+                                        setProducts(prev => prev.map(p => p.id === productId ? (editingProduct as Product) : p));
 
                                         setIsAllergenModalOpen(false);
                                     } catch (e) {

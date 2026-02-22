@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DbService } from "@/services/db-service";
+import { SettingsService } from "@/services/settings-service";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -23,7 +23,7 @@ export default function SettingsPage() {
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const data = await DbService.getAppSettings();
+            const data = await SettingsService.getAppSettings();
             if (data) {
                 setSettings(data);
             }
@@ -35,7 +35,7 @@ export default function SettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await DbService.updateAppSettings('landing_page', settings);
+            await SettingsService.updateAppSettings('landing_page', settings);
             alert("Ayarlar güncellendi!");
         } catch (err) {
             console.error(err);
