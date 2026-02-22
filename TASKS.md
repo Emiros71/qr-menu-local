@@ -64,25 +64,29 @@
 
 ---
 
-## Faz 9: SaaS Altyapısı & Güvenlik (ÖNCELİKLİ - YENİ) 🔐
+## Faz 9: SaaS Altyapısı & Güvenlik (Devam Ediyor) 🔐
 *Gerçek bir SaaS deneyimi için çoklu kullanıcı ve rol yönetimi.*
-- [ ] **Supabase Auth Entegrasyonu**: Admin paneli için Login (Giriş) sayfası yap.
-- [ ] **Kullanıcı Profilleri**: `profiles` tablosu oluştur (User ID -> Venue ID eşleşmesi).
+- [x] **Supabase Auth Entegrasyonu**: Admin paneli için Login (Giriş) sayfası (Brute-force ve Lockout korumalı) hazırlandı.
+- [x] **Kullanıcı Profilleri**: `profiles` tablosu migration dosyası oluşturuldu (User ID -> Venue ID eşleşmesi).
 - [ ] **Rol Tabanlı Erişim (RBAC)**:
     - **Süper Admin**: Tüm mekanları görür/yönetir (SaaS sahibi).
     - **Mekan Yöneticisi**: Sadece kendi mekanını görür/düzenler.
     - **Personel**: Sadece temel işlemleri yapabilir (örn: ürün stok durumu).
-- [ ] **Middleware Koruması**: `/admin` rotalarını yetkisiz erişime kapat.
+- [ ] **Kullanıcı Yönetim Ekranı (Admin İçinde Yeni Kırılım)**:
+    - `profiles` tablosuna esnek yetkilendirme için `tags` (text[]) kolonu ekle.
+    - `/api/admin/users` (CRUD) API rotalarını `service_role_key` kullanarak oluştur.
+    - Admin paneline "Kullanıcılar" menüsü ekle. Kullanıcı listesi, Şifre Değiştirme, Mekan Atama ve Dinamik Etiket/Tag ekleme yeteneklerini kodla.
+- [x] **Middleware Koruması**: `/admin` rotalarını yetkisiz erişime kapatan (ve UI Session yönlendirmesi yapan) middleware ayarlandı.
 - [ ] **Özel Domain Desteği (Custom Domains)**: Mekanların kendi alan adlarında (örn. www.aura.com) çalışabilmesi için middleware ve veri yapısı.
 
-## Faz 10: Akıllı Menü & Zaman Yönetimi (YENİ ⭐)
+## Faz 10: Akıllı Menü & Zaman Yönetimi (Tamamlandı ✅)
 *Gündüz/Gece menüsü gibi zamana bağlı gösterim senaryoları.*
-- [ ] **Zaman Çizelgesi Veri Yapısı**: Kategorilere `start_time` (09:00) ve `end_time` (14:00) kolonları ekle.
-- [ ] **Admin Ayarları**: Kategori düzenleme modunda saat aralığı seçici (Time Picker) ekle.
-- [ ] **Mekan Saat Dilimi**: Mekan ayarlarına `timezone` seçeneği ekle.
-- [ ] **Dinamik Müşteri Menüsü**:
-    - Müşteri siteye girdiğinde saati kontrol et.
-    - Saati gelmemiş kategorileri otomatik gizle veya "Şu an kapalı" olarak silik göster.
+- [x] **Zaman Çizelgesi Veri Yapısı**: Kategori ve Ürünlere `start_time` (09:00) ve `end_time` (14:00) kolonları eklendi.
+- [x] **Admin Ayarları**: Kategori ve Ürün düzenleme modunda saat aralığı seçici (Time Picker) ve "Sıfırla" butonu eklendi.
+- [x] **Mekan Saat Dilimi**: Mekan ayarlarına `timezone` seçeneği eklendi.
+- [x] **Dinamik Müşteri Menüsü**:
+    - Müşteri siteye girdiğinde mekanın saat dilimine göre kontrol edilir.
+    - Saati gelmemiş/geçmiş kategoriler ve ürünler otomatik olarak müşteri ekranından gizlenir.
 
 ## Faz 11: Denetim & Gözlemlenebilirlik (Audit Logs - YENİ) 👁️
 *Kim, ne zaman, neyi değiştirdi?*

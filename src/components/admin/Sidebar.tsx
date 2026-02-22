@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Store, LogOut, Settings, Menu, ChevronDown, ChevronRight, Utensils } from "lucide-react";
-import { useState } from "react";
+import { LayoutDashboard, Store, LogOut, Settings, Menu, ChevronDown, ChevronRight, Utensils, Users } from "lucide-react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Venue } from "@/data/db";
 import { usePathname } from "next/navigation";
+import { AuthService, UserProfile } from "@/services/auth-service";
 
 interface SidebarProps {
     venues: Venue[];
@@ -15,7 +16,16 @@ interface SidebarProps {
 export default function AdminSidebar({ venues }: SidebarProps) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isVenuesExpanded, setIsVenuesExpanded] = useState(true);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const pathname = usePathname();
+
+    useEffect(() => {
+        async function loadProfile() {
+            const profile = await AuthService.getCurrentProfile();
+            if (profile) setUserProfile(profile);
+        }
+        loadProfile();
+    }, []);
 
     const isActive = (path: string) => pathname === path;
     const isVenueActive = (id: string) => pathname.includes(`/admin/venues/${id}`);
@@ -132,6 +142,21 @@ export default function AdminSidebar({ venues }: SidebarProps) {
                             <Settings className="h-4 w-4" />
                             Ayarlar
                         </Link>
+
+                        {/* Users (Role Based visually, but actually protected by layout/middleware in real requests) */}
+                        {userProfile?.role === 'SUPER_ADMIN' && (
+                            <Link
+                                href="/admin/users"
+                                onClick={() => setIsSidebarOpen(false)}
+                                className={cn(
+                                    "flex items-center gap-3 px-3 py-2 mt-2 text-sm font-medium rounded-lg transition-colors border border-blue-100 bg-blue-50/30",
+                                    isActive("/admin/users") ? "bg-blue-100 text-blue-700 border-blue-200" : "text-blue-600 hover:bg-blue-50"
+                                )}
+                            >
+                                <Users className="h-4 w-4" />
+                                Kullanıcılar
+                            </Link>
+                        )}
                     </div>
                 </nav>
 
@@ -159,18 +184,26 @@ export default function AdminSidebar({ venues }: SidebarProps) {
                         <LogOut className="h-4 w-4" />
                         Çıkış Yap
                     </button>
-                    {/* User Info Mock - In future phases, fetch from profile */}
+                    {/* User Info from Supabase */}
                     <div className="mt-4 flex items-center gap-3 px-2">
-                        <div className="h-8 w-8 rounded-full bg-zinc-200 overflow-hidden">
-                            <img src="https://ui-avatars.com/api/?name=Admin+User" alt="Admin" />
+                        <div className="h-8 w-8 rounded-full bg-zinc-200 overflow-hidden flex-shrink-0">
+                            {userProfile ? (
+                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.full_name || userProfile.email)}`} alt="User" />
+                            ) : (
+                                <div className="h-full w-full bg-zinc-300 animate-pulse" />
+                            )}
                         </div>
-                        <div className="text-xs">
-                            <div className="font-bold text-zinc-900">Admin User</div>
-                            <div className="text-zinc-500">Süper Yönetici</div>
+                        <div className="text-xs overflow-hidden">
+                            <div className="font-bold text-zinc-900 truncate">
+                                {userProfile ? (userProfile.full_name || userProfile.email) : "Yükleniyor..."}
+                            </div>
+                            <div className="text-zinc-500 truncate">
+                                {userProfile?.role === 'SUPER_ADMIN' ? 'Süper Yönetici' : userProfile?.role === 'VENUE_MANAGER' ? 'Mekan Yöneticisi' : userProfile?.role === 'STAFF' ? 'Personel' : '...'}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </aside>
+            </aside >
         </>
     );
 }

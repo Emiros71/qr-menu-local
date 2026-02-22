@@ -4,13 +4,20 @@ import { isSupabaseConfigured, parseImageField, performActionViaApi } from "./db
 
 export const VenueService = {
     // Get all venues (for landing page / admin list)
-    getVenues: async (): Promise<Venue[]> => {
+    getVenues: async (profile?: { role: string | null; venue_id: string | null } | null): Promise<Venue[]> => {
         if (!isSupabaseConfigured()) {
             console.log("Supabase not configured, using mock data.");
-            return mockVenues;
+            return profile && profile.role !== 'SUPER_ADMIN' && profile.venue_id
+                ? mockVenues.filter(v => v.id === profile.venue_id)
+                : mockVenues;
         }
 
-        const { data, error } = await supabase.from('venues').select('*');
+        let query = supabase.from('venues').select('*');
+        if (profile && profile.role !== 'SUPER_ADMIN' && profile.venue_id) {
+            query = query.eq('id', profile.venue_id);
+        }
+
+        const { data, error } = await query;
         if (error) {
             console.error("Error fetching venues:", error);
             return [];

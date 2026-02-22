@@ -158,6 +158,17 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     useEffect(() => {
         async function load() {
             setLoading(true);
+            const { AuthService } = await import('@/services/auth-service');
+            const profile = await AuthService.getCurrentProfile();
+
+            if (profile && profile.role !== 'SUPER_ADMIN') {
+                if (profile.venue_id !== unwrappedParams.id) {
+                    alert("Bu mekana erişim yetkiniz yok.");
+                    router.push('/admin');
+                    return;
+                }
+            }
+
             const data = await VenueService.getVenueById(unwrappedParams.id);
             if (data) {
                 setVenueData(data);

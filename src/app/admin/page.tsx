@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { VenueService } from "@/services/venue-service";
+import { AuthService } from "@/services/auth-service";
 import { Venue } from "@/data/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Store, TrendingUp, Users, DollarSign, Activity, AlertCircle, Trash2 } from "lucide-react";
@@ -17,7 +18,8 @@ export default function AdminDashboard() {
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const data = await VenueService.getVenues();
+            const profile = await AuthService.getCurrentProfile();
+            const data = await VenueService.getVenues(profile);
             setVenues(data);
             setLoading(false);
         }
