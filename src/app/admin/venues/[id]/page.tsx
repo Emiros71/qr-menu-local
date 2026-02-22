@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/Input";
 import { AuditService } from "@/services/audit-service";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Switch } from "@/components/ui/Switch";
-import { ArrowLeft, Plus, Save, Search as SearchIcon, Trash2, Edit2, Check, GripVertical, Download, X, MoreHorizontal, Star, Image as LucideImage, Globe, History, Info, Filter, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Save, Search as SearchIcon, Trash2, Edit2, Check, GripVertical, Download, X, MoreHorizontal, Star, Image as LucideImage, Globe, History, Info, Filter, Loader2, AlertTriangle } from "lucide-react";
 import ImageUpload from "@/components/ui/ImageUpload";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import ProductImporter from "@/components/admin/ProductImporter";
@@ -125,6 +126,7 @@ const THEME_PRESETS = [
 ];
 
 export default function VenueEditor({ params }: { params: Promise<{ id: string }> }) {
+    const router = useRouter();
     const unwrappedParams = use(params);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -196,6 +198,22 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         // If editing in modal, keep modal data in sync
         if (editingProduct && editingProduct.id === productId) {
             setEditingProduct(prev => prev ? ({ ...prev, [field]: value }) : null);
+        }
+    };
+
+    const handleDeleteVenue = async () => {
+        if (!venueData || !window.confirm(`"${venueData.name}" adlı mekanı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) {
+            return;
+        }
+
+        try {
+            setSaving(true);
+            await VenueService.deleteVenue(venueData.id!);
+            router.push('/admin');
+        } catch (e) {
+            console.error("Mekan silinirken hata:", e);
+            alert("Mekan silinirken bir hata oluştu.");
+            setSaving(false);
         }
     };
 
@@ -987,8 +1005,26 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             {saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                             Ayarları Kaydet
                         </Button> */}
-                            <div className="text-sm text-zinc-500 italic">
+                            <div className="text-sm text-zinc-500 italic mb-10">
                                 Değişiklikleri kaydetmek için yukarıdaki "Kaydet" butonunu kullanın.
+                            </div>
+
+                            {/* Danger Zone */}
+                            <div className="mt-12 pt-6 border-t border-red-200">
+                                <h4 className="font-bold text-red-600 mb-2 flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5" />
+                                    Tehlikeli Bölge
+                                </h4>
+                                <p className="text-sm text-zinc-500 mb-4">Mekanı tamamen silerseniz, içerisindeki tüm kategoriler, ürünler ve görseller de silinecektir. Bu işlem geri alınamaz.</p>
+                                <Button
+                                    variant="danger"
+                                    onClick={handleDeleteVenue}
+                                    disabled={saving}
+                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Mekanı Kalıcı Olarak Sil
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
