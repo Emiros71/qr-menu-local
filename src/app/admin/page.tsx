@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { VenueService } from "@/services/venue-service";
 import { Venue } from "@/data/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-import { Store, TrendingUp, Users, DollarSign, Activity, AlertCircle } from "lucide-react";
+import { Store, TrendingUp, Users, DollarSign, Activity, AlertCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { MainTrafficChart, TopProductsChart, CategoryDistributionChart } from "@/components/admin/Charts";
+import { ServiceStatus } from "@/components/admin/ServiceStatus";
 
 export default function AdminDashboard() {
     const [venues, setVenues] = useState<Venue[]>([]);
@@ -22,6 +23,18 @@ export default function AdminDashboard() {
         }
         load();
     }, []);
+
+    const handleDelete = async (id: string, name: string) => {
+        if (!window.confirm(`"${name}" mekanını tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) return;
+        try {
+            await VenueService.deleteVenue(id);
+            setVenues(prev => prev.filter(v => v.id !== id));
+            alert("Mekan başarıyla silindi.");
+        } catch (e) {
+            console.error(e);
+            alert("Silinirken bir hata oluştu.");
+        }
+    };
 
     const totalVenues = venues.length;
     // Note: VenueService.getVenues() returns venues with empty arrays for products currently if fetched from Supabase via simple select.
@@ -125,6 +138,20 @@ export default function AdminDashboard() {
                 </Card>
             </div>
 
+            {/* Sistem Sağlığı ve Servis Durumu */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
+                    <ServiceStatus />
+                </div>
+                {/* Gelecekte buraya Son Aktiviteler / Denetim Logları eklenebilir */}
+                <div className="lg:col-span-2">
+                    <Card className="h-full border-zinc-200 shadow-sm flex flex-col justify-center items-center text-zinc-400 bg-zinc-50/50">
+                        <Activity className="h-8 w-8 mb-2 opacity-50" />
+                        <p className="text-sm font-medium">Sistem aktivite günlükleri hazırlanıyor...</p>
+                    </Card>
+                </div>
+            </div>
+
             {/* Restoran Listesi */}
             <div>
                 <div className="flex items-center justify-between mb-6">
@@ -148,9 +175,19 @@ export default function AdminDashboard() {
                                     <CardDescription className="line-clamp-1">{venue.description}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <Link href={`/admin/venues/${venue.id}`}>
-                                        <Button variant="outline" className="w-full">Yönet</Button>
-                                    </Link>
+                                    <div className="flex gap-2">
+                                        <Link href={`/admin/venues/${venue.id}`} className="flex-1">
+                                            <Button variant="outline" className="w-full">Yönet</Button>
+                                        </Link>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => handleDelete(venue.id as string, venue.name)}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                            title="Mekanı Sil"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
                         ))}

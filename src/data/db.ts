@@ -20,6 +20,8 @@ export type Category = {
     name: string;
     image?: string;
     coverImage?: string;
+    startTime?: string; // "HH:mm:ss" format
+    endTime?: string;   // "HH:mm:ss" format
     translations?: Record<string, TranslationData>;
 };
 
@@ -38,6 +40,8 @@ export type Product = {
     isChefRecommendation?: boolean;
     calories?: number;
     translations?: Record<string, TranslationData>;
+    startTime?: string; // "HH:mm:ss" format
+    endTime?: string;   // "HH:mm:ss" format
 };
 
 export type Allergen = {
@@ -53,6 +57,7 @@ export type Venue = {
     description?: string;
     logo?: string; // URL
     coverImage?: string; // URL
+    timezone?: string; // e.g., "Europe/Istanbul"
     theme: Theme;
     categories: Category[];
     products: Product[];
@@ -76,9 +81,10 @@ export const venues: Venue[] = [
         },
         supportedLanguages: ['tr', 'en'],
         defaultLanguage: 'tr',
+        timezone: 'Europe/Istanbul',
         categories: [
             { id: "c_aura_1", name: "Ana Yemekler", image: "https://images.unsplash.com/photo-1546241072-48010ad2862c?q=80&w=2574&auto=format&fit=crop" },
-            { id: "c_aura_2", name: "İçecekler", image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=2574&auto=format&fit=crop" },
+            { id: "c_aura_2", name: "İçecekler", image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=2574&auto=format&fit=crop", startTime: "17:00:00" }, // Evening drinks test
         ],
         products: [
             {

@@ -7,10 +7,44 @@ import { cn } from "@/lib/utils";
 import { Venue } from "@/data/db";
 import { AnalyticsService } from "@/lib/analytics";
 import Link from "next/link";
+import { Clock } from "lucide-react";
 
 interface RestaurantMenuProps {
     venue: Venue;
 }
+
+// Helper to get current time (HH:mm:ss) in a specific timezone
+const getCurrentTimeInTimezone = (timezone: string): string => {
+    try {
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            timeZone: timezone,
+            hourCycle: 'h23' // Force 24-hour format
+        });
+        return formatter.format(new Date());
+    } catch (e) {
+        console.warn("Invalid timezone fallback to UTC", e);
+        // Fallback if timezone string is invalid
+        const d = new Date();
+        return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:00`;
+    }
+};
+
+const isTimeInRange = (current: string, start?: string, end?: string): boolean => {
+    if (!start && !end) return true; // No restrictions
+    if (start && end) {
+        if (start < end) {
+            // Normal day (e.g. 09:00 - 17:00)
+            return current >= start && current <= end;
+        } else {
+            // Spans midnight (e.g. 20:00 - 04:00)
+            return current >= start || current <= end;
+        }
+    }
+    if (start) return current >= start;
+    if (end) return current <= end;
+    return true;
+};
 
 const FALLBACK_DEFAULT_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/4/4b/Crowne_Plaza_Hotels_%26_Resorts_logo.svg";
 
@@ -45,12 +79,25 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     const [selectedProduct, setSelectedProduct] = useState<any>(null); // Type 'Product' is inferred but any fixes lint quickly for now
     const [searchTerm, setSearchTerm] = useState("");
     const [showScrollTop, setShowScrollTop] = useState(false);
+    const [currentTimeTimezone, setCurrentTimeTimezone] = useState<string>("00:00:00");
 
     useEffect(() => {
         const checkScroll = () => setShowScrollTop(window.scrollY > 300);
         window.addEventListener('scroll', checkScroll);
-        return () => window.removeEventListener('scroll', checkScroll);
-    }, []);
+
+        // Setup clock for dynamic menu
+        const tz = venue.timezone || 'Europe/Istanbul';
+        setCurrentTimeTimezone(getCurrentTimeInTimezone(tz));
+
+        const timer = setInterval(() => {
+            setCurrentTimeTimezone(getCurrentTimeInTimezone(tz));
+        }, 1000 * 60); // Update every minute to save CPU
+
+        return () => {
+            window.removeEventListener('scroll', checkScroll);
+            clearInterval(timer);
+        }
+    }, [venue.timezone]);
 
     const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -282,37 +329,51 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                     {/* Categories */}
                     <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 snap-x">
-                        {venue.categories.map((cat) => (
-                            <button
-                                key={cat.id}
-                                id={`btn-${cat.id}`}
-                                onClick={() => scrollToCategory(cat.id)}
-                                className="flex flex-col items-center gap-2 group min-w-[72px] cursor-pointer snap-start"
-                            >
-                                <div className={cn(
-                                    "w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all relative flex items-center justify-center shadow-sm group-hover:shadow-md shrink-0",
-                                    activeCategory === cat.id
-                                        ? "border-[var(--primary)] scale-105 shadow-md shadow-[var(--primary)]/20 bg-white"
-                                        : "border-transparent bg-zinc-100 grayscale-[0.3] hover:grayscale-0"
-                                )}>
-                                    {cat.image ? (
-                                        <Image src={cat.image} alt={cat.name} fill className="object-cover" />
-                                    ) : (
-                                        <div className={cn("transition-colors opacity-90", activeCategory === cat.id ? "text-[var(--primary)]" : "text-zinc-700")}>
-                                            {getCategoryIcon(localize(cat, 'name'))}
-                                        </div>
+                        {venue.categories.map((cat) => {
+                            const available = isTimeInRange(currentTimeTimezone, cat.startTime, cat.endTime);
+                            return (
+                                <button
+                                    key={cat.id}
+                                    id={`btn-${cat.id}`}
+                                    onClick={() => available ? scrollToCategory(cat.id) : null}
+                                    className={cn(
+                                        "flex flex-col items-center gap-2 group min-w-[72px] snap-start",
+                                        available ? "cursor-pointer" : "cursor-not-allowed opacity-50 grayscale"
                                     )}
-                                </div>
-                                <span className={cn(
-                                    "text-[11px] font-bold whitespace-nowrap px-2 py-0.5 rounded-full transition-colors",
-                                    activeCategory === cat.id
-                                        ? "text-white bg-[var(--primary)] shadow-sm"
-                                        : "text-zinc-400 group-hover:text-zinc-200"
-                                )}>
-                                    {localize(cat, 'name')}
-                                </span>
-                            </button>
-                        ))}
+                                >
+                                    <div className={cn(
+                                        "w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all relative flex items-center justify-center shrink-0",
+                                        available ? "shadow-sm group-hover:shadow-md" : "",
+                                        activeCategory === cat.id && available
+                                            ? "border-[var(--primary)] scale-105 shadow-md shadow-[var(--primary)]/20 bg-white"
+                                            : "border-transparent bg-zinc-100 grayscale-[0.3] group-hover:grayscale-0"
+                                    )}>
+                                        {cat.image ? (
+                                            <Image src={cat.image} alt={cat.name} fill className="object-cover" />
+                                        ) : (
+                                            <div className={cn("transition-colors opacity-90", activeCategory === cat.id ? "text-[var(--primary)]" : "text-zinc-700")}>
+                                                {getCategoryIcon(localize(cat, 'name'))}
+                                            </div>
+                                        )}
+                                        {!available && (
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[1px]">
+                                                <Clock className="w-6 h-6 text-white drop-shadow-md" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className={cn(
+                                            "text-[11px] font-bold whitespace-nowrap px-2 py-0.5 rounded-full transition-colors",
+                                            activeCategory === cat.id && available
+                                                ? "text-white bg-[var(--primary)] shadow-sm"
+                                                : "text-zinc-500 group-hover:text-zinc-900"
+                                        )}>
+                                            {localize(cat, 'name')}
+                                        </span>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -320,16 +381,19 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
             {/* Menu Sections */}
             <main className="container mx-auto px-4 max-w-5xl mt-6">
                 {venue.categories.map((cat) => {
+                    const available = isTimeInRange(currentTimeTimezone, cat.startTime, cat.endTime);
+
                     const categoryProducts = venue.products.filter(p =>
                         (p.categoryId === cat.id) &&
                         p.isAvailable &&
+                        isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && // Product-level time check!
                         (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase()))
                     );
 
                     if (categoryProducts.length === 0) return null;
 
                     return (
-                        <section key={cat.id} id={cat.id} className="mb-12 scroll-mt-[200px]">
+                        <section key={cat.id} id={cat.id} className={cn("mb-12 scroll-mt-[200px]", !available && "opacity-50 pointer-events-none grayscale")}>
                             {(cat as any).coverImage && (
                                 <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden mb-6 shadow-md">
                                     <Image
@@ -339,13 +403,27 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                         className="object-cover"
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60" />
+                                    {!available && (
+                                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-white p-6 text-center">
+                                            <Clock className="w-12 h-12 mb-3 text-white/50" />
+                                            <h4 className="text-xl font-bold mb-1">Şu An Servis Dışı</h4>
+                                            <p className="text-white/80 text-sm">Bu menü servis saatleri dışındadır. ({cat.startTime?.substring(0, 5)} - {cat.endTime?.substring(0, 5)})</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                            <div className="flex items-center gap-3 mb-6 pl-1">
-                                <div className="h-8 w-1.5 rounded-full bg-[var(--primary)] shadow-[0_0_15px_var(--primary)]" />
-                                <h3 className="text-2xl font-bold text-[var(--foreground)] tracking-tight">
-                                    {localize(cat, 'name')}
-                                </h3>
+                            <div className="flex items-center justify-between mb-6 pl-1">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-8 w-1.5 rounded-full bg-[var(--primary)] shadow-[0_0_15px_var(--primary)]" />
+                                    <h3 className="text-2xl font-bold text-[var(--foreground)] tracking-tight">
+                                        {localize(cat, 'name')}
+                                    </h3>
+                                </div>
+                                {!available && !(cat as any).coverImage && (
+                                    <div className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-full border border-amber-500/20">
+                                        <Clock className="w-3.5 h-3.5" /> Servis Dışı
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

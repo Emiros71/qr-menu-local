@@ -67,7 +67,9 @@ export const VenueService = {
             isChefRecommendation: p.is_chef_recommendation,
             labels: p.labels,
             currency: 'TRY',
-            translations: typeof p.translations === 'string' ? JSON.parse(p.translations) : p.translations
+            translations: typeof p.translations === 'string' ? JSON.parse(p.translations) : p.translations,
+            startTime: p.start_time,
+            endTime: p.end_time
         }));
 
         const categories = (catData || []).map((c: any) => {
@@ -78,6 +80,8 @@ export const VenueService = {
                 image: image,
                 coverImage: coverImage,
                 venueId: c.venue_id,
+                startTime: c.start_time,
+                endTime: c.end_time,
                 translations: typeof c.translations === 'string' ? JSON.parse(c.translations) : c.translations
             };
         });
@@ -87,6 +91,7 @@ export const VenueService = {
             slug: venueData.slug,
             name: venueData.name,
             coverImage: venueData.cover_image || venueData.coverImage,
+            timezone: venueData.timezone,
             theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme,
             supportedLanguages: venueData.supported_languages,
             defaultLanguage: venueData.default_language,
@@ -146,7 +151,9 @@ export const VenueService = {
             isChefRecommendation: p.is_chef_recommendation,
             labels: p.labels,
             currency: 'TRY',
-            translations: p.translations
+            translations: p.translations,
+            startTime: p.start_time,
+            endTime: p.end_time
         }));
 
         const categories = (catData || []).map((c: any) => {
@@ -157,6 +164,8 @@ export const VenueService = {
                 image: image,
                 coverImage: coverImage,
                 venueId: c.venue_id,
+                startTime: c.start_time,
+                endTime: c.end_time,
                 translations: c.translations
             };
         });
@@ -166,6 +175,7 @@ export const VenueService = {
             slug: venueData.slug,
             name: venueData.name,
             coverImage: venueData.cover_image || venueData.coverImage,
+            timezone: venueData.timezone,
             theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme,
             categories: categories,
             products: products,
@@ -197,6 +207,9 @@ export const VenueService = {
             dbUpdates.default_language = updates.defaultLanguage;
             delete dbUpdates.defaultLanguage;
         }
+        if (updates.timezone !== undefined) {
+            dbUpdates.timezone = updates.timezone;
+        }
 
         try {
             await performActionViaApi('venues', 'update', dbUpdates, id);
@@ -215,6 +228,17 @@ export const VenueService = {
         } catch (e) {
             const { error } = await supabase.from('venues').update({ theme }).eq('id', id);
             if (error) throw error;
+        }
+    },
+
+    deleteVenue: async (id: string) => {
+        if (!isSupabaseConfigured()) return;
+
+        try {
+            await performActionViaApi('venues', 'delete', null, id);
+        } catch (e) {
+            console.error(e);
+            throw e;
         }
     }
 };

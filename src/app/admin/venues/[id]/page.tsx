@@ -752,6 +752,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 {products.filter(p => p.categoryId === cat.id).map(p => p.name).join(', ')}
                                             </div>
                                         )}
+                                        {(cat.startTime || cat.endTime) && (
+                                            <div className="text-[10px] font-mono text-amber-600 bg-amber-50 inline-block px-1.5 py-0.5 rounded mt-1 border border-amber-200">
+                                                ⏱ {cat.startTime?.substring(0, 5) || '00:00'} - {cat.endTime?.substring(0, 5) || '23:59'}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -914,7 +919,24 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         folder="qr-menu/venues"
                                     />
                                 </div>
+                                <div className="space-y-4 col-span-2">
+                                    <label className="text-sm font-medium">Mekan Saat Dilimi (Timezone)</label>
+                                    <p className="text-[10px] text-zinc-500 mb-1">Menülerdeki zaman kısıtlamaları (Örn: Kahvaltı 06:00-12:00) bu saat dilimine göre hesaplanır.</p>
+                                    <select
+                                        className="w-full h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        value={venueData.timezone || 'Europe/Istanbul'}
+                                        onChange={(e) => handleVenueChange('timezone', e.target.value)}
+                                    >
+                                        <option value="Europe/Istanbul">Türkiye Saati (Europe/Istanbul)</option>
+                                        <option value="Europe/London">İngiltere Saati (Europe/London)</option>
+                                        <option value="Europe/Berlin">Avrupa Saati (Europe/Berlin)</option>
+                                        <option value="America/New_York">New York Saati (America/New_York)</option>
+                                        <option value="Asia/Dubai">Dubai Saati (Asia/Dubai)</option>
+                                        <option value="UTC">UTC (Eşgüdümlü Evrensel Zaman)</option>
+                                    </select>
+                                </div>
                             </div>
+
 
                             <div className="space-y-4 pt-4 border-t border-zinc-100">
                                 <div>
@@ -1083,6 +1105,54 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             </select>
                                         </div>
                                     </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-sm font-medium">Başlangıç Saati</label>
+                                                {editingProduct.startTime && (
+                                                    <button
+                                                        onClick={() => setEditingProduct(prev => prev ? ({ ...prev, startTime: undefined }) : null)}
+                                                        className="text-[10px] text-zinc-500 hover:text-red-500"
+                                                    >
+                                                        Sıfırla
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <Input
+                                                type="time"
+                                                value={editingProduct.startTime ? editingProduct.startTime.substring(0, 5) : ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value ? `${e.target.value}:00` : undefined;
+                                                    setEditingProduct(prev => prev ? ({ ...prev, startTime: val }) : null)
+                                                }}
+                                                className="w-full"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-sm font-medium">Bitiş Saati</label>
+                                                {editingProduct.endTime && (
+                                                    <button
+                                                        onClick={() => setEditingProduct(prev => prev ? ({ ...prev, endTime: undefined }) : null)}
+                                                        className="text-[10px] text-zinc-500 hover:text-red-500"
+                                                    >
+                                                        Sıfırla
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <Input
+                                                type="time"
+                                                value={editingProduct.endTime ? editingProduct.endTime.substring(0, 5) : ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value ? `${e.target.value}:00` : undefined;
+                                                    setEditingProduct(prev => prev ? ({ ...prev, endTime: val }) : null)
+                                                }}
+                                                className="w-full"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-500 mb-2 -mt-4">Belirli saatlerde servis edilen ürünler için (Örn. Oda Servisi Gece Menüsü veya Kahvaltı Tabağı). Boş bırakılırsa her zaman gösterilir.</p>
 
                                     {/* Toggles */}
                                     <div className="flex items-center gap-6 p-4 bg-zinc-50 rounded-lg border border-zinc-100">
@@ -1369,6 +1439,35 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 autoFocus
                                             />
                                         </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Başlangıç Saati</label>
+                                                <Input
+                                                    type="time"
+                                                    value={editingCategory.startTime ? editingCategory.startTime.substring(0, 5) : ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value ? `${e.target.value}:00` : undefined;
+                                                        setEditingCategory(prev => prev ? ({ ...prev, startTime: val }) : null)
+                                                    }}
+                                                    className="w-full"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Bitiş Saati</label>
+                                                <Input
+                                                    type="time"
+                                                    value={editingCategory.endTime ? editingCategory.endTime.substring(0, 5) : ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value ? `${e.target.value}:00` : undefined;
+                                                        setEditingCategory(prev => prev ? ({ ...prev, endTime: val }) : null)
+                                                    }}
+                                                    className="w-full"
+                                                />
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-zinc-500 mb-2">Boş bırakılırsa her zaman gösterilir. (Örn: Kahvaltı için 06:00 - 12:00)</p>
+
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Kategori Görseli (Küçük İkon)</label>
                                             <ImageUpload

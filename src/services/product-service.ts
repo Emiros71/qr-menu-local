@@ -28,7 +28,9 @@ export const ProductService = {
             isChefRecommendation: data.is_chef_recommendation,
             labels: data.labels,
             currency: 'TRY',
-            translations: typeof data.translations === 'string' ? JSON.parse(data.translations) : data.translations
+            translations: typeof data.translations === 'string' ? JSON.parse(data.translations) : data.translations,
+            startTime: data.start_time,
+            endTime: data.end_time
         };
     },
 
@@ -60,6 +62,10 @@ export const ProductService = {
         if (updates.isChefRecommendation !== undefined) dbUpdates.is_chef_recommendation = updates.isChefRecommendation;
         if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
         if (updates.translations !== undefined) dbUpdates.translations = updates.translations;
+
+        // Time management
+        if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime || null;
+        if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime || null;
 
         if (Object.keys(dbUpdates).length === 0) return;
 
@@ -93,6 +99,16 @@ export const ProductService = {
             dbProduct.is_chef_recommendation = product.isChefRecommendation;
             delete dbProduct.isChefRecommendation;
         }
+
+        if (product.startTime !== undefined) {
+            dbProduct.start_time = product.startTime;
+            delete dbProduct.startTime;
+        }
+
+        if (product.endTime !== undefined) {
+            dbProduct.end_time = product.endTime;
+            delete dbProduct.endTime;
+        }
         // Allergens and Labels don't change keys but ensuring they exist
         if (product.allergens === undefined) dbProduct.allergens = [];
 
@@ -117,7 +133,9 @@ export const ProductService = {
                 allergens: data.allergens,
                 isChefRecommendation: data.is_chef_recommendation,
                 labels: data.labels,
-                currency: 'TRY'
+                currency: 'TRY',
+                startTime: data.start_time,
+                endTime: data.end_time
             };
         } catch (e) {
             console.error("API Create Product failed:", e);
@@ -136,7 +154,9 @@ export const ProductService = {
                 allergens: data.allergens,
                 isChefRecommendation: data.is_chef_recommendation,
                 labels: data.labels,
-                currency: 'TRY'
+                currency: 'TRY',
+                startTime: data.start_time,
+                endTime: data.end_time
             };
         }
     }

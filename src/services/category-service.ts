@@ -10,6 +10,10 @@ export const CategoryService = {
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.translations !== undefined) dbUpdates.translations = updates.translations;
 
+        // Handle Time Management
+        if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
+        if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
+
         // Handle Image Store (JSON or String)
         if (updates.image !== undefined || updates.coverImage !== undefined) {
             const icon = updates.image;
@@ -50,6 +54,10 @@ export const CategoryService = {
 
         if (category.translations) dbCategory.translations = category.translations;
 
+        // Handle Time Management
+        if (category.startTime !== undefined) dbCategory.start_time = category.startTime;
+        if (category.endTime !== undefined) dbCategory.end_time = category.endTime;
+
         // Use Image column to store both icon and cover as JSON
         const icon = category.image;
         const cover = category.coverImage;
@@ -68,7 +76,9 @@ export const CategoryService = {
                 image: category.image,
                 coverImage: category.coverImage,
                 venueId: data.venue_id,
-                translations: data.translations
+                translations: data.translations,
+                startTime: data.start_time,
+                endTime: data.end_time
             };
         } catch (e) {
             console.error("API Create Category failed:", e);
@@ -80,7 +90,9 @@ export const CategoryService = {
                 image: category.image,
                 coverImage: category.coverImage,
                 venueId: data.venue_id,
-                translations: data.translations
+                translations: data.translations,
+                startTime: data.start_time,
+                endTime: data.end_time
             };
         }
     }
