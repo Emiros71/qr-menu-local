@@ -30,7 +30,9 @@ export const ProductService = {
             currency: 'TRY',
             translations: typeof data.translations === 'string' ? JSON.parse(data.translations) : data.translations,
             startTime: data.start_time,
-            endTime: data.end_time
+            endTime: data.end_time,
+            discount_type: data.discount_type,
+            discount_amount: data.discount_amount
         };
     },
 
@@ -66,6 +68,10 @@ export const ProductService = {
         // Time management
         if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime || null;
         if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime || null;
+
+        // Discounts
+        if (updates.discount_type !== undefined) dbUpdates.discount_type = updates.discount_type;
+        if (updates.discount_amount !== undefined) dbUpdates.discount_amount = updates.discount_amount;
 
         if (Object.keys(dbUpdates).length === 0) return;
 
@@ -109,6 +115,20 @@ export const ProductService = {
             dbProduct.end_time = product.endTime;
             delete dbProduct.endTime;
         }
+
+        if (product.discount_type !== undefined) {
+            dbProduct.discount_type = product.discount_type;
+            delete dbProduct.discount_type; // we actually want to keep standard names if they match, but to be safe: db format is discount_type, typescript is discount_type. So we don't delete them.
+        }
+
+        if (product.discount_amount !== undefined) {
+            dbProduct.discount_amount = product.discount_amount;
+            delete dbProduct.discount_amount;
+        }
+
+        // Let's ensure the keys are exactly what the DB expects
+        dbProduct.discount_type = product.discount_type !== undefined ? product.discount_type : null;
+        dbProduct.discount_amount = product.discount_amount !== undefined ? product.discount_amount : null;
         // Allergens and Labels don't change keys but ensuring they exist
         if (product.allergens === undefined) dbProduct.allergens = [];
 
@@ -135,7 +155,9 @@ export const ProductService = {
                 labels: data.labels,
                 currency: 'TRY',
                 startTime: data.start_time,
-                endTime: data.end_time
+                endTime: data.end_time,
+                discount_type: data.discount_type,
+                discount_amount: data.discount_amount
             };
         } catch (e) {
             console.error("API Create Product failed:", e);

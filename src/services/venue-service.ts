@@ -4,17 +4,22 @@ import { isSupabaseConfigured, parseImageField, performActionViaApi } from "./db
 
 export const VenueService = {
     // Get all venues (for landing page / admin list)
-    getVenues: async (profile?: { role: string | null; venue_id: string | null } | null): Promise<Venue[]> => {
+    getVenues: async (profile?: { role: string | null; venue_ids?: string[] | null } | null): Promise<Venue[]> => {
         if (!isSupabaseConfigured()) {
             console.log("Supabase not configured, using mock data.");
-            return profile && profile.role !== 'SUPER_ADMIN' && profile.venue_id
-                ? mockVenues.filter(v => v.id === profile.venue_id)
+            return profile && profile.role !== 'SUPER_ADMIN' && profile.venue_ids && profile.venue_ids.length > 0
+                ? mockVenues.filter(v => profile.venue_ids!.includes(v.id))
                 : mockVenues;
         }
 
         let query = supabase.from('venues').select('*');
-        if (profile && profile.role !== 'SUPER_ADMIN' && profile.venue_id) {
-            query = query.eq('id', profile.venue_id);
+        if (profile && profile.role !== 'SUPER_ADMIN') {
+            if (profile.venue_ids && profile.venue_ids.length > 0) {
+                query = query.in('id', profile.venue_ids);
+            } else {
+                // Return empty if they have no venues assigned
+                return [];
+            }
         }
 
         const { data, error } = await query;
@@ -76,7 +81,9 @@ export const VenueService = {
             currency: 'TRY',
             translations: typeof p.translations === 'string' ? JSON.parse(p.translations) : p.translations,
             startTime: p.start_time,
-            endTime: p.end_time
+            endTime: p.end_time,
+            discount_type: p.discount_type,
+            discount_amount: p.discount_amount
         }));
 
         const categories = (catData || []).map((c: any) => {
@@ -108,7 +115,8 @@ export const VenueService = {
                 id: a.id,
                 name: a.name,
                 translations: typeof a.translations === 'string' ? JSON.parse(a.translations) : a.translations
-            }))
+            })),
+            popup_settings: typeof venueData.popup_settings === 'string' ? JSON.parse(venueData.popup_settings) : venueData.popup_settings
         };
 
         return venue;
@@ -160,7 +168,9 @@ export const VenueService = {
             currency: 'TRY',
             translations: p.translations,
             startTime: p.start_time,
-            endTime: p.end_time
+            endTime: p.end_time,
+            discount_type: p.discount_type,
+            discount_amount: p.discount_amount
         }));
 
         const categories = (catData || []).map((c: any) => {
@@ -192,7 +202,8 @@ export const VenueService = {
                 id: a.id,
                 name: a.name,
                 translations: typeof a.translations === 'string' ? JSON.parse(a.translations) : a.translations
-            }))
+            })),
+            popup_settings: typeof venueData.popup_settings === 'string' ? JSON.parse(venueData.popup_settings) : venueData.popup_settings
         };
 
         return venue;

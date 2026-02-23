@@ -14,7 +14,7 @@ interface AdminUser {
     email: string;
     full_name: string | null;
     role: string;
-    venue_id: string | null;
+    venue_ids: string[];
     tags: string[];
     created_at: string;
 }
@@ -62,10 +62,13 @@ export default function UsersPage() {
         return <span className="bg-zinc-100 text-zinc-700 font-medium px-2 py-1 rounded text-xs border border-zinc-200">Personel</span>;
     };
 
-    const getVenueName = (id: string | null) => {
-        if (!id) return "Tümü (Global)";
-        const v = venues.find(v => v.id === id);
-        return v ? v.name : "Bilinmiyor";
+    const getVenueNames = (ids: string[]) => {
+        if (!ids || ids.length === 0) return "Global (Tüm Mekanlar)";
+        const names = ids.map(id => {
+            const v = venues.find(v => v.id === id);
+            return v ? v.name : "Bilinmiyor";
+        });
+        return names.join(", ");
     };
 
     const handleDelete = async (id: string) => {
@@ -159,7 +162,9 @@ export default function UsersPage() {
                                         <td className="px-5 py-3.5">
                                             <div className="flex items-center gap-1.5 text-zinc-600">
                                                 <Building2 className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-                                                <span className="truncate max-w-[150px] inline-block">{getVenueName(user.venue_id)}</span>
+                                                <span className="truncate max-w-[200px] inline-block" title={getVenueNames(user.venue_ids)}>
+                                                    {getVenueNames(user.venue_ids)}
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="px-5 py-3.5">

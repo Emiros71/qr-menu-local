@@ -21,18 +21,27 @@ export const parseImageField = (val: string | null | undefined) => {
 export async function performActionViaApi(table: string, action: 'update' | 'delete' | 'create', data: any, id?: string) {
     // Get Current User for Audit Log Context
     let userEmail = 'Anonim';
+    let token = '';
     try {
         const browserClient = createClient();
         const { data: { session } } = await browserClient.auth.getSession();
-        if (session?.user?.email) userEmail = session.user.email;
+        if (session) {
+            userEmail = session.user?.email || 'Anonim';
+            token = session.access_token;
+        }
     } catch (e) { console.error("Session check failed", e); }
 
     const payload: any = { table, action, updates: data, user_email: userEmail };
     if (id) payload.id = id;
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch('/api/admin/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload)
     });
 

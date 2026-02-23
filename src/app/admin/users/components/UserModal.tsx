@@ -19,7 +19,7 @@ export function UserModal({ user, venues, onClose, onSaved }: UserModalProps) {
     const [password, setPassword] = useState("");
     const [fullName, setFullName] = useState(user?.full_name || "");
     const [role, setRole] = useState(user?.role || "STAFF");
-    const [venueId, setVenueId] = useState<string>(user?.venue_id || "");
+    const [venueIds, setVenueIds] = useState<string[]>(user?.venue_ids || []);
 
     // Tags state
     const [tags, setTags] = useState<string[]>(user?.tags || []);
@@ -53,7 +53,7 @@ export function UserModal({ user, venues, onClose, onSaved }: UserModalProps) {
                 password: password || undefined,
                 full_name: fullName,
                 role,
-                venue_id: venueId || null,
+                venue_ids: venueIds,
                 tags
             };
 
@@ -151,18 +151,25 @@ export function UserModal({ user, venues, onClose, onSaved }: UserModalProps) {
                             </select>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-zinc-700">Bağlı Olduğu Mekan</label>
-                            <select
-                                className="flex h-10 w-full border-zinc-200 rounded-md border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-zinc-100"
-                                value={venueId}
-                                onChange={(e) => setVenueId(e.target.value)}
-                                disabled={role === 'SUPER_ADMIN'}
-                            >
-                                <option value="">Global (Tümü)</option>
+                            <label className="text-sm font-medium text-zinc-700">Bağlı Olduğu Mekan(lar)</label>
+                            <div className="max-h-32 overflow-y-auto border border-zinc-200 rounded-md p-2 bg-zinc-50 space-y-2">
                                 {venues.map(v => (
-                                    <option key={v.id} value={v.id}>{v.name}</option>
+                                    <label key={v.id} className="flex items-center gap-2 text-sm text-zinc-700">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-zinc-300 text-primary focus:ring-primary"
+                                            disabled={role === 'SUPER_ADMIN'}
+                                            checked={role === 'SUPER_ADMIN' || venueIds.includes(v.id as string)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) setVenueIds([...venueIds, v.id as string]);
+                                                else setVenueIds(venueIds.filter(id => id !== v.id));
+                                            }}
+                                        />
+                                        {v.name}
+                                    </label>
                                 ))}
-                            </select>
+                                {venues.length === 0 && <span className="text-xs text-zinc-500 italic">Henüz mekan yok.</span>}
+                            </div>
                             {role === 'SUPER_ADMIN' && <p className="text-[10px] text-zinc-500">Süper Admin tüm mekanları görür.</p>}
                         </div>
                     </div>

@@ -7,7 +7,7 @@ export interface UserProfile {
     email: string;
     full_name: string | null;
     role: UserRole;
-    venue_id: string | null;
+    venue_ids: string[];
 }
 
 export const AuthService = {
@@ -50,7 +50,7 @@ export const AuthService = {
                 email: user.email || '',
                 full_name: data?.full_name || user.user_metadata?.full_name || 'Admin User',
                 role: data?.role || user.user_metadata?.role || 'SUPER_ADMIN',
-                venue_id: data?.venue_id || null
+                venue_ids: data?.venue_ids || []
             };
         } catch (e) {
             console.error("Profile fetch error:", e);

@@ -2,13 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 // Initialize Supabase with Service Role Key (Bypasses RLS)
-const supabase = createClient(
+const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function POST(req: NextRequest) {
     try {
+        // --- 1. Authenticaton & RBAC Validation ---
+        const authHeader = req.headers.get('authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 });
+        }
+
+        const token = authHeader.split(' ')[1];
+
+        // Verify token with non-admin client
+        const supabaseAuth = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+        const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
+
+        if (userError || !user) {
+            return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
+        }
+
+        // Fetch User Profile
+        const { data: profile } = await supabaseAdmin.from('profiles').select('role, venue_ids').eq('id', user.id).single();
+        if (!profile) {
+            return NextResponse.json({ error: "Profile not found" }, { status: 403 });
+        }
+
+        if (!['SUPER_ADMIN', 'VENUE_MANAGER'].includes(profile.role)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        }
+
         const body = await req.json();
         const { id, updates, table, action = 'update', user_email } = body;
 
@@ -26,15 +52,17 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Invalid table" }, { status: 403 });
         }
 
-        const resourceType = table === 'products' ? 'PRODUCT' :
-            table === 'categories' ? 'CATEGORY' :
-                table === 'venues' ? 'VENUE' :
-                    table === 'allergens' ? 'ALLERGEN' :
-                        table === 'app_settings' ? 'SETTINGS' : table.toUpperCase();
+        // Venue Ownership Validation
+        let venueIdToCheck = null;
+        if (table === 'venues') {
+            venueIdToCheck = id || (updates && updates.id);
+        } else if (updates && (updates.venue_id || updates.venueId)) {
+            venueIdToCheck = updates.venue_id || updates.venueId;
+        }
 
         let oldData = null;
         if (action === 'update' || action === 'delete') {
-            let query = supabase.from(table).select('*');
+            let query = supabaseAdmin.from(table).select('*');
             if (table === 'app_settings') {
                 query = query.eq('key', id);
             } else {
@@ -42,12 +70,34 @@ export async function POST(req: NextRequest) {
             }
             const { data } = await query.single();
             oldData = data;
+
+            if (!venueIdToCheck && data && data.venue_id) {
+                venueIdToCheck = data.venue_id;
+            }
         }
+
+        // Security check for venue managers
+        if (profile.role === 'VENUE_MANAGER') {
+            // If they are creating a venue, block it (only super admins can create venues)
+            if (table === 'venues' && action === 'create') {
+                return NextResponse.json({ error: "Venue Managers cannot create new venues" }, { status: 403 });
+            }
+            // Check if they own the venue they are trying to manipulate
+            if (venueIdToCheck && (!profile.venue_ids || !profile.venue_ids.includes(venueIdToCheck))) {
+                return NextResponse.json({ error: "You don't have permission to modify this venue's data" }, { status: 403 });
+            }
+        }
+
+        const resourceType = table === 'products' ? 'PRODUCT' :
+            table === 'categories' ? 'CATEGORY' :
+                table === 'venues' ? 'VENUE' :
+                    table === 'allergens' ? 'ALLERGEN' :
+                        table === 'app_settings' ? 'SETTINGS' : table.toUpperCase();
 
         let result;
 
         if (action === 'delete') {
-            let query = supabase.from(table).delete();
+            let query = supabaseAdmin.from(table).delete();
             if (table === 'app_settings') {
                 query = query.eq('key', id);
             } else {
@@ -60,7 +110,7 @@ export async function POST(req: NextRequest) {
                 try {
                     // Find products containing this allergen
                     // Filtering text[] array containing a string
-                    const { data: prods } = await supabase
+                    const { data: prods } = await supabaseAdmin
                         .from('products')
                         .select('id, allergens')
                         .contains('allergens', [oldData.name]);
@@ -69,7 +119,7 @@ export async function POST(req: NextRequest) {
                         for (const p of prods) {
                             if (Array.isArray(p.allergens)) {
                                 const newAllergens = p.allergens.filter((a: string) => a !== oldData.name);
-                                await supabase.from('products').update({ allergens: newAllergens }).eq('id', p.id);
+                                await supabaseAdmin.from('products').update({ allergens: newAllergens }).eq('id', p.id);
                             }
                         }
                     }
@@ -79,11 +129,11 @@ export async function POST(req: NextRequest) {
             }
         } else if (action === 'create') {
             if (!updates) return NextResponse.json({ error: "Missing data" }, { status: 400 });
-            result = await supabase.from(table).insert(updates).select();
+            result = await supabaseAdmin.from(table).insert(updates).select();
         } else {
             if (!updates) return NextResponse.json({ error: "Missing updates" }, { status: 400 });
 
-            let query = supabase.from(table).update(updates);
+            let query = supabaseAdmin.from(table).update(updates);
             if (table === 'app_settings') {
                 query = query.eq('key', id);
             } else {
@@ -153,7 +203,7 @@ export async function POST(req: NextRequest) {
                     if (resourceType === 'PRODUCT') {
                         const catChange = logDetails.changes['category_id'] || logDetails.changes['categoryId'] || logDetails.changes['category'];
                         if (catChange && catChange.from && catChange.to) {
-                            const { data: cats } = await supabase
+                            const { data: cats } = await supabaseAdmin
                                 .from('categories')
                                 .select('id, name')
                                 .in('id', [catChange.from, catChange.to]);
@@ -184,12 +234,12 @@ export async function POST(req: NextRequest) {
             }
 
             if (venueIdToLookup && !logDetails.venue_name) {
-                const { data: v } = await supabase.from('venues').select('name').eq('id', venueIdToLookup).single();
+                const { data: v } = await supabaseAdmin.from('venues').select('name').eq('id', venueIdToLookup).single();
                 if (v) logDetails.venue_name = v.name;
             }
 
             // Insert Log
-            await supabase.from('audit_logs').insert({
+            await supabaseAdmin.from('audit_logs').insert({
                 action_type: actionType,
                 resource: table,
                 details: logDetails,

@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
                 full_name: p?.full_name || u.user_metadata?.full_name,
                 role: p?.role || 'STAFF',
                 tags: p?.tags || [],
-                venue_id: p?.venue_id || null
+                venue_ids: p?.venue_ids || []
             };
         });
 
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { email, password, full_name, role, venue_id, tags } = body;
+        const { email, password, full_name, role, venue_ids, tags } = body;
 
         if (!email || !password) {
             return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
         if (authData.user) {
             const { error: profileError } = await supabaseAdmin
                 .from('profiles')
-                .update({ role, venue_id, tags })
+                .update({ role, venue_ids: venue_ids || [], tags })
                 .eq('id', authData.user.id);
 
             if (profileError) {
@@ -109,7 +109,7 @@ export async function PUT(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { id, email, password, full_name, role, venue_id, tags } = body;
+        const { id, email, password, full_name, role, venue_ids, tags } = body;
 
         if (!id) return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
 
@@ -127,7 +127,7 @@ export async function PUT(req: NextRequest) {
         // Update Profile Data
         const profileUpdates: any = {};
         if (role !== undefined) profileUpdates.role = role;
-        if (venue_id !== undefined) profileUpdates.venue_id = venue_id;
+        if (venue_ids !== undefined) profileUpdates.venue_ids = venue_ids;
         if (tags !== undefined) profileUpdates.tags = tags;
         if (full_name !== undefined) profileUpdates.full_name = full_name;
 

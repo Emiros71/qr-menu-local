@@ -46,6 +46,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 "Kategori (EN)": "Main Courses",
                 "Alerjenler": "Gluten, Süt",
                 "Şef": "Hayır",
+                "İndirim Tipi": "percentage",
+                "İndirim Değeri": 15,
+                "Başlama Saati": "00:00",
+                "Bitiş Saati": "23:59",
                 "Görsel Dosya Adı": "burger.jpg (Opsiyonel)"
             }
         ];
@@ -61,6 +65,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             { wch: 20 }, // Kategori EN
             { wch: 20 }, // Alerjenler
             { wch: 10 }, // Şef
+            { wch: 15 }, // İndirim Tipi
+            { wch: 15 }, // İndirim Değeri
+            { wch: 15 }, // Başlama Saati
+            { wch: 15 }, // Bitiş Saati
             { wch: 40 }  // Görsel
         ];
         const wb = XLSX.utils.book_new();
@@ -112,7 +120,11 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     imageFilename: imgFile,
                     image: imgFile.startsWith("http") ? imgFile : "", // If already URL, use it
                     translations: translations, // Add translations to product
-                    isAvailable: true
+                    isAvailable: true,
+                    discount_type: getVal("İndirim Tipi") || getVal("Discount Type") || null,
+                    discount_amount: getVal("İndirim Değeri") || getVal("Discount Amount") ? parseFloat(getVal("İndirim Değeri") || getVal("Discount Amount")) : null,
+                    startTime: getVal("Başlama Saati") || getVal("Start Time") || null,
+                    endTime: getVal("Bitiş Saati") || getVal("End Time") || null
                 };
             });
 

@@ -161,8 +161,51 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             const { AuthService } = await import('@/services/auth-service');
             const profile = await AuthService.getCurrentProfile();
 
+            if (unwrappedParams.id === 'new') {
+                if (profile && profile.role !== 'SUPER_ADMIN') {
+                    alert("Yeni mekan ekleme yetkiniz yok.");
+                    router.push('/admin');
+                    return;
+                }
+
+                const newVenueTemplate: Partial<Venue> = {
+                    name: 'Yeni Mekan',
+                    slug: 'yeni-mekan',
+                    description: '',
+                    products: [],
+                    categories: [],
+                    allergens: [],
+                    supportedLanguages: ['tr', 'en'],
+                    defaultLanguage: 'tr',
+                    theme: {
+                        primary: '#000000',
+                        secondary: '#ffffff',
+                        background: '#ffffff',
+                        foreground: '#000000',
+                        headerColor: '#ffffff',
+                        labelColor: '#000000',
+                        cardStyle: 'modern'
+                    }
+                };
+
+                setVenueData(newVenueTemplate as Venue);
+                setProducts([]);
+                setCategories([]);
+
+                // Load global allergens
+                try {
+                    const globalAllergens = await AllergenService.getAllergens();
+                    setAllergens(globalAllergens);
+                } catch (e) {
+                    console.log("Alerjenler yüklenemedi", e);
+                }
+
+                setLoading(false);
+                return;
+            }
+
             if (profile && profile.role !== 'SUPER_ADMIN') {
-                if (profile.venue_id !== unwrappedParams.id) {
+                if (!profile.venue_ids || !profile.venue_ids.includes(unwrappedParams.id)) {
                     alert("Bu mekana erişim yetkiniz yok.");
                     router.push('/admin');
                     return;
@@ -297,7 +340,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     theme: venueData.theme,
                     coverImage: venueData.coverImage,
                     supportedLanguages: venueData.supportedLanguages,
-                    defaultLanguage: venueData.defaultLanguage
+                    defaultLanguage: venueData.defaultLanguage,
+                    timezone: venueData.timezone,
+                    popup_settings: venueData.popup_settings
                 });
                 setVenueSettingsChanged(false);
             }
@@ -319,7 +364,13 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 isAvailable: product.isAvailable,
                                 isChefRecommendation: product.isChefRecommendation,
                                 allergens: product.allergens,
-                                image: product.image
+                                image: product.image,
+                                discount_type: product.discount_type,
+                                discount_amount: product.discount_amount,
+                                startTime: product.startTime,
+                                endTime: product.endTime,
+                                translations: product.translations,
+                                labels: product.labels
                             };
 
                             // Update DB
@@ -491,7 +542,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         image: item.image,
                         isAvailable: item.isAvailable,
                         isChefRecommendation: item.isChefRecommendation,
-                        allergens: item.allergens
+                        allergens: item.allergens,
+                        discount_type: item.discount_type,
+                        discount_amount: item.discount_amount,
+                        startTime: item.startTime,
+                        endTime: item.endTime
                     });
                 } else {
                     await ProductService.createProduct({
@@ -503,7 +558,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         image: item.image,
                         isAvailable: item.isAvailable,
                         isChefRecommendation: item.isChefRecommendation,
-                        allergens: item.allergens
+                        allergens: item.allergens,
+                        discount_type: item.discount_type,
+                        discount_amount: item.discount_amount,
+                        startTime: item.startTime,
+                        endTime: item.endTime
                     });
                 }
             }
@@ -537,6 +596,10 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 "Kategori": catName,
                 "Alerjenler": p.allergens ? p.allergens.join(", ") : "",
                 "Şef": p.isChefRecommendation ? "Evet" : "Hayır",
+                "İndirim Tipi": p.discount_type || "",
+                "İndirim Değeri": p.discount_amount || "",
+                "Başlama Saati": p.startTime || "",
+                "Bitiş Saati": p.endTime || "",
                 "Durum": p.isAvailable ? "Aktif" : "Pasif",
                 "Görsel Dosya Adı": p.image ? p.image : "" // Export current URL as filename reference
             };
@@ -619,6 +682,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     </button>
                     <button onClick={() => setActiveTab('allergens')} className={cn("pb-3 text-sm font-medium border-b-2 transition-colors", activeTab === 'allergens' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}>
                         Alerjenler
+                    </button>
+                    <button onClick={() => setActiveTab('campaigns')} className={cn("pb-3 text-sm font-medium border-b-2 transition-colors", activeTab === 'campaigns' ? "border-primary text-primary" : "border-transparent text-zinc-500 hover:text-zinc-700")}>
+                        Kampanyalar
                     </button>
                 </div>
             </div>
@@ -1085,6 +1151,175 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 </div>
             )}
 
+            {/* 5. CAMPAIGNS TAB */}
+            {activeTab === 'campaigns' && venueData && (
+                <div className="space-y-6 max-w-3xl">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="text-xl font-bold">Pop-up Yönetimi</h2>
+                            <p className="text-sm text-zinc-500">Müşterileriniz menünüzü açtığında karşılarına çıkacak olan tanıtım veya kampanya pop-up'larını buradan yönetebilirsiniz.</p>
+                        </div>
+                        <Button onClick={() => {
+                            const currentPopups = Array.isArray(venueData.popup_settings) ? venueData.popup_settings : [];
+                            handleVenueChange('popup_settings', [...currentPopups, {
+                                id: Math.random().toString(36).substr(2, 9),
+                                isActive: false,
+                                title: '',
+                                content: '',
+                                image: ''
+                            }]);
+                        }}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Yeni Pop-up
+                        </Button>
+                    </div>
+
+                    {(Array.isArray(venueData.popup_settings) ? venueData.popup_settings : []).map((popup: any, index: number) => (
+                        <Card key={popup.id || index}>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-base font-bold">Pop-up #{index + 1}</CardTitle>
+                                <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => {
+                                    const currentPopups = Array.isArray(venueData.popup_settings) ? venueData.popup_settings : [];
+                                    handleVenueChange('popup_settings', currentPopups.filter((_, i) => i !== index));
+                                }}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </CardHeader>
+                            <CardContent className="space-y-4 pt-4">
+                                <div className="flex items-center gap-2 mb-4 p-4 border border-zinc-200 rounded-lg bg-zinc-50 shadow-sm">
+                                    <Switch
+                                        checked={popup.isActive || false}
+                                        onCheckedChange={(val) => {
+                                            const currentPopups = Array.isArray(venueData.popup_settings) ? [...venueData.popup_settings] : [];
+                                            currentPopups[index] = { ...currentPopups[index], isActive: val };
+                                            handleVenueChange('popup_settings', currentPopups);
+                                        }}
+                                    />
+                                    <div>
+                                        <label className="text-sm font-bold text-zinc-900 cursor-pointer block">Pop-up Aktif</label>
+                                        <span className="text-xs text-zinc-500">Müşteriler menüye ilk girdiklerinde bu pop-up'ı görecekler.</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Başlık</label>
+                                    <Input
+                                        value={popup.title || ''}
+                                        onChange={(e) => {
+                                            const currentPopups = Array.isArray(venueData.popup_settings) ? [...venueData.popup_settings] : [];
+                                            currentPopups[index] = { ...currentPopups[index], title: e.target.value };
+                                            handleVenueChange('popup_settings', currentPopups);
+                                        }}
+                                        placeholder="Örn: Hafta Sonu Özel İndirimi!"
+                                        className="bg-white text-zinc-900"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">İçerik Açıklaması</label>
+                                    <textarea
+                                        value={popup.content || ''}
+                                        onChange={(e) => {
+                                            const currentPopups = Array.isArray(venueData.popup_settings) ? [...venueData.popup_settings] : [];
+                                            currentPopups[index] = { ...currentPopups[index], content: e.target.value };
+                                            handleVenueChange('popup_settings', currentPopups);
+                                        }}
+                                        placeholder="Kampanya detaylarını buraya yazın..."
+                                        className="w-full h-24 rounded-lg border border-zinc-200 p-3 text-sm focus:border-primary outline-none resize-none bg-white transition-colors text-zinc-900"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Pop-up Görseli</label>
+                                    <ImageUpload
+                                        value={popup.image || ''}
+                                        onChange={(url) => {
+                                            const currentPopups = Array.isArray(venueData.popup_settings) ? [...venueData.popup_settings] : [];
+                                            currentPopups[index] = { ...currentPopups[index], image: url };
+                                            handleVenueChange('popup_settings', currentPopups);
+                                        }}
+                                        onRemove={() => {
+                                            const currentPopups = Array.isArray(venueData.popup_settings) ? [...venueData.popup_settings] : [];
+                                            currentPopups[index] = { ...currentPopups[index], image: '' };
+                                            handleVenueChange('popup_settings', currentPopups);
+                                        }}
+                                        folder="qr-menu/campaigns"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 pt-2 border-t border-zinc-100">
+                                    <label className="text-sm font-medium">İncele Butonu Hedefi (Opsiyonel)</label>
+
+                                    <select
+                                        value={products.some(p => p.id === popup.link) ? popup.link : (popup.link?.startsWith('http') ? 'custom' : '')}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const currentPopups = Array.isArray(venueData.popup_settings) ? [...venueData.popup_settings] : [];
+                                            if (val === 'custom') {
+                                                currentPopups[index] = { ...currentPopups[index], link: 'https://' };
+                                            } else {
+                                                currentPopups[index] = { ...currentPopups[index], link: val };
+                                            }
+                                            handleVenueChange('popup_settings', currentPopups);
+                                        }}
+                                        className="w-full h-10 px-3 rounded-md border border-input bg-white text-zinc-900 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                                    >
+                                        <option value="">🔥 Kampanyalar Kategorisine Yönlendir</option>
+                                        <optgroup label="İndirimli Ürünler (Kampanyalar)">
+                                            {products.filter(p => p.discount_type && p.discount_amount).map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </optgroup>
+                                        <optgroup label="Standart Ürünler">
+                                            {products.filter(p => !(p.discount_type && p.discount_amount)).map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </optgroup>
+                                        <option value="custom">🌐 Farklı Bir Web Adresine Yönlendir (URL)</option>
+                                    </select>
+
+                                    {popup.link?.startsWith('http') && (
+                                        <Input
+                                            value={popup.link || ''}
+                                            onChange={(e) => {
+                                                const currentPopups = Array.isArray(venueData.popup_settings) ? [...venueData.popup_settings] : [];
+                                                currentPopups[index] = { ...currentPopups[index], link: e.target.value };
+                                                handleVenueChange('popup_settings', currentPopups);
+                                            }}
+                                            placeholder="https://..."
+                                            className="bg-white text-zinc-900 mt-2"
+                                        />
+                                    )}
+                                    <p className="text-xs text-zinc-500">Müşteri "İncele" butonuna bastığında otomatik olarak bu ürüne veya adrese gider.</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+
+                    {(Array.isArray(venueData.popup_settings) ? venueData.popup_settings : []).length === 0 && (
+                        <div className="text-center p-8 border-2 border-dashed border-zinc-200 rounded-xl">
+                            <p className="text-zinc-500 mb-4">Henüz hiç pop-up oluşturmadınız.</p>
+                            <Button variant="outline" onClick={() => {
+                                handleVenueChange('popup_settings', [{
+                                    id: Math.random().toString(36).substr(2, 9),
+                                    isActive: true,
+                                    title: '',
+                                    content: '',
+                                    image: ''
+                                }]);
+                            }}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                İlk Pop-up'ı Oluştur
+                            </Button>
+                        </div>
+                    )}
+
+                    <div className="text-sm text-zinc-500 italic mt-6">
+                        Değişiklikleri kaydetmek için ekranın üst kısmındaki "Kaydet" butonunu kullanın.
+                    </div>
+                </div>
+            )}
+
             {/* Product Detail / Edit / Create Modal */}
             {isAllergenModalOpen && editingProduct && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -1200,6 +1435,42 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         </div>
                                     </div>
                                     <p className="text-[10px] text-zinc-500 mb-2 -mt-4">Belirli saatlerde servis edilen ürünler için (Örn. Oda Servisi Gece Menüsü veya Kahvaltı Tabağı). Boş bırakılırsa her zaman gösterilir.</p>
+
+                                    {/* Discount Settings */}
+                                    <div className="space-y-4 pt-4 border-t border-zinc-100">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <h4 className="font-medium text-sm text-zinc-700">İndirim Ayarları</h4>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">İndirim Tipi</label>
+                                                <select
+                                                    className="w-full bg-zinc-50 hover:bg-white focus:bg-white border border-zinc-200 rounded-lg p-2 text-sm outline-none focus:border-primary transition-colors"
+                                                    value={editingProduct.discount_type || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setEditingProduct(prev => prev ? ({ ...prev, discount_type: val === "" ? null : val as any }) : null)
+                                                    }}
+                                                >
+                                                    <option value="">Yok</option>
+                                                    <option value="percentage">% Yüzde</option>
+                                                    <option value="fixed">₺ Tutar</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">İndirim Değeri</label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    value={editingProduct.discount_amount || ""}
+                                                    onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, discount_amount: e.target.value ? parseFloat(e.target.value) : null }) : null)}
+                                                    className="w-full bg-zinc-50 focus:bg-white hover:bg-white transition-colors"
+                                                    disabled={!editingProduct.discount_type}
+                                                    placeholder={editingProduct.discount_type === 'percentage' ? "Örn: 15" : editingProduct.discount_type === 'fixed' ? "Örn: 50" : ""}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
 
                                     {/* Toggles */}
                                     <div className="flex items-center gap-6 p-4 bg-zinc-50 rounded-lg border border-zinc-100">

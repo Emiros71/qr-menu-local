@@ -72,10 +72,10 @@
     - **Süper Admin**: Tüm mekanları görür/yönetir (SaaS sahibi).
     - **Mekan Yöneticisi**: Sadece kendi mekanını görür/düzenler.
     - **Personel**: Sadece temel işlemleri yapabilir (örn: ürün stok durumu).
-- [ ] **Kullanıcı Yönetim Ekranı (Admin İçinde Yeni Kırılım)**:
-    - `profiles` tablosuna esnek yetkilendirme için `tags` (text[]) kolonu ekle.
-    - `/api/admin/users` (CRUD) API rotalarını `service_role_key` kullanarak oluştur.
-    - Admin paneline "Kullanıcılar" menüsü ekle. Kullanıcı listesi, Şifre Değiştirme, Mekan Atama ve Dinamik Etiket/Tag ekleme yeteneklerini kodla.
+- [x] **Kullanıcı Yönetim Ekranı (Admin İçinde Yeni Kırılım)**:
+    - `profiles` tablosuna esnek yetkilendirme için `tags` (text[]) kolonu eklendi.
+    - `/api/admin/users` (CRUD) API rotaları `service_role_key` kullanılarak oluşturuldu.
+    - Admin paneline "Kullanıcılar" menüsü eklendi. Kullanıcı listesi, Şifre Değiştirme, Mekan Atama ve Dinamik Etiket/Tag ekleme yetenekleri kodlandı.
 - [x] **Middleware Koruması**: `/admin` rotalarını yetkisiz erişime kapatan (ve UI Session yönlendirmesi yapan) middleware ayarlandı.
 - [ ] **Özel Domain Desteği (Custom Domains)**: Mekanların kendi alan adlarında (örn. www.aura.com) çalışabilmesi için middleware ve veri yapısı.
 
@@ -101,11 +101,12 @@
 - [x] **Tema Presets**: FineDine benzeri profesyonel hazır temalar (Lüks, Ferah, Gece).
 - [x] **Kart Özelleştirme**: Ürün kartları için renk ve stil (Minimal, Glass, Bordered) seçenekleri.
 - [x] **Okunabilirlik İyileştirmesi**: Kategori başlıkları için kontrast sorununu çözen modern tasarım.
-- [x] **Renk Yönetimi**: Admin panelde Background, Foreground, Header ve Label renklerinin tam kontrolü.
-- [ ] **Analitik Uyumluluğu**: Ürün kartlarına `data-product-id`, `data-category` gibi analiz tool'larının okuyabileceği attribute'lar.
-- [ ] **Loading Skeletons**: Sayfa yüklenirken içerik iskeletleri gösterimi.
-- [ ] **Framer Motion Animasyonları**: Kategori geçişleri, sepet hareketleri, dil değişimi efektleri.
-- [ ] **Empty States**: Boş durumlar için kullanıcı dostu tasarımlar.
+- [x] **Renk Yönetimi**: Admin panelde Background, Foreground, Header ve Label renklerinin tam kontrol.
+- [x] **Analitik Uyumluluğu**: Ürün kartlarına `data-product-id`, `data-category` gibi analiz tool'larının okuyabileceği attribute'lar.
+- [x] **Loading Skeletons**: Sayfa yüklenirken içerik iskeletleri gösterimi.
+- [x] **Framer Motion Animasyonları**: Kategori geçişleri, sepet hareketleri, dil değişimi efektleri.
+- [x] **Empty States**: Boş durumlar için kullanıcı dostu tasarımlar.
+- [x] **PWA & Analytics**: Vercel Analytics ve temel PWA Manifest eklendi.
 
 ## Faz 13: Dokümantasyon (YENİ) 📚
 *Proje kurulumu ve özellikleri hakkında güncel bilgi.*

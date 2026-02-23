@@ -1,6 +1,8 @@
 export type EventType = 'view' | 'click' | 'scan' | 'VIEW_MENU' | 'CLICK_PRODUCT';
 export type TargetType = 'category' | 'product' | 'venue';
 
+import { createClient } from "@/utils/supabase/client";
+
 export interface AnalyticsEvent {
     eventType: EventType;
     targetId: string;
@@ -24,8 +26,25 @@ export interface AdminActivityLog {
 // Mock service for analytics
 export const AnalyticsService = {
     logEvent: async (event: AnalyticsEvent) => {
-        // In production, this would write to Supabase
-        console.log("[Analytics]", event);
+        try {
+            const supabase = createClient();
+            const { error } = await supabase
+                .from('analytics_events')
+                .insert([{
+                    event_type: event.eventType,
+                    target_id: event.targetId,
+                    target_type: event.targetType,
+                    venue_id: event.venueId,
+                    session_id: event.sessionId,
+                    metadata: event.metadata
+                }]);
+
+            if (error) {
+                console.warn("[Analytics] Failed to save event:", error.message);
+            }
+        } catch (e) {
+            console.error("[Analytics] Exception saving event", e);
+        }
     },
 
     trackEvent: async (params: { type: string, venueId: string, productId?: string, metadata?: any }) => {

@@ -42,6 +42,8 @@ export type Product = {
     translations?: Record<string, TranslationData>;
     startTime?: string; // "HH:mm:ss" format
     endTime?: string;   // "HH:mm:ss" format
+    discount_type?: 'percentage' | 'fixed' | null;
+    discount_amount?: number | null;
 };
 
 export type Allergen = {
@@ -64,6 +66,7 @@ export type Venue = {
     allergens?: Allergen[];
     supportedLanguages?: string[];
     defaultLanguage?: string;
+    popup_settings?: any; // JSONB
 };
 
 export const venues: Venue[] = [

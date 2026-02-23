@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Store, LogOut, Settings, Menu, ChevronDown, ChevronRight, Utensils, Users } from "lucide-react";
+import { LayoutDashboard, Store, LogOut, Settings, Menu, ChevronDown, ChevronRight, Utensils, Users, Activity } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -116,7 +116,7 @@ export default function AdminSidebar({ venues }: SidebarProps) {
                         )}
                     </div>
 
-                    <div className="pt-2">
+                    <div className="pt-2 border-t border-zinc-100/50 mt-2">
                         <Link
                             href="/admin/logs"
                             onClick={() => setIsSidebarOpen(false)}

@@ -14,11 +14,11 @@ export default async function AdminLayout({
     if (user) {
         const { data } = await supabase
             .from('profiles')
-            .select('role, venue_id')
+            .select('role, venue_ids')
             .eq('id', user.id)
             .single();
 
-        profile = data ? { role: data.role, venue_id: data.venue_id } : { role: user.user_metadata?.role || 'SUPER_ADMIN', venue_id: null };
+        profile = data ? { role: data.role, venue_ids: data.venue_ids || [] } : { role: user.user_metadata?.role || 'SUPER_ADMIN', venue_ids: [] };
     }
 
     // Fetch filtered venues on the server based on RBAC Profile
