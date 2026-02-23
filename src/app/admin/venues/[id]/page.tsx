@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useCallback } from "react";
+import { use, useState, useEffect } from "react";
 import { Venue, Product, Category, Allergen } from "@/data/db";
 import { VenueService } from "@/services/venue-service";
 import { CategoryService } from "@/services/category-service";
@@ -8,10 +8,9 @@ import { ProductService } from "@/services/product-service";
 import { AllergenService } from "@/services/allergen-service";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { AuditService } from "@/services/audit-service";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Switch } from "@/components/ui/Switch";
-import { ArrowLeft, Plus, Save, Search as SearchIcon, Trash2, Edit2, Check, GripVertical, Download, X, MoreHorizontal, Star, Image as LucideImage, Globe, History, Info, Filter, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, Plus, Save, Search as SearchIcon, Trash2, Edit2, Check, X, Star, Image as LucideImage, Globe, Loader2, AlertTriangle } from "lucide-react";
 import ImageUpload from "@/components/ui/ImageUpload";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,7 +19,7 @@ import { cn } from "@/lib/utils";
 import ProductImporter from "@/components/admin/ProductImporter";
 import { AllergenManager } from "@/components/admin/AllergenManager";
 
-// Mock Allergens List
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ALLERGENS_LIST = [
     "Gluten", "Yumurta", "Süt", "Hardal", "Yer Fıstığı", "Soya", "Balık", "Kabuklu Deniz Ürünleri", "Kereviz"
 ];
@@ -35,13 +34,13 @@ const AVAILABLE_LANGUAGES = [
 ];
 
 const AdminProductImage = ({ product, defaultImage, onClick }: { product: Product, defaultImage?: string, onClick: () => void }) => {
-    const [src, setSrc] = useState(product.image || defaultImage);
-    const [hasError, setHasError] = useState(false);
+    const [imgState, setImgState] = useState({ src: product.image || defaultImage, hasError: false, productImg: product.image, defImg: defaultImage });
 
-    useEffect(() => {
-        setSrc(product.image || defaultImage);
-        setHasError(false);
-    }, [product.image, defaultImage]);
+    if (imgState.productImg !== product.image || imgState.defImg !== defaultImage) {
+        setImgState({ src: product.image || defaultImage, hasError: false, productImg: product.image, defImg: defaultImage });
+    }
+
+    const { src, hasError } = imgState;
 
     return (
         <div
@@ -57,9 +56,9 @@ const AdminProductImage = ({ product, defaultImage, onClick }: { product: Produc
                     className={cn("object-cover", src === defaultImage ? "object-contain p-2 bg-white opacity-80" : "")}
                     onError={() => {
                         if (src !== defaultImage && defaultImage) {
-                            setSrc(defaultImage);
+                            setImgState(prev => ({ ...prev, src: defaultImage }));
                         } else {
-                            setHasError(true);
+                            setImgState(prev => ({ ...prev, hasError: true }));
                         }
                     }}
                 />
@@ -140,6 +139,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
     // Dirty State (Track changes)
     const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set()); // Product IDs that changed
+    const [unsavedCategoryChanges, setUnsavedCategoryChanges] = useState<Set<string>>(new Set()); // Category IDs that changed
     const [venueSettingsChanged, setVenueSettingsChanged] = useState(false);
 
     // UI States
@@ -147,7 +147,6 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     const [modalTab, setModalTab] = useState<'general' | 'translations'>('general');
 
     // Allergen Management
-    const [availableAllergens, setAvailableAllergens] = useState<string[]>(ALLERGENS_LIST);
     const [isAddingAllergen, setIsAddingAllergen] = useState(false);
     const [newAllergen, setNewAllergen] = useState("");
 
@@ -224,10 +223,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             setLoading(false);
         }
         load();
-    }, [unwrappedParams.id]);
+    }, [unwrappedParams.id, router]);
 
     // --- Handlers ---
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleVenueChange = (field: keyof Venue, value: any) => {
         if (!venueData) return;
 
@@ -240,6 +240,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         setVenueSettingsChanged(true);
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleProductChange = (productId: string, field: keyof Product, value: any) => {
         setProducts(prev => prev.map(p => {
             if (p.id === productId) {
@@ -272,45 +273,15 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     };
 
     const handleSaveAll = async () => {
-        if (!venueSettingsChanged && unsavedChanges.size === 0) {
+        if (!venueSettingsChanged && unsavedChanges.size === 0 && unsavedCategoryChanges.size === 0) {
             alert("Kaydedilecek yeni bir değişiklik yok.");
             return;
         }
 
         // Helper to calc diff
-        const calculateProductDiff = (oldP: any, newP: any) => {
-            const changes: any = {};
-            if (oldP.name !== newP.name) changes.name = { from: oldP.name, to: newP.name };
-
-            // Number comparison fix
-            if (Number(oldP.price) !== Number(newP.price)) changes.price = { from: oldP.price, to: newP.price };
-
-            if (oldP.description !== newP.description) changes.description = { from: oldP.description, to: newP.description };
-            if (Boolean(oldP.isAvailable) !== Boolean(newP.isAvailable)) changes.isAvailable = { from: oldP.isAvailable, to: newP.isAvailable };
-            if (oldP.categoryId !== newP.categoryId) changes.categoryId = { from: oldP.categoryId, to: newP.categoryId };
-
-            // Detailed Allergen Diff
-            const oldAllergens = Array.isArray(oldP.allergens) ? oldP.allergens : [];
-            const newAllergens = Array.isArray(newP.allergens) ? newP.allergens : [];
-
-            const added = newAllergens.filter((a: string) => !oldAllergens.includes(a));
-            const removed = oldAllergens.filter((a: string) => !newAllergens.includes(a));
-
-            if (added.length > 0 || removed.length > 0) {
-                changes.allergens = {
-                    from: oldAllergens,
-                    to: newAllergens,
-                    diff: { added, removed }
-                };
-            }
-
-            // Simple image check
-            if (oldP.image !== newP.image) changes.image = { from: 'old_image', to: 'new_image' };
-
-            return Object.keys(changes).length > 0 ? changes : null;
-        };
-
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const calculateVenueDiff = (oldV: any, newV: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const changes: any = {};
             if (oldV.name !== newV.name) changes.name = { from: oldV.name, to: newV.name };
             if (oldV.theme !== newV.theme) changes.theme = { from: oldV.theme, to: newV.theme };
@@ -353,9 +324,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     const product = products.find(p => p.id === prodId);
                     if (product) {
                         try {
-                            // Fetch original state from DB to compare
-                            const originalProduct = await ProductService.getProductById(prodId);
-
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             const updatePayload: any = {
                                 name: product.name,
                                 price: product.price,
@@ -383,6 +352,22 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 });
                 await Promise.all(promises);
                 setUnsavedChanges(new Set());
+            }
+
+            // 3. Save Modified Categories
+            if (unsavedCategoryChanges.size > 0) {
+                const catPromises = Array.from(unsavedCategoryChanges).map(async (catId) => {
+                    const cat = categories.find(c => c.id === catId);
+                    if (cat) {
+                        try {
+                            await CategoryService.updateCategory(catId, { isAvailable: cat.isAvailable });
+                        } catch (err) {
+                            console.error("Category update failed for", catId, err);
+                        }
+                    }
+                });
+                await Promise.all(catPromises);
+                setUnsavedCategoryChanges(new Set());
             }
 
             alert("Tüm değişiklikler başarıyla kaydedildi!");
@@ -430,7 +415,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
     const handleCreateCategory = () => {
         if (!venueData) return;
-        setEditingCategory({ id: 'new', name: '', translations: {} } as any);
+        setEditingCategory({ id: 'new', name: '', translations: {} } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         setCategoryModalTab('general');
         setIsCategoryModalOpen(true);
     };
@@ -453,7 +438,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     coverImage: editingCategory.coverImage
                 });
                 if (created) {
-                    setCategories(prev => [...prev, created]);
+                    setCategories(prev => [...prev, created as import('@/data/db').Category]);
                 }
             } else {
                 // Update
@@ -479,16 +464,50 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     const handleDeleteCategory = async (catId: string) => {
         const hasProducts = products.some(p => p.categoryId === catId);
         if (hasProducts) {
-            alert("Bu kategoride ürünler var. Önce ürünleri silin veya taşıyın.");
+            alert("Bu kategoriye ait ürünler var. Lütfen önce ürünleri silin veya taşıyın.");
             return;
         }
+
         if (!window.confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) return;
 
         try {
             await CategoryService.deleteCategory(catId);
             setCategories(prev => prev.filter(c => c.id !== catId));
         } catch (e) {
-            alert("Silme işlemi başarısız.");
+            console.error(e);
+            alert("Kategori silinirken hata oluştu.");
+        }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleCategoryChange = (catId: string, field: keyof Category, value: any) => {
+        // Optimistic UI update only. Will be saved on "Kaydet" click.
+        setCategories(prev => prev.map(c =>
+            c.id === catId ? { ...c, [field]: value } : c
+        ));
+        setUnsavedCategoryChanges(prev => new Set(prev).add(catId));
+    };
+
+    const handleMoveCategory = async (index: number, direction: 'up' | 'down') => {
+        const newCategories = [...categories];
+        if (direction === 'up' && index > 0) {
+            const temp = newCategories[index - 1];
+            newCategories[index - 1] = newCategories[index];
+            newCategories[index] = temp;
+        } else if (direction === 'down' && index < newCategories.length - 1) {
+            const temp = newCategories[index + 1];
+            newCategories[index + 1] = newCategories[index];
+            newCategories[index] = temp;
+        } else {
+            return;
+        }
+
+        setCategories(newCategories);
+        try {
+            await CategoryService.updateCategoryOrder(newCategories.map(c => c.id));
+        } catch (e) {
+            console.error(e);
+            alert("Kategori sıralaması güncellenemedi.");
         }
     };
 
@@ -508,6 +527,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleImportProducts = async (importedData: any[]) => {
         if (!venueData) return;
         setLoading(true);
@@ -526,7 +546,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         categoryId = newCat.id;
                         catMap.set(catName, newCat.id);
                         // Update local state immediately so next items find it
-                        setCategories(prev => [...prev, newCat]);
+                        setCategories(prev => [...prev, newCat as import('@/data/db').Category]);
                     }
                 }
 
@@ -591,9 +611,12 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             return {
                 "ID": p.id, // Export ID for update capability
                 "Ürün Adı": p.name,
+                "Ürün Adı (EN)": p.translations?.en?.name || "",
                 "Açıklama": p.description,
+                "Açıklama (EN)": p.translations?.en?.description || "",
                 "Fiyat": p.price,
                 "Kategori": catName,
+                "Kategori (EN)": categories.find(c => c.id === p.categoryId)?.translations?.en?.name || "",
                 "Alerjenler": p.allergens ? p.allergens.join(", ") : "",
                 "Şef": p.isChefRecommendation ? "Evet" : "Hayır",
                 "İndirim Tipi": p.discount_type || "",
@@ -825,14 +848,40 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 </div>
             )}
 
-            {/* 2. CATEGORIES TAB */}
             {activeTab === 'categories' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {categories.map((cat) => (
-                        <Card key={cat.id} className="group hover:border-primary/50 transition-colors cursor-pointer bg-white relative" onClick={() => handleEditCategory(cat)}>
-                            <CardContent className="p-4 flex items-center gap-4">
+                <div className="flex flex-col gap-3">
+                    {categories.map((cat, index) => (
+                        <Card key={cat.id} className="group hover:border-primary/50 transition-colors bg-white relative flex items-center p-4">
+
+                            {/* Sorting Arrows */}
+                            <div className="flex flex-col gap-1 mr-4">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-zinc-400 hover:text-zinc-900"
+                                    onClick={(e) => { e.stopPropagation(); handleMoveCategory(index, 'up'); }}
+                                    disabled={index === 0}
+                                >
+                                    <ArrowUp className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-zinc-400 hover:text-zinc-900"
+                                    onClick={(e) => { e.stopPropagation(); handleMoveCategory(index, 'down'); }}
+                                    disabled={index === categories.length - 1}
+                                >
+                                    <ArrowDown className="h-4 w-4" />
+                                </Button>
+                            </div>
+
+                            <div
+                                className="flex-1 flex items-center gap-4 cursor-pointer"
+                                onClick={() => handleEditCategory(cat)}
+                            >
                                 <div className="h-16 w-16 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-300 shrink-0 overflow-hidden border border-zinc-100 relative">
                                     {cat.image ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
                                         <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
                                     ) : (
                                         <LucideImage className="h-6 w-6 opacity-50" />
@@ -854,6 +903,19 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         )}
                                     </div>
                                 </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs font-medium text-zinc-500">
+                                        {cat.isAvailable !== false ? 'Aktif' : 'Gizli'}
+                                    </span>
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <Switch
+                                            checked={cat.isAvailable !== false}
+                                            onCheckedChange={(val) => {
+                                                handleCategoryChange(cat.id, 'isAvailable', val);
+                                            }}
+                                        />
+                                    </div>
+                                </div>
                                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-zinc-100" onClick={(e) => { e.stopPropagation(); handleEditCategory(cat); }}>
                                         <Edit2 className="h-3.5 w-3.5 text-zinc-500" />
@@ -862,7 +924,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         <Trash2 className="h-3.5 w-3.5 text-red-500" />
                                     </Button>
                                 </div>
-                            </CardContent>
+                            </div>
                         </Card>
                     ))}
                     <button
@@ -1000,7 +1062,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             ))}
                                         </div>
                                         <p className="text-[10px] text-zinc-500 italic">
-                                            * Tema seçtiğinizde renk ayarları otomatik güncellenir. Değişiklikleri uygulamak için yukarıdaki "Kaydet" butonunu kullanın.
+                                            * Tema seçtiğinizde renk ayarları otomatik güncellenir. Değişiklikleri uygulamak için yukarıdaki &quot;Kaydet&quot; butonunu kullanın.
                                         </p>
                                     </div>
                                 </div>
@@ -1083,7 +1145,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             Ayarları Kaydet
                         </Button> */}
                             <div className="text-sm text-zinc-500 italic mb-10">
-                                Değişiklikleri kaydetmek için yukarıdaki "Kaydet" butonunu kullanın.
+                                Değişiklikleri kaydetmek için yukarıdaki &quot;Kaydet&quot; butonunu kullanın.
                             </div>
 
                             {/* Danger Zone */}
@@ -1157,7 +1219,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     <div className="flex justify-between items-center">
                         <div>
                             <h2 className="text-xl font-bold">Pop-up Yönetimi</h2>
-                            <p className="text-sm text-zinc-500">Müşterileriniz menünüzü açtığında karşılarına çıkacak olan tanıtım veya kampanya pop-up'larını buradan yönetebilirsiniz.</p>
+                            <p className="text-sm text-zinc-500">Müşterileriniz menünüzü açtığında karşılarına çıkacak olan tanıtım veya kampanya pop-up&apos;larını buradan yönetebilirsiniz.</p>
                         </div>
                         <Button onClick={() => {
                             const currentPopups = Array.isArray(venueData.popup_settings) ? venueData.popup_settings : [];
@@ -1174,7 +1236,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         </Button>
                     </div>
 
-                    {(Array.isArray(venueData.popup_settings) ? venueData.popup_settings : []).map((popup: any, index: number) => (
+                    {(Array.isArray(venueData.popup_settings) ? venueData.popup_settings : []).map((popup: any, index: number) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                         <Card key={popup.id || index}>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-base font-bold">Pop-up #{index + 1}</CardTitle>
@@ -1197,7 +1259,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     />
                                     <div>
                                         <label className="text-sm font-bold text-zinc-900 cursor-pointer block">Pop-up Aktif</label>
-                                        <span className="text-xs text-zinc-500">Müşteriler menüye ilk girdiklerinde bu pop-up'ı görecekler.</span>
+                                        <span className="text-xs text-zinc-500">Müşteriler menüye ilk girdiklerinde bu pop-up&apos;ı görecekler.</span>
                                     </div>
                                 </div>
 
@@ -1290,7 +1352,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             className="bg-white text-zinc-900 mt-2"
                                         />
                                     )}
-                                    <p className="text-xs text-zinc-500">Müşteri "İncele" butonuna bastığında otomatik olarak bu ürüne veya adrese gider.</p>
+                                    <p className="text-xs text-zinc-500">Müşteri &quot;İncele&quot; butonuna bastığında otomatik olarak bu ürüne veya adrese gider.</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -1309,13 +1371,13 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 }]);
                             }}>
                                 <Plus className="h-4 w-4 mr-2" />
-                                İlk Pop-up'ı Oluştur
+                                İlk Pop-up&apos;ı Oluştur
                             </Button>
                         </div>
                     )}
 
                     <div className="text-sm text-zinc-500 italic mt-6">
-                        Değişiklikleri kaydetmek için ekranın üst kısmındaki "Kaydet" butonunu kullanın.
+                        Değişiklikleri kaydetmek için ekranın üst kısmındaki &quot;Kaydet&quot; butonunu kullanın.
                     </div>
                 </div>
             )}
@@ -1449,7 +1511,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                     value={editingProduct.discount_type || ""}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
-                                                        setEditingProduct(prev => prev ? ({ ...prev, discount_type: val === "" ? null : val as any }) : null)
+                                                        setEditingProduct(prev => prev ? ({ ...prev, discount_type: val === "" ? null : val as any }) : null) // eslint-disable-line @typescript-eslint/no-explicit-any
                                                     }}
                                                 >
                                                     <option value="">Yok</option>
@@ -1688,7 +1750,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             setProducts(prev => [...prev, created]);
                                         }
                                         setIsAllergenModalOpen(false);
-                                    } catch (e) { alert("Oluşturulamadı"); }
+                                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                    } catch (_err) { alert("Oluşturulamadı"); }
                                 } else {
                                     // Update
                                     try {

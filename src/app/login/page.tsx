@@ -123,7 +123,8 @@ export default function LoginPage() {
                 router.push('/admin');
                 router.refresh();
             }
-        } catch (err) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_err) {
             setError('Beklenmeyen bir hata oluştu.');
         } finally {
             setLoading(false);

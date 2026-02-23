@@ -10,6 +10,7 @@ export interface AnalyticsEvent {
     venueId: string;
     timestamp: number; // millisecond timestamp
     sessionId: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: Record<string, any>; // extra info like scroll depth or time spent
 }
 
@@ -47,7 +48,7 @@ export const AnalyticsService = {
         }
     },
 
-    trackEvent: async (params: { type: string, venueId: string, productId?: string, metadata?: any }) => {
+    trackEvent: async (params: { type: string, venueId: string, productId?: string, metadata?: unknown }) => {
         const sessionId = AnalyticsService.trackSession();
 
         // Map simplified frontend events to structued AnalyticsEvent
@@ -71,7 +72,8 @@ export const AnalyticsService = {
             venueId: params.venueId,
             timestamp: Date.now(),
             sessionId,
-            metadata: params.metadata
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            metadata: params.metadata as Record<string, any>
         };
 
         await AnalyticsService.logEvent(event);

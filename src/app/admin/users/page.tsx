@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Plus, Search, Shield, User, Loader2, MoreVertical, Building2, Tag, Trash2 } from "lucide-react";
+import { Plus, Search, Shield, Loader2, Building2, Tag, Trash2 } from "lucide-react";
 import { VenueService } from "@/services/venue-service";
 import { Venue } from "@/data/db";
 import { UserModal } from "./components/UserModal";
@@ -148,6 +148,7 @@ export default function UsersPage() {
                                         <td className="px-5 py-3.5">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-9 w-9 bg-zinc-100 text-zinc-500 rounded-full flex items-center justify-center shrink-0 border border-zinc-200 overflow-hidden">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.email)}&background=random`} alt="" />
                                                 </div>
                                                 <div>

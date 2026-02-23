@@ -33,7 +33,8 @@ export default function ImageUpload({
             const timestamp = Math.round((new Date()).getTime() / 1000);
 
             // Params we want to sign
-            const paramsToSign = {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const _paramsToSign = {
                 timestamp,
                 folder,
                 // We use process.env value passed from props or default

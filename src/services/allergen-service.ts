@@ -2,6 +2,18 @@ import { supabase } from "@/lib/supabase";
 import { isSupabaseConfigured, performActionViaApi } from "./db-utils";
 import { Allergen } from "@/data/db";
 
+interface AllergenRow {
+    id: string;
+    name: string;
+    translations: Record<string, { name: string }>;
+    venue_id?: string;
+}
+
+interface AllergenInput {
+    name: string;
+    translations: Record<string, { name: string }>;
+}
+
 export const AllergenService = {
     getAllergens: async (): Promise<Allergen[]> => {
         if (!isSupabaseConfigured()) return [];
@@ -10,7 +22,7 @@ export const AllergenService = {
             console.error("Error fetching allergens:", error);
             return [];
         }
-        return data.map((a: any) => ({
+        return (data as AllergenRow[]).map((a) => ({
             id: a.id,
             name: a.name,
             translations: a.translations,
@@ -18,9 +30,9 @@ export const AllergenService = {
         }));
     },
 
-    createAllergen: async (allergen: any) => {
+    createAllergen: async (allergen: AllergenInput) => {
         if (!isSupabaseConfigured()) return;
-        const dbAllergen: any = {
+        const dbAllergen = {
             name: allergen.name,
             translations: allergen.translations
         };
@@ -33,23 +45,25 @@ export const AllergenService = {
                 name: data.name,
                 translations: data.translations
             };
-        } catch (e) {
-            console.error("Create Allergen failed:", e);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
+            ;
             const { data, error } = await supabase.from('allergens').insert(dbAllergen).select().single();
             if (error) throw error;
             return { id: data.id, venueId: data.venue_id, name: data.name, translations: data.translations };
         }
     },
 
-    updateAllergen: async (id: string, updates: any) => {
+    updateAllergen: async (id: string, updates: Partial<AllergenInput>) => {
         if (!isSupabaseConfigured()) return;
-        const dbUpdates: any = {};
+        const dbUpdates: Partial<AllergenInput> = {};
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.translations !== undefined) dbUpdates.translations = updates.translations;
 
         try {
             await performActionViaApi('allergens', 'update', dbUpdates, id);
-        } catch (e) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
             await supabase.from('allergens').update(dbUpdates).eq('id', id);
         }
     },
@@ -58,7 +72,8 @@ export const AllergenService = {
         if (!isSupabaseConfigured()) return;
         try {
             await performActionViaApi('allergens', 'delete', null, id);
-        } catch (e) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
             await supabase.from('allergens').delete().eq('id', id);
         }
     }

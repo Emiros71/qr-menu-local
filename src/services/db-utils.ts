@@ -13,12 +13,13 @@ export const parseImageField = (val: string | null | undefined) => {
             const json = JSON.parse(val);
             return { image: json.icon, coverImage: json.cover };
         }
-    } catch (e) { }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_e) { }
     return { image: val, coverImage: undefined };
 };
 
 // Helper to perform generic actions via API (bypassing Client RLS)
-export async function performActionViaApi(table: string, action: 'update' | 'delete' | 'create', data: any, id?: string) {
+export async function performActionViaApi(table: string, action: 'update' | 'delete' | 'create', data: unknown, id?: string) {
     // Get Current User for Audit Log Context
     let userEmail = 'Anonim';
     let token = '';
@@ -31,7 +32,7 @@ export async function performActionViaApi(table: string, action: 'update' | 'del
         }
     } catch (e) { console.error("Session check failed", e); }
 
-    const payload: any = { table, action, updates: data, user_email: userEmail };
+    const payload: Record<string, unknown> = { table, action, updates: data, user_email: userEmail };
     if (id) payload.id = id;
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };

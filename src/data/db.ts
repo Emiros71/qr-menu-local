@@ -23,6 +23,7 @@ export type Category = {
     startTime?: string; // "HH:mm:ss" format
     endTime?: string;   // "HH:mm:ss" format
     translations?: Record<string, TranslationData>;
+    isAvailable?: boolean;
 };
 
 export type Product = {
@@ -66,7 +67,7 @@ export type Venue = {
     allergens?: Allergen[];
     supportedLanguages?: string[];
     defaultLanguage?: string;
-    popup_settings?: any; // JSONB
+    popup_settings?: unknown; // JSONB
 };
 
 export const venues: Venue[] = [
@@ -86,8 +87,8 @@ export const venues: Venue[] = [
         defaultLanguage: 'tr',
         timezone: 'Europe/Istanbul',
         categories: [
-            { id: "c_aura_1", name: "Ana Yemekler", image: "https://images.unsplash.com/photo-1546241072-48010ad2862c?q=80&w=2574&auto=format&fit=crop" },
-            { id: "c_aura_2", name: "İçecekler", image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=2574&auto=format&fit=crop", startTime: "17:00:00" }, // Evening drinks test
+            { id: "c_aura_1", name: "Ana Yemekler", image: "https://images.unsplash.com/photo-1546241072-48010ad2862c?q=80&w=2574&auto=format&fit=crop", isAvailable: true },
+            { id: "c_aura_2", name: "İçecekler", image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=2574&auto=format&fit=crop", startTime: "17:00:00", isAvailable: true }, // Evening drinks test
         ],
         products: [
             {

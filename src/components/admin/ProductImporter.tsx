@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { Download, Upload, Loader2, FileSpreadsheet, Image as ImageIcon, Check } from "lucide-react";
 
 interface ProductImporterProps {
-    onImport: (products: any[]) => Promise<void>;
+    onImport: (products: unknown[]) => Promise<void>;
     onExport?: () => void;
     existingCategories: { id: string; name: string }[];
 }
 
 // Helper for batched processing
-const chunkArray = (array: any[], size: number) => {
+const chunkArray = (array: unknown[], size: number) => {
     const chunked = [];
     for (let i = 0; i < array.length; i += size) {
         chunked.push(array.slice(i, i + size));
@@ -26,6 +26,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
 
     const [importing, setImporting] = useState(false);
     const [step, setStep] = useState<'idle' | 'validate' | 'review' | 'uploading'>('idle');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [parsedProducts, setParsedProducts] = useState<any[]>([]);
     const [unknownCategories, setUnknownCategories] = useState<string[]>([]);
     const [categoryMapping, setCategoryMapping] = useState<Record<string, string>>({}); // "Unknown Name" -> "Target ID" (or "")
@@ -84,20 +85,22 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             const data = await file.arrayBuffer();
             const workbook = XLSX.read(data);
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
             const mapped = jsonData.map(row => {
                 const getVal = (key: string) => row[key] || row[key.toLowerCase()] || row[key.toUpperCase()] || "";
 
                 // Try to find image filename 
-                let imgFile = getVal("Görsel Dosya Adı") || getVal("Dosya") || getVal("Image") || "";
+                const imgFile = getVal("Görsel Dosya Adı") || getVal("Dosya") || getVal("Image") || "";
 
                 // i18n Parsing
                 const nameEn = getVal("Ürün Adı (EN)") || getVal("Product Name EN") || getVal("Name EN");
                 const descEn = getVal("Açıklama (EN)") || getVal("Description EN");
-                const catEn = getVal("Kategori (EN)") || getVal("Category EN");
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const _catEn = getVal("Kategori (EN)") || getVal("Category EN");
 
-                const translations: any = {};
+                const translations: Record<string, unknown> = {};
                 if (nameEn || descEn) {
                     translations['en'] = {
                         name: nameEn,
@@ -272,7 +275,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
 
                 const chunks = chunkArray(tasks, 5);
                 for (const chunk of chunks) {
-                    await Promise.all(chunk.map((task: any) => task()));
+                    await Promise.all((chunk as Array<() => Promise<unknown>>).map(task => task()));
                 }
             }
 
@@ -338,7 +341,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                                 <div className="space-y-4">
                                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
                                         <h4 className="font-semibold mb-1">Bilinmeyen Kategoriler</h4>
-                                        <p>Excel'deki bazı kategoriler sistemde bulunamadı. Eşleştirme yapabilir veya yeni oluşturabilirsiniz.</p>
+                                        <p>Excel&apos;deki bazı kategoriler sistemde bulunamadı. Eşleştirme yapabilir veya yeni oluşturabilirsiniz.</p>
                                     </div>
 
                                     <div className="max-h-60 overflow-y-auto space-y-3 p-1">
@@ -388,7 +391,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                                                 <div>
                                                     <h4 className="text-sm font-semibold text-amber-900">Görsel Eşleştirme</h4>
                                                     <p className="text-xs text-amber-700 mt-1">
-                                                        Excel'de <b>{totalWithImageRef}</b> ürün için dosya adı belirtilmiş. Bilgisayarınızdan bu resimleri seçerseniz otomatik eşleşir.
+                                                        Excel&apos;de <b>{totalWithImageRef}</b> ürün için dosya adı belirtilmiş. Bilgisayarınızdan bu resimleri seçerseniz otomatik eşleşir.
                                                     </p>
                                                 </div>
                                             </div>

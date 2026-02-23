@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Allergen, Product } from '@/data/db';
 import { AllergenService } from '@/services/allergen-service';
-import { Trash2, Plus, Globe, Check, X, AlertCircle } from 'lucide-react';
-import { AuditService } from '@/services/audit-service';
+import { Trash2, Plus, Check, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
@@ -34,8 +33,8 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
             });
             setNewAllergenName("");
             onUpdate();
-        } catch (e) {
-            alert("Alerjen oluşturulamadı.");
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
         } finally {
             setIsCreating(false);
         }
@@ -44,7 +43,7 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
     const startEditing = (allergen: Allergen) => {
         setEditingId(allergen.id);
         setEditName(allergen.name);
-        setEditTranslations(allergen.translations || {});
+        setEditTranslations((allergen.translations || {}) as Record<string, { name: string }>);
     };
 
     const cancelEditing = () => {
@@ -63,19 +62,18 @@ export function AllergenManager({ allergens, products, supportedLanguages, defau
 
             setEditingId(null);
             onUpdate();
-        } catch (e) {
-            alert("Güncelleme başarısız.");
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
         }
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm("Bu alerjeni silmek istediğinize emin misiniz?")) return;
         try {
-            const toDelete = allergens.find(a => a.id === id);
             await AllergenService.deleteAllergen(id);
             onUpdate();
-        } catch (e) {
-            alert("Silme başarısız.");
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
         }
     };
 

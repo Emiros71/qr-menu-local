@@ -6,13 +6,15 @@ export const CategoryService = {
     updateCategory: async (id: string, updates: Partial<Category>) => {
         if (!isSupabaseConfigured()) return;
 
-        const dbUpdates: any = {};
+        const dbUpdates: Record<string, unknown> = {};
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.translations !== undefined) dbUpdates.translations = updates.translations;
 
         // Handle Time Management
         if (updates.startTime !== undefined) dbUpdates.start_time = updates.startTime;
         if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
+
+        if (updates.isAvailable !== undefined) dbUpdates.is_available = updates.isAvailable;
 
         // Handle Image Store (JSON or String)
         if (updates.image !== undefined || updates.coverImage !== undefined) {
@@ -43,10 +45,25 @@ export const CategoryService = {
         }
     },
 
-    createCategory: async (category: any) => {
+    updateCategoryOrder: async (orderedIds: string[]) => {
+        if (!isSupabaseConfigured()) return;
+        try {
+            // Update order_index for each id one by one via API
+            // Or ideally an RPC, but we'll do it sequentially for now
+            const promises = orderedIds.map((id, index) =>
+                performActionViaApi('categories', 'update', { order_index: index }, id)
+            );
+            await Promise.all(promises);
+        } catch (e) {
+            console.error("Failed to update category order", e);
+            throw e;
+        }
+    },
+
+    createCategory: async (category: Record<string, unknown>) => {
         if (!isSupabaseConfigured()) return;
 
-        const dbCategory: any = {
+        const dbCategory: Record<string, unknown> = {
             venue_id: category.venueId,
             name: category.name,
             order_index: 0
@@ -57,6 +74,8 @@ export const CategoryService = {
         // Handle Time Management
         if (category.startTime !== undefined) dbCategory.start_time = category.startTime;
         if (category.endTime !== undefined) dbCategory.end_time = category.endTime;
+
+        if (category.isAvailable !== undefined) dbCategory.is_available = category.isAvailable;
 
         // Use Image column to store both icon and cover as JSON
         const icon = category.image;

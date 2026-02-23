@@ -50,7 +50,7 @@ export const ProductService = {
         if (!isSupabaseConfigured()) return;
 
         // Strict allowlist mapping to prevent sending unknown columns
-        const dbUpdates: any = {};
+        const dbUpdates: Record<string, unknown> = {};
 
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.description !== undefined) dbUpdates.description = updates.description;
@@ -84,9 +84,9 @@ export const ProductService = {
         }
     },
 
-    createProduct: async (product: any) => {
+    createProduct: async (product: Record<string, unknown>) => {
         if (!isSupabaseConfigured()) return;
-        const dbProduct: any = { ...product };
+        const dbProduct: Record<string, unknown> = { ...product };
 
         // Map keys
         if (product.isAvailable !== undefined) {

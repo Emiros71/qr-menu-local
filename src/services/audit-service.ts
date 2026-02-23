@@ -20,6 +20,7 @@ export type AuditAction =
 export interface LogEntry {
     action: AuditAction;
     resource: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     details?: Record<string, any>;
 }
 
@@ -41,7 +42,8 @@ export const AuditService = {
                     userEmail = user.email || 'unknown';
                     userId = user.id;
                 }
-            } catch (e) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (_e) {
                 // Ignore auth checking errors
             }
 

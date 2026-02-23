@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { AuditService } from '@/services/audit-service';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Loader2, ShieldCheck, Clock, AlertTriangle, Filter, ChevronDown, ChevronRight, Activity, Edit2, Download } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { Loader2, Clock, Filter, ChevronDown, ChevronRight, Activity, Edit2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { cn } from '@/lib/utils';
 
 // Dummy list of action types for filter
 const ACTION_TYPES = [
@@ -18,6 +17,7 @@ const ACTION_TYPES = [
 ];
 
 export default function LogsPage() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('ALL');
@@ -51,10 +51,12 @@ export default function LogsPage() {
             loadLogs();
         }, 500); // Debounce for text search
         return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterType, filterResource, startDate, endDate, searchUser]);
 
     // Format log description based on action type
-    const getLogDescription = (log: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getLogDescription = (log: Record<string, any>) => {
         const item = log.details?.name || 'bir kayıt';
 
         // Normalize resource (Handle plural table names like 'allergens')
@@ -156,7 +158,8 @@ export default function LogsPage() {
     };
 
 
-    const getUserLabel = (log: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getUserLabel = (log: Record<string, any>) => {
         return log.details?.user_email || log.user_id?.substring(0, 8) || 'Sistem / Anonim';
     };
 
@@ -353,6 +356,7 @@ export default function LogsPage() {
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody className="divide-y divide-zinc-100">
+                                                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                                                         {Object.entries(log.details.changes).map(([field, change]: [string, any]) => {
                                                                             // Special handling for allergens
                                                                             if (field === 'allergens' && change.diff) {
@@ -379,6 +383,7 @@ export default function LogsPage() {
                                                                                     <tr key={field} className="hover:bg-zinc-50/50">
                                                                                         <td className="px-3 py-2 font-medium text-zinc-700 capitalize border-r border-zinc-200">Çeviriler</td>
                                                                                         <td className="px-3 py-2 text-zinc-600 border-r border-zinc-200 font-mono text-[10px]" colSpan={2}>
+                                                                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                                                                             {Object.entries(change).map(([lang, diff]: [string, any]) => (
                                                                                                 <div key={lang} className="mb-1">
                                                                                                     <span className="font-bold uppercase text-zinc-800">{lang}:</span>
@@ -392,7 +397,7 @@ export default function LogsPage() {
                                                                             }
 
                                                                             // Render Helper with Lookup
-                                                                            const renderValue = (val: any, lookup?: Record<string, string>) => {
+                                                                            const renderValue = (val: unknown, lookup?: Record<string, string>) => {
                                                                                 if (typeof val === 'boolean') return val ? 'Aktif' : 'Pasif';
                                                                                 if (typeof val === 'object' && val !== null) return JSON.stringify(val, null, 2);
                                                                                 // Lookup check

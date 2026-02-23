@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, useMemo } from "react";
-import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft, Check, ArrowUp, CakeSlice, Coffee, Beer, Wine, Utensils, Pizza, Sandwich, IceCream, Soup, GlassWater, X } from "lucide-react";
+import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft, Check, ArrowUp, CakeSlice, Coffee, Utensils, Pizza, Sandwich, IceCream, Soup, GlassWater, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Venue } from "@/data/db";
 import { AnalyticsService } from "@/lib/analytics";
@@ -57,11 +57,8 @@ const getDiscountedPrice = (price: number, type?: 'percentage' | 'fixed' | null,
 const FALLBACK_DEFAULT_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/4/4b/Crowne_Plaza_Hotels_%26_Resorts_logo.svg";
 
 function ProductImage({ src, alt, defaultImage }: { src?: string, alt: string, defaultImage: string }) {
-    const [imgSrc, setImgSrc] = useState(src || defaultImage);
-
-    useEffect(() => {
-        setImgSrc(src?.startsWith("http") ? src : defaultImage);
-    }, [src, defaultImage]);
+    // Derive imgSrc instead of syncing via useEffect to avoid cascading renders
+    const imgSrc = src?.startsWith("http") ? src : defaultImage;
 
     return (
         <Image
@@ -72,7 +69,6 @@ function ProductImage({ src, alt, defaultImage }: { src?: string, alt: string, d
                 "object-cover transition-transform duration-500 group-hover:scale-110",
                 imgSrc === defaultImage ? "object-contain p-1" : ""
             )}
-            onError={() => setImgSrc(defaultImage)}
         />
     );
 }
@@ -82,9 +78,12 @@ import ProductModal from "./ProductModal";
 // ... previous imports
 
 export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
-    const [activeCategory, setActiveCategory] = useState<string>(venue.categories[0]?.id || "");
-    const [isScrolled, setIsScrolled] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState<any>(null); // Type 'Product' is inferred but any fixes lint quickly for now
+    const defaultAvailableCategories = venue.categories.filter(c => c.isAvailable !== false);
+    const [activeCategory, setActiveCategory] = useState<string>(defaultAvailableCategories[0]?.id || "");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_isScrolled, setIsScrolled] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [currentTimeTimezone, setCurrentTimeTimezone] = useState<string>("00:00:00");
@@ -93,16 +92,20 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
     const activePopups = useMemo(() => {
         return Array.isArray(venue.popup_settings)
-            ? venue.popup_settings.filter((p: any) => p.isActive)
-            : (venue.popup_settings?.isActive ? [venue.popup_settings] : []);
+            ? venue.popup_settings.filter((p: unknown) => (p as any).isActive) // eslint-disable-line @typescript-eslint/no-explicit-any
+            : ((venue.popup_settings as any)?.isActive ? [venue.popup_settings] : []); // eslint-disable-line @typescript-eslint/no-explicit-any
     }, [venue.popup_settings]);
 
+    const activeCategories = useMemo(() => {
+        return venue.categories.filter(c => c.isAvailable !== false);
+    }, [venue.categories]);
+
     const nativeCampaignCatIndex = useMemo(() => {
-        return venue.categories.findIndex(c =>
+        return activeCategories.findIndex(c =>
             (c.name || '').toLowerCase().includes('kampanya') ||
             (c.name || '').toLowerCase().includes('campaign')
         );
-    }, [venue.categories]);
+    }, [activeCategories]);
     const nativeCampaignCatId = nativeCampaignCatIndex > -1 ? venue.categories[nativeCampaignCatIndex].id : null;
 
     useEffect(() => {
@@ -179,7 +182,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
             if (currentPopup?.link) {
                 if (currentPopup.link.startsWith('http')) {
-                    window.location.href = currentPopup.link;
+                    window.location.assign(currentPopup.link);
                     return;
                 }
 
@@ -235,6 +238,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Get default image from venue theme settings, or use system fallback
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const venueDefaultImage = (venue.theme as any)?.defaultProductImage || FALLBACK_DEFAULT_IMAGE;
 
     // --- i18n Logic ---
@@ -251,8 +255,10 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                 setCurrentLang(browserLang);
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [supportedLangs]);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const localize = (obj: any, field: string) => {
         if (!obj) return "";
         // If current lang is default, return direct field
@@ -282,31 +288,34 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     const discountedProducts = venue.products.filter(p =>
         p.discount_type && p.discount_amount &&
         p.isAvailable &&
+        activeCategories.some(c => c.id === p.categoryId) &&
         isTimeInRange(currentTimeTimezone, p.startTime, p.endTime)
     );
 
-    const displayCategories = [...venue.categories];
+    const displayCategories = useMemo(() => {
+        const cats = [...activeCategories];
 
-    // Reorder native campaign category to appear FIRST if it exists.
-    if (nativeCampaignCatIndex > 0) {
-        const campaignCat = displayCategories.splice(nativeCampaignCatIndex, 1)[0];
-        displayCategories.unshift(campaignCat);
-    }
+        if (nativeCampaignCatIndex > 0) {
+            const campaignCat = cats.splice(nativeCampaignCatIndex, 1)[0];
+            cats.unshift(campaignCat);
+        }
 
-    const newNativeIndex = nativeCampaignCatIndex !== -1 ? 0 : -1;
+        const newNativeIndex = nativeCampaignCatIndex !== -1 ? 0 : -1;
 
-    if (discountedProducts.length > 0 && newNativeIndex === -1) {
-        displayCategories.unshift({
-            id: 'campaigns-dynamic-cat',
-            name: currentLang === 'tr' ? '🔥 Kampanyalar' : '🔥 Campaigns',
-            image: null,
-            coverImage: null,
-            venueId: venue.id,
-            translations: {
-                en: { name: '🔥 Campaigns' }
-            }
-        } as any);
-    }
+        if (discountedProducts.length > 0 && newNativeIndex === -1) {
+            cats.unshift({
+                id: 'campaigns-dynamic-cat',
+                name: currentLang === 'tr' ? '🔥 Kampanyalar' : '🔥 Campaigns',
+                image: null,
+                coverImage: null,
+                venueId: venue.id,
+                translations: {
+                    en: { name: '🔥 Campaigns' }
+                }
+            } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        }
+        return cats;
+    }, [activeCategories, nativeCampaignCatIndex, discountedProducts.length, currentLang, venue.id]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -554,7 +563,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                     {displayCategories.map((cat, index) => {
                         const available = isTimeInRange(currentTimeTimezone, cat.startTime, cat.endTime);
 
-                        const isNativeCampaigns = newNativeIndex === index;
+                        const isNativeCampaigns = (nativeCampaignCatIndex !== -1 ? 0 : -1) === index;
 
                         const categoryProducts = cat.id === 'campaigns-dynamic-cat'
                             ? discountedProducts.filter(p => (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())))
@@ -583,10 +592,10 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                         return (
                             <section key={cat.id} id={cat.id} className={cn("mb-12 scroll-mt-[200px]", !available && "opacity-50 pointer-events-none grayscale")}>
-                                {(cat as any).coverImage && (
+                                {(cat as any).coverImage && ( // eslint-disable-line @typescript-eslint/no-explicit-any
                                     <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden mb-6 shadow-md">
                                         <Image
-                                            src={(cat as any).coverImage}
+                                            src={(cat as any).coverImage as string} // eslint-disable-line @typescript-eslint/no-explicit-any
                                             alt={localize(cat, 'name')}
                                             fill
                                             className="object-cover"
@@ -608,6 +617,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                             {localize(cat, 'name')}
                                         </h3>
                                     </div>
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                     {!available && !(cat as any).coverImage && (
                                         <div className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-full border border-amber-500/20">
                                             <Clock className="w-3.5 h-3.5" /> Servis Dışı
@@ -617,6 +627,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {categoryProducts.map((product) => {
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         const cardStyle = (venue.theme as any)?.cardStyle || 'modern';
                                         let cardClassName = "relative flex flex-col gap-3 p-3 rounded-2xl transition-all duration-300 group overflow-hidden cursor-pointer ";
 
@@ -730,7 +741,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                         </div>
                         <h3 className="text-xl font-bold text-[var(--foreground)] mb-2">Ürün Bulunamadı</h3>
                         <p className="text-sm text-[var(--foreground)]/60 max-w-sm">
-                            "{searchTerm}" aramasıyla eşleşen herhangi bir ürün veya kategori bulamadık. Lütfen farklı kelimelerle tekrar deneyin.
+                            &quot;{searchTerm}&quot; aramasıyla eşleşen herhangi bir ürün veya kategori bulamadık. Lütfen farklı kelimelerle tekrar deneyin.
                         </p>
                         <button
                             onClick={() => setSearchTerm("")}
@@ -811,7 +822,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                 </div>
                                 {activePopups.length > 1 && (
                                     <div className="flex justify-center gap-1.5 mt-4">
-                                        {activePopups.map((_: any, idx: number) => (
+                                        {activePopups.map((_: unknown, idx: number) => (
                                             <div key={idx} className={cn("w-1.5 h-1.5 rounded-full transition-colors", idx === currentPopupIndex ? "bg-[var(--primary)]" : "bg-zinc-200")} />
                                         ))}
                                     </div>

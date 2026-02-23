@@ -50,13 +50,13 @@ export async function GET() {
                     latencyMs
                 });
             }
-        } catch (err: any) {
+        } catch (err) {
             allHealthy = false;
             const latencyMs = Date.now() - start;
             results.push({
                 name: serviceName,
                 status: 'error',
-                error: err.message || 'Bilinmeyen hata',
+                error: (err as Error).message || 'Bilinmeyen hata',
                 latencyMs
             });
         }

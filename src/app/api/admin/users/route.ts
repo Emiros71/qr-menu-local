@@ -31,7 +31,8 @@ async function isSuperAdmin() {
 }
 
 // GET all users (with their profiles)
-export async function GET(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function GET(_req: NextRequest) {
     if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
@@ -58,8 +59,8 @@ export async function GET(req: NextRequest) {
         });
 
         return NextResponse.json({ data: users });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err) {
+        return NextResponse.json({ error: (err as Error).message }, { status: 500 });
     }
 }
 
@@ -98,8 +99,8 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({ data: authData.user });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err) {
+        return NextResponse.json({ error: (err as Error).message }, { status: 500 });
     }
 }
 
@@ -114,18 +115,18 @@ export async function PUT(req: NextRequest) {
         if (!id) return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
 
         // Update Auth Data if needed
-        const authUpdates: any = {};
+        const authUpdates: Record<string, unknown> = {};
         if (email) authUpdates.email = email;
         if (password) authUpdates.password = password;
         if (full_name) authUpdates.user_metadata = { full_name };
 
         if (Object.keys(authUpdates).length > 0) {
-            const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, authUpdates);
+            const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, authUpdates as import('@supabase/supabase-js').AdminUserAttributes);
             if (authError) throw authError;
         }
 
         // Update Profile Data
-        const profileUpdates: any = {};
+        const profileUpdates: Record<string, unknown> = {};
         if (role !== undefined) profileUpdates.role = role;
         if (venue_ids !== undefined) profileUpdates.venue_ids = venue_ids;
         if (tags !== undefined) profileUpdates.tags = tags;
@@ -141,8 +142,8 @@ export async function PUT(req: NextRequest) {
         }
 
         return NextResponse.json({ success: true });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err) {
+        return NextResponse.json({ error: (err as Error).message }, { status: 500 });
     }
 }
 
@@ -161,7 +162,7 @@ export async function DELETE(req: NextRequest) {
         // The profile will be deleted automatically due to ON DELETE CASCADE
 
         return NextResponse.json({ success: true });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err) {
+        return NextResponse.json({ error: (err as Error).message }, { status: 500 });
     }
 }

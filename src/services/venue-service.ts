@@ -28,11 +28,11 @@ export const VenueService = {
             return [];
         }
 
-        return data.map((v: any) => ({
+        return data.map((v: Record<string, unknown>) => ({
             ...v,
-            categories: [],
-            products: []
-        })) as Venue[];
+            categories: [] as [],
+            products: [] as []
+        })) as unknown as Venue[];
     },
 
     // Get single venue by slug (for menu page)
@@ -66,37 +66,38 @@ export const VenueService = {
             .select('*')
             .order('name');
 
-        const products = (prodData || []).map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            price: p.price,
-            image: p.image,
-            categoryId: p.category_id,
-            venueId: p.venue_id,
-            isAvailable: p.is_available,
-            allergens: p.allergens,
-            isChefRecommendation: p.is_chef_recommendation,
-            labels: p.labels,
+        const products = (prodData || []).map((p: Record<string, unknown>) => ({
+            id: p.id as string,
+            name: p.name as string,
+            description: p.description as string,
+            price: p.price as number,
+            image: p.image as string,
+            categoryId: p.category_id as string,
+            venueId: p.venue_id as string,
+            isAvailable: p.is_available as boolean,
+            allergens: p.allergens as string[],
+            isChefRecommendation: p.is_chef_recommendation as boolean,
+            labels: p.labels as string[],
             currency: 'TRY',
-            translations: typeof p.translations === 'string' ? JSON.parse(p.translations) : p.translations,
-            startTime: p.start_time,
-            endTime: p.end_time,
-            discount_type: p.discount_type,
-            discount_amount: p.discount_amount
+            translations: typeof p.translations === 'string' ? JSON.parse(p.translations as string) : p.translations,
+            startTime: p.start_time as string,
+            endTime: p.end_time as string,
+            discount_type: p.discount_type as 'percentage' | 'fixed' | null,
+            discount_amount: p.discount_amount as number
         }));
 
-        const categories = (catData || []).map((c: any) => {
-            const { image, coverImage } = parseImageField(c.image);
+        const categories = (catData || []).map((c: Record<string, unknown>) => {
+            const { image, coverImage } = parseImageField(c.image as string | null);
             return {
-                id: c.id,
-                name: c.name,
-                image: image,
-                coverImage: coverImage,
-                venueId: c.venue_id,
-                startTime: c.start_time,
-                endTime: c.end_time,
-                translations: typeof c.translations === 'string' ? JSON.parse(c.translations) : c.translations
+                id: c.id as string,
+                name: c.name as string,
+                image,
+                coverImage,
+                venueId: c.venue_id as string,
+                startTime: c.start_time as string,
+                endTime: c.end_time as string,
+                translations: typeof c.translations === 'string' ? JSON.parse(c.translations as string) : c.translations as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+                isAvailable: c.is_available !== false
             };
         });
 
@@ -111,10 +112,10 @@ export const VenueService = {
             defaultLanguage: venueData.default_language,
             categories: categories,
             products: products,
-            allergens: (allergenData || []).map((a: any) => ({
-                id: a.id,
-                name: a.name,
-                translations: typeof a.translations === 'string' ? JSON.parse(a.translations) : a.translations
+            allergens: (allergenData || []).map((a: Record<string, unknown>) => ({
+                id: a.id as string,
+                name: a.name as string,
+                translations: typeof a.translations === 'string' ? JSON.parse(a.translations as string) : a.translations
             })),
             popup_settings: typeof venueData.popup_settings === 'string' ? JSON.parse(venueData.popup_settings) : venueData.popup_settings
         };
@@ -153,37 +154,38 @@ export const VenueService = {
             .select('*')
             .order('name');
 
-        const products = (prodData || []).map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            price: p.price,
-            image: p.image,
-            categoryId: p.category_id,
-            venueId: p.venue_id,
-            isAvailable: p.is_available,
-            allergens: p.allergens,
-            isChefRecommendation: p.is_chef_recommendation,
-            labels: p.labels,
+        const products = (prodData || []).map((p: Record<string, unknown>) => ({
+            id: p.id as string,
+            name: p.name as string,
+            description: p.description as string,
+            price: p.price as number,
+            image: p.image as string,
+            categoryId: p.category_id as string,
+            venueId: p.venue_id as string,
+            isAvailable: p.is_available as boolean,
+            allergens: p.allergens as string[],
+            isChefRecommendation: p.is_chef_recommendation as boolean,
+            labels: p.labels as string[],
             currency: 'TRY',
-            translations: p.translations,
-            startTime: p.start_time,
-            endTime: p.end_time,
-            discount_type: p.discount_type,
-            discount_amount: p.discount_amount
+            translations: p.translations as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+            startTime: p.start_time as string,
+            endTime: p.end_time as string,
+            discount_type: p.discount_type as 'percentage' | 'fixed' | null,
+            discount_amount: p.discount_amount as number
         }));
 
-        const categories = (catData || []).map((c: any) => {
-            const { image, coverImage } = parseImageField(c.image);
+        const categories = (catData || []).map((c: Record<string, unknown>) => {
+            const { image, coverImage } = parseImageField(c.image as string | null);
             return {
-                id: c.id,
-                name: c.name,
-                image: image,
-                coverImage: coverImage,
-                venueId: c.venue_id,
-                startTime: c.start_time,
-                endTime: c.end_time,
-                translations: c.translations
+                id: c.id as string,
+                name: c.name as string,
+                image,
+                coverImage,
+                venueId: c.venue_id as string,
+                startTime: c.start_time as string,
+                endTime: c.end_time as string,
+                translations: c.translations as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+                isAvailable: c.is_available !== false
             };
         });
 
@@ -198,10 +200,10 @@ export const VenueService = {
             products: products,
             supportedLanguages: venueData.supported_languages,
             defaultLanguage: venueData.default_language,
-            allergens: (allergenData || []).map((a: any) => ({
-                id: a.id,
-                name: a.name,
-                translations: typeof a.translations === 'string' ? JSON.parse(a.translations) : a.translations
+            allergens: (allergenData || []).map((a: Record<string, unknown>) => ({
+                id: a.id as string,
+                name: a.name as string,
+                translations: typeof a.translations === 'string' ? JSON.parse(a.translations as string) : a.translations
             })),
             popup_settings: typeof venueData.popup_settings === 'string' ? JSON.parse(venueData.popup_settings) : venueData.popup_settings
         };
@@ -212,7 +214,7 @@ export const VenueService = {
     updateVenue: async (id: string, updates: Partial<Venue>) => {
         if (!isSupabaseConfigured()) return;
 
-        const dbUpdates: any = { ...updates };
+        const dbUpdates: Record<string, unknown> = { ...updates };
         if (updates.coverImage !== undefined) {
             dbUpdates.cover_image = updates.coverImage;
             delete dbUpdates.coverImage;
@@ -238,12 +240,13 @@ export const VenueService = {
         }
     },
 
-    updateVenueTheme: async (id: string, theme: any) => {
+    updateVenueTheme: async (id: string, theme: unknown) => {
         if (!isSupabaseConfigured()) return;
 
         try {
             await performActionViaApi('venues', 'update', { theme }, id);
-        } catch (e) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_e) {
             const { error } = await supabase.from('venues').update({ theme }).eq('id', id);
             if (error) throw error;
         }

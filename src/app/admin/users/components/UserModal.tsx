@@ -5,8 +5,18 @@ import { Input } from "@/components/ui/Input";
 import { Venue } from "@/data/db";
 import { Loader2, AlertCircle, X } from "lucide-react";
 
+interface AdminUser {
+    id?: string;
+    email?: string;
+    full_name?: string | null;
+    role?: string;
+    venue_ids?: string[];
+    tags?: string[];
+    created_at?: string;
+}
+
 interface UserModalProps {
-    user: any | null;
+    user: AdminUser | null;
     venues: Venue[];
     onClose: () => void;
     onSaved: () => void;
@@ -74,8 +84,8 @@ export function UserModal({ user, venues, onClose, onSaved }: UserModalProps) {
 
             onSaved();
             onClose();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError((err as Error).message);
         } finally {
             setLoading(false);
         }

@@ -5,7 +5,7 @@ import { SettingsService } from "@/services/settings-service";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-import { Save, Loader2, Globe, Instagram as InstagramIcon, Image as ImageIcon } from "lucide-react";
+import { Save, Loader2, Globe, Instagram as InstagramIcon } from "lucide-react";
 import ImageUpload from "@/components/ui/ImageUpload";
 
 export default function SettingsPage() {

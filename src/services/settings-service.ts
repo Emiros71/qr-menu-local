@@ -19,7 +19,7 @@ export const SettingsService = {
         return data.value;
     },
 
-    updateAppSettings: async (key: string, value: any) => {
+    updateAppSettings: async (key: string, value: unknown) => {
         if (!isSupabaseConfigured()) return;
 
         // Upsert via API for Audit Logging

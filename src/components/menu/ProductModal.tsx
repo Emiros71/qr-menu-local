@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Product } from "@/data/db";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,7 +11,7 @@ interface ProductModalProps {
     product: Product | null;
     isOpen: boolean;
     onClose: () => void;
-    localize: (obj: any, field: string) => string;
+    localize: (obj: unknown, field: string) => string;
     localizeAllergen: (name: string) => string;
     currencySymbol?: string;
     defaultImage: string;
@@ -44,7 +44,8 @@ export default function ProductModal({
     }, [isOpen]);
 
     const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    useEffect(() => { setMounted(true); }, []);
 
     if (!mounted) return null;
 
@@ -148,8 +149,10 @@ export default function ProductModal({
                                         ★ Şefin Tavsiyesi
                                     </span>
                                 )}
+                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                 {(product as any).calories && (
                                     <span className="px-3 py-1 bg-zinc-100 text-zinc-600 text-xs font-bold rounded-full border border-zinc-200">
+                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                         🔥 {(product as any).calories} kcal
                                     </span>
                                 )}

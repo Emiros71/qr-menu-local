@@ -17,6 +17,7 @@ import { tr } from "date-fns/locale";
 export default function AdminDashboard() {
     const [venues, setVenues] = useState<Venue[]>([]);
     const [loading, setLoading] = useState(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [events, setEvents] = useState<any[]>([]);
     const [timeFilter, setTimeFilter] = useState<'all' | 'daily' | 'monthly'>('monthly');
     const [selectedVenueFilter, setSelectedVenueFilter] = useState<string>('all');
@@ -52,48 +53,10 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         loadData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [timeFilter]);
 
-    const handleResetData = async () => {
-        if (!window.confirm("Seçili zaman aralığındaki tüm analitik verilerini silmek istediğinize emin misiniz?")) return;
 
-        try {
-            setLoading(true);
-            const profile = await AuthService.getCurrentProfile();
-            const supabase = createClient();
-            let query = supabase.from('analytics_events').delete();
-
-            if (profile && profile.role !== 'SUPER_ADMIN') {
-                if (profile.venue_ids && profile.venue_ids.length > 0) {
-                    query = query.in('venue_id', profile.venue_ids);
-                } else {
-                    alert("Yetkiniz olan bir mekan bulunamadı.");
-                    setLoading(false);
-                    return;
-                }
-            }
-
-            if (timeFilter === 'daily') {
-                query = query.gte('created_at', subDays(new Date(), 1).toISOString());
-            } else if (timeFilter === 'monthly') {
-                query = query.gte('created_at', subMonths(new Date(), 1).toISOString());
-            }
-
-            const { error } = await query;
-            if (error) {
-                console.error("Delete failed via client:", error);
-                alert("Veri silme yetkiniz bulunmuyor (RLS) veya bir hata oluştu.");
-            } else {
-                alert("Veriler başarıyla sıfırlandı.");
-                setEvents([]);
-            }
-            setLoading(false);
-
-        } catch (e) {
-            console.error(e);
-            setLoading(false);
-        }
-    }
 
     const handleDelete = async (id: string, name: string) => {
         if (!window.confirm(`"${name}" mekanını tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) return;
@@ -110,9 +73,9 @@ export default function AdminDashboard() {
     // Derived filtering logic
     const filteredEvents = selectedVenueFilter === 'all' ? events : events.filter(e => e.venue_id === selectedVenueFilter);
     const filteredStats = {
-        totalViews: filteredEvents.filter((e: any) => e.event_type === 'view').length,
-        totalClicks: filteredEvents.filter((e: any) => e.event_type === 'click').length,
-        uniqueSessions: new Set(filteredEvents.map((e: any) => e.session_id)).size
+        totalViews: filteredEvents.filter(e => e.event_type === 'view').length,
+        totalClicks: filteredEvents.filter(e => e.event_type === 'click').length,
+        uniqueSessions: new Set(filteredEvents.map(e => e.session_id)).size
     };
 
     const getClicksByProduct = () => {
@@ -389,11 +352,39 @@ export default function AdminDashboard() {
                     </CardContent>
                 </Card>
 
+                {/* 3.25 Marketing Suggestions */}
+                <Card className="bg-card border-border shadow-sm lg:col-span-3">
+                    <CardHeader>
+                        <CardTitle className="font-bold text-foreground">💡 Pazarlama & Kampanya Önerileri</CardTitle>
+                        <CardDescription>Menü analizlerinize dayanarak satışları artıracak otomatik tavsiyeler.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {loading ? (
+                            <div className="w-full h-32 flex items-center justify-center text-muted-foreground">Analiz yapılıyor...</div>
+                        ) : suggestions.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {suggestions.map((suggestion, idx) => (
+                                    <div key={idx} className="p-4 border border-border rounded-xl bg-orange-500/5 hover:bg-orange-500/10 transition-colors">
+                                        <h4 className="font-bold text-sm text-orange-600 mb-2">{suggestion.title}</h4>
+                                        <p className="text-sm text-foreground/80 leading-relaxed">{suggestion.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="w-full h-32 flex flex-col items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg p-6 text-center">
+                                <Lightbulb className="w-8 h-8 mb-2 opacity-50" />
+                                <p>Henüz yeterli veri oluşmadı.</p>
+                                <p className="text-xs mt-1">Sistem, müşterilerinizin hareketlerini analiz ederek size öneriler sunacaktır.</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 {/* 3.5 Popup Analytics */}
                 <Card className="bg-card border-border shadow-sm lg:col-span-3">
                     <CardHeader>
                         <CardTitle className="font-bold text-foreground">Kampanya & Pop-up Performansı</CardTitle>
-                        <CardDescription>Mekanlarınızdaki pop-up'ların görüntülenme ve tıklanma (İncele) oranları.</CardDescription>
+                        <CardDescription>Mekanlarınızdaki pop-up&apos;ların görüntülenme ve tıklanma (İncele) oranları.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {loading ? (

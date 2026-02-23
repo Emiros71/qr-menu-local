@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Search, Globe, Menu as MenuIcon, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { categories, products } from "@/data/mock-menu";

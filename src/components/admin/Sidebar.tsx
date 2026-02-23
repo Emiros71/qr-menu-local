@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Store, LogOut, Settings, Menu, ChevronDown, ChevronRight, Utensils, Users, Activity } from "lucide-react";
+import { LayoutDashboard, Store, LogOut, Settings, Menu, ChevronDown, ChevronRight, Utensils, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -188,7 +188,8 @@ export default function AdminSidebar({ venues }: SidebarProps) {
                     <div className="mt-4 flex items-center gap-3 px-2">
                         <div className="h-8 w-8 rounded-full bg-zinc-200 overflow-hidden flex-shrink-0">
                             {userProfile ? (
-                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.full_name || userProfile.email)}`} alt="User" />
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile!.full_name || userProfile!.email)}`} alt="User" />
                             ) : (
                                 <div className="h-full w-full bg-zinc-300 animate-pulse" />
                             )}
