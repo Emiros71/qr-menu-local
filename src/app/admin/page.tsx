@@ -10,7 +10,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ServiceStatus } from "@/components/admin/ServiceStatus";
 import { createClient } from "@/utils/supabase/client";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from "recharts";
+import dynamic from "next/dynamic";
+
+const VisitorAreaChart = dynamic(() => import("@/components/admin/Charts").then(mod => mod.VisitorAreaChart), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center text-muted-foreground">Yükleniyor...</div> });
+const ProductBarChart = dynamic(() => import("@/components/admin/Charts").then(mod => mod.ProductBarChart), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center text-muted-foreground">Yükleniyor...</div> });
 import { format, subDays, subMonths } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -297,23 +300,7 @@ export default function AdminDashboard() {
                         {loading ? (
                             <div className="w-full h-full flex items-center justify-center text-muted-foreground">Yükleniyor...</div>
                         ) : visitorChartData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={visitorChartData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.1} />
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.6 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.6 }} />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: '1px solid currentColor', background: 'var(--background)', color: 'var(--foreground)' }}
-                                    />
-                                    <Area type="monotone" dataKey="count" name="Ziyaretçi" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            <VisitorAreaChart data={visitorChartData} />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
                                 Yeterli veri bulunamadı.
@@ -332,18 +319,7 @@ export default function AdminDashboard() {
                         {loading ? (
                             <div className="w-full h-full flex items-center justify-center text-muted-foreground">Yükleniyor...</div>
                         ) : productChartData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart layout="vertical" data={productChartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="currentColor" opacity={0.1} />
-                                    <XAxis type="number" hide />
-                                    <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'currentColor', opacity: 0.8 }} width={100} />
-                                    <Tooltip
-                                        cursor={{ fill: 'currentColor', opacity: 0.05 }}
-                                        contentStyle={{ borderRadius: '8px', border: '1px solid currentColor', background: 'var(--background)', color: 'var(--foreground)' }}
-                                    />
-                                    <Bar dataKey="clicks" name="Tıklama" fill="#3b82f6" opacity={0.8} radius={[0, 4, 4, 0]} barSize={24} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            <ProductBarChart data={productChartData} />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">
                                 Yeterli veri bulunamadı.

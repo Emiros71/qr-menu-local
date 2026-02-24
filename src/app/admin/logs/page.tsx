@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AuditService } from '@/services/audit-service';
 import { Card } from '@/components/ui/Card';
-import { Loader2, Clock, Filter, ChevronDown, ChevronRight, Activity, Edit2, Download } from 'lucide-react';
+import { Loader2, Clock, Filter, ChevronDown, ChevronRight, Activity, Edit2, Download, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 // Dummy list of action types for filter
@@ -26,6 +26,7 @@ export default function LogsPage() {
     const [endDate, setEndDate] = useState('');
     const [searchUser, setSearchUser] = useState('');
     const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+    const [isCleaning, setIsCleaning] = useState(false);
 
     const loadLogs = async () => {
         setLoading(true);
@@ -42,6 +43,30 @@ export default function LogsPage() {
             console.error("Failed to load logs", err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCleanup = async () => {
+        if (!confirm('Eski logları temizlemek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
+        setIsCleaning(true);
+        try {
+            const res = await fetch('/api/admin/logs/cleanup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ daysToKeep: 30 })
+            });
+
+            const result = await res.json();
+            if (res.ok) {
+                alert(result.message || 'Başarı ile temizlendi.');
+                loadLogs();
+            } else {
+                alert(result.error || 'Bir hata oluştu.');
+            }
+        } catch (err) {
+            alert('Temizleme sırasında hata: ' + (err as Error).message);
+        } finally {
+            setIsCleaning(false);
         }
     };
 
@@ -254,6 +279,16 @@ export default function LogsPage() {
                 </div>
 
                 <div className="ml-auto flex items-center gap-2">
+                    <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={handleCleanup}
+                        disabled={loading || isCleaning}
+                        className="h-8 text-xs gap-2"
+                    >
+                        {isCleaning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                        30+ Günlükleri Sil
+                    </Button>
                     <Button
                         variant="outline"
                         size="sm"

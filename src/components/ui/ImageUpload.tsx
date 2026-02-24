@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Image as ImageIcon, Loader2, X } from "lucide-react";
 import Image from "next/image";
+import { compressImage } from "@/utils/image-compression";
 
 interface ImageUploadProps {
     value?: string;
@@ -21,12 +22,14 @@ export default function ImageUpload({
     const [isUploading, setIsUploading] = useState(false);
 
     const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const rawFile = e.target.files?.[0];
+        if (!rawFile) return;
 
         setIsUploading(true);
 
         try {
+            // Sıkıştırma adımı eklendi: max 1.5MB hedefiyle (logolar, mekan fotoları için ideal)
+            const file = await compressImage(rawFile, { maxSizeMB: 1.5 });
             // Updated to use Signed Upload (More Secure)
 
             // 1. Get Signature from our Server

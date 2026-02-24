@@ -104,3 +104,55 @@ export function CategoryDistributionChart() {
         </ResponsiveContainer>
     );
 }
+
+export interface VisitorData {
+    date: string;
+    count: number;
+}
+
+export interface ProductData {
+    name: string;
+    clicks: number;
+    originalName: string;
+}
+
+export function VisitorAreaChart({ data }: { data: VisitorData[] }) {
+    if (!data || data.length === 0) return null;
+    return (
+        <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+                <defs>
+                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.1} />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.6 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'currentColor', opacity: 0.6 }} />
+                <Tooltip
+                    contentStyle={{ borderRadius: '8px', border: '1px solid currentColor', background: 'var(--background)', color: 'var(--foreground)' }}
+                />
+                <Area type="monotone" dataKey="count" name="Ziyaretçi" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
+            </AreaChart>
+        </ResponsiveContainer>
+    );
+}
+
+export function ProductBarChart({ data }: { data: ProductData[] }) {
+    if (!data || data.length === 0) return null;
+    return (
+        <ResponsiveContainer width="100%" height="100%">
+            <BarChart layout="vertical" data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="currentColor" opacity={0.1} />
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'currentColor', opacity: 0.8 }} width={100} />
+                <Tooltip
+                    cursor={{ fill: 'currentColor', opacity: 0.05 }}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid currentColor', background: 'var(--background)', color: 'var(--foreground)' }}
+                />
+                <Bar dataKey="clicks" name="Tıklama" fill="#3b82f6" opacity={0.8} radius={[0, 4, 4, 0]} barSize={24} />
+            </BarChart>
+        </ResponsiveContainer>
+    );
+}

@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/Button";
 import { Download, Upload, Loader2, FileSpreadsheet, Image as ImageIcon, Check } from "lucide-react";
+import { compressImage } from "@/utils/image-compression";
 
 interface ProductImporterProps {
     onImport: (products: unknown[]) => Promise<void>;
@@ -208,10 +209,13 @@ export default function ProductImporter({ onImport, onExport, existingCategories
 
                 // Helper to upload single file
                 const uploadFile = async (productIndex: number, filename: string) => {
-                    const file = fileMap.get(filename.toLowerCase());
-                    if (!file) return; // File not found in selection
+                    const rawFile = fileMap.get(filename.toLowerCase());
+                    if (!rawFile) return; // File not found in selection
 
                     try {
+                        // Sıkıştırma: Toplu yüklemelerde çok önemli (Max 1MB)
+                        const file = await compressImage(rawFile, { maxSizeMB: 1 });
+
                         // 1. Prepare Params
                         const timestamp = Math.round((new Date()).getTime() / 1000);
                         const folder = "qr-menu/products";

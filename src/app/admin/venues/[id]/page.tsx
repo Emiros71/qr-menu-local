@@ -16,8 +16,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import ProductImporter from "@/components/admin/ProductImporter";
+import dynamic from "next/dynamic";
 import { AllergenManager } from "@/components/admin/AllergenManager";
+
+const ProductImporter = dynamic(() => import("@/components/admin/ProductImporter"), {
+    ssr: false,
+    loading: () => <div className="p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+});
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ALLERGENS_LIST = [

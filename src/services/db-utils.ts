@@ -5,17 +5,28 @@ export const isSupabaseConfigured = () => {
     return !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 };
 
-// Helper to parse hybrid image field (support for legacy URL string or new JSON object)
+// Helper to parse hybrid image field and optimize Cloudinary URLs
 export const parseImageField = (val: string | null | undefined) => {
     if (!val) return { image: undefined, coverImage: undefined };
+
+    // Cloudinary URL Optimization (f_auto,q_auto)
+    const optimizeUrl = (url?: string) => {
+        if (!url || !url.includes('cloudinary.com')) return url;
+        // If it already has transformations, just return to avoid breaking
+        if (url.includes('/upload/f_auto') || url.includes('/upload/q_auto')) return url;
+
+        return url.replace('/upload/', '/upload/f_auto,q_auto/');
+    };
+
     try {
         if (val.startsWith('{')) {
             const json = JSON.parse(val);
-            return { image: json.icon, coverImage: json.cover };
+            return { image: optimizeUrl(json.icon), coverImage: optimizeUrl(json.cover) };
         }
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_e) { }
-    return { image: val, coverImage: undefined };
+
+    return { image: optimizeUrl(val), coverImage: undefined };
 };
 
 // Helper to perform generic actions via API (bypassing Client RLS)
