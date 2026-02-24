@@ -17,7 +17,8 @@ export default function SettingsPage() {
         title: "",
         subtitle: "",
         instagramUrl: "",
-        websiteUrl: ""
+        websiteUrl: "",
+        landingLogo: ""
     });
 
     useEffect(() => {
@@ -84,6 +85,19 @@ export default function SettingsPage() {
                                 />
                                 <p className="text-xs text-zinc-500 max-w-[200px]">
                                     Yüksek kaliteli bir dikey veya kare fotoğraf önerilir. (JPG/PNG)
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-700">Ana Logo</label>
+                                <ImageUpload
+                                    value={(settings as any).landingLogo}
+                                    onChange={(url) => handleChange('landingLogo', url)}
+                                    onRemove={() => handleChange('landingLogo', '')}
+                                    folder="qr-menu-settings"
+                                />
+                                <p className="text-xs text-zinc-500 max-w-[200px]">
+                                    Oturum sayfasının tam ortasında görünen marka logosu (Tercihen PNG/SVG).
                                 </p>
                             </div>
 

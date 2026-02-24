@@ -5,7 +5,7 @@ import { VenueService } from "@/services/venue-service";
 import { AuthService } from "@/services/auth-service";
 import { Venue } from "@/data/db";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-import { TrendingUp, Activity, Trash2, MousePointerClick, Smartphone, RefreshCw, BarChart2, Lightbulb, CheckCircle2 } from "lucide-react";
+import { TrendingUp, Activity, Trash2, MousePointerClick, Smartphone, RefreshCw, BarChart2, Lightbulb, CheckCircle2, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ServiceStatus } from "@/components/admin/ServiceStatus";
@@ -70,6 +70,25 @@ export default function AdminDashboard() {
         } catch (e) {
             console.error(e);
             alert("Silinirken bir hata oluştu.");
+        }
+    };
+
+    const handleMoveVenue = async (index: number, direction: 'up' | 'down') => {
+        const newVenues = [...venues];
+        if (direction === 'up' && index > 0) {
+            [newVenues[index - 1], newVenues[index]] = [newVenues[index], newVenues[index - 1]];
+        } else if (direction === 'down' && index < newVenues.length - 1) {
+            [newVenues[index + 1], newVenues[index]] = [newVenues[index], newVenues[index + 1]];
+        } else {
+            return; // invalid move
+        }
+        setVenues(newVenues);
+
+        // Background sync
+        try {
+            await VenueService.updateVenueOrder(newVenues.map(v => v.id));
+        } catch (e) {
+            console.error("Sıralama güncellenirken hata:", e);
         }
     };
 
@@ -459,7 +478,7 @@ export default function AdminDashboard() {
                     <div className="text-center py-10 text-muted-foreground">Yükleniyor...</div>
                 ) : (
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {venues.map((venue) => (
+                        {venues.map((venue, index) => (
                             <Card key={venue.id} className="bg-card text-card-foreground border-border shadow-sm hover:shadow-md transition-all group overflow-hidden">
                                 <CardHeader className="bg-muted/30 border-b border-border flex-row items-start justify-between p-5 space-y-0 relative">
                                     <div className="absolute inset-0 opacity-10 bg-cover bg-center" style={{ backgroundImage: `url(${venue.coverImage || ''})` }}></div>
@@ -475,13 +494,33 @@ export default function AdminDashboard() {
                                 </CardHeader>
                                 <CardContent className="p-5 relative z-10">
                                     <div className="flex gap-2">
+                                        <div className="flex border border-border rounded-md overflow-hidden bg-background shrink-0">
+                                            <Button
+                                                variant="ghost"
+                                                className="w-8 h-10 px-0 rounded-none border-r border-border hover:bg-muted text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
+                                                onClick={() => handleMoveVenue(index, 'up')}
+                                                disabled={index === 0}
+                                                title="Yukarı Taşı"
+                                            >
+                                                <ChevronUp className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                className="w-8 h-10 px-0 rounded-none hover:bg-muted text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
+                                                onClick={() => handleMoveVenue(index, 'down')}
+                                                disabled={index === venues.length - 1}
+                                                title="Aşağı Taşı"
+                                            >
+                                                <ChevronDown className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                         <Link href={`/admin/venues/${venue.id}`} className="flex-1">
-                                            <Button variant="outline" className="w-full bg-background hover:bg-muted transition-colors text-foreground">Yönet</Button>
+                                            <Button variant="outline" className="w-full h-10 bg-background hover:bg-muted transition-colors text-foreground">Yönet</Button>
                                         </Link>
                                         <Button
                                             variant="outline"
                                             onClick={() => handleDelete(venue.id as string, venue.name)}
-                                            className="text-destructive hover:bg-destructive/10 hover:text-destructive border-border w-10 px-0 transition-colors"
+                                            className="text-destructive hover:bg-destructive/10 hover:text-destructive border-border w-10 h-10 px-0 transition-colors shrink-0"
                                             title="Mekanı Sil"
                                         >
                                             <Trash2 className="h-4 w-4" />

@@ -13,6 +13,8 @@ export type Theme = {
     labelColor?: string;
     cardColor?: string;
     cardStyle?: 'modern' | 'minimal' | 'glass' | 'bordered';
+    showLogoInMenu?: boolean;
+    showDescriptionInMenu?: boolean;
 };
 
 export type Category = {
@@ -68,6 +70,7 @@ export type Venue = {
     supportedLanguages?: string[];
     defaultLanguage?: string;
     popup_settings?: unknown; // JSONB
+    orderIndex?: number;
 };
 
 export const venues: Venue[] = [
@@ -78,10 +81,14 @@ export const venues: Venue[] = [
         description: "Özel lezzetlerimizi keşfedin.",
         coverImage: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=2670&auto=format&fit=crop",
         theme: {
-            primary: "#860B5B", // Crowne Plum
-            secondary: "#C5A065", // Gold
-            background: "#FAFAF9", // Stone 50
-            foreground: "#1C1917", // Stone 900
+            primary: "#1A3673",
+            secondary: "#F8FAFC",
+            background: "#FFFFFF",
+            foreground: "#0F172A",
+            headerColor: "#FFFFFF",
+            labelColor: "#1A3673",
+            cardColor: "#F4F6F8",
+            cardStyle: 'modern'
         },
         supportedLanguages: ['tr', 'en'],
         defaultLanguage: 'tr',
@@ -121,10 +128,14 @@ export const venues: Venue[] = [
         description: "Exclusive drinks & music.",
         coverImage: "https://images.unsplash.com/photo-1574096079513-d8259312b785?q=80&w=2670&auto=format&fit=crop",
         theme: {
-            primary: "#2563EB", // Electric Blue
-            secondary: "#A855F7", // Purple Accent
-            background: "#09090b", // Dark
-            foreground: "#FAFAF9", // Light text
+            primary: "#000000",
+            secondary: "#F3F4F6",
+            background: "#FFFFFF",
+            foreground: "#18181B",
+            headerColor: "#FFFFFF",
+            labelColor: "#000000",
+            cardColor: "#FAFAFA",
+            cardStyle: 'minimal'
         },
         categories: [
             { id: "c_one_1", name: "Kokteyller", image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=2670&auto=format&fit=crop" },

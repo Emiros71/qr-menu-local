@@ -1,0 +1,58 @@
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\admin\users\page.tsx[24m[0m
+[0m  [2m151:53[22m  [33mwarning[39m  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  [2m@next/next/no-img-element[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\admin\venues\[id]\page.tsx[24m[0m
+[0m    [2m13:97[22m   [33mwarning[39m  'GripVertical' is defined but never used                                                                                                                                                                                                                                                 [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m13:111[22m  [33mwarning[39m  'Download' is defined but never used                                                                                                                                                                                                                                                     [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m883:38[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element')[0m
+[0m   [2m885:41[22m   [33mwarning[39m  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  [2m@next/next/no-img-element[22m[0m
+[0m  [2m1232:34[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')[0m
+[0m  [2m1239:108[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\api\admin\update\route.ts[24m[0m
+[0m  [2m101:15[22m  [33mwarning[39m  '_resourceType' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\api\admin\users\route.ts[24m[0m
+[0m  [2m34:27[22m  [33mwarning[39m  '_req' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\login\page.tsx[24m[0m
+[0m  [2m126:18[22m  [33mwarning[39m  '_err' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\components\admin\ProductImporter.tsx[24m[0m
+[0m  [2m100:23[22m  [33mwarning[39m  '_catEn' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\components\admin\Sidebar.tsx[24m[0m
+[0m  [2m190:30[22m  [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element')[0m
+[0m  [2m192:33[22m  [33mwarning[39m  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  [2m@next/next/no-img-element[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\components\menu\RestaurantMenu.tsx[24m[0m
+[0m   [2m62:5[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from 'react-hooks/set-state-in-effect')[0m
+[0m   [2m64:9[22m   [31merror[39m    Error: Calling setState synchronously within an effect can trigger cascading renders[0m
+[0m[0m
+[0mEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:[0m
+[0m* Update external systems with the latest state from React.[0m
+[0m* Subscribe for updates from some external system, calling setState in a callback function when external state changes.[0m
+[0m[0m
+[0mCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).[0m
+[0m[0m
+[0mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\components\menu\RestaurantMenu.tsx:64:9[0m
+[0m  62 |     // eslint-disable-next-line react-hooks/set-state-in-effect[0m
+[0m  63 |     useEffect(() => {[0m
+[0m> 64 |         setImgSrc(src?.startsWith("http") ? src : defaultImage);[0m
+[0m     |         ^^^^^^^^^ Avoid calling setState() directly within an effect[0m
+[0m  65 |     }, [src, defaultImage]);[0m
+[0m  66 |[0m
+[0m  67 |     return (  [2mreact-hooks/set-state-in-effect[22m[0m
+[0m   [2m88:12[22m  [33mwarning[39m  '_isScrolled' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m97:5[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')[0m
+[0m  [2m100:65[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m301:5[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')[0m
+[0m  [2m322:18[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m325:9[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')[0m
+[0m  [2m351:9[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')[0m
+[0m  [2m608:58[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[31m[1m✖ 23 problems (5 errors, 18 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  0 errors and 8 warnings potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

@@ -1,0 +1,28 @@
+
+Running 4 tests using 1 worker
+
+[1A[2K[1/4] [chromium] › tests\allergens.spec.ts:38:9 › Allergen Management System › should display allergens tab
+[1A[2K  1) [chromium] › tests\allergens.spec.ts:38:9 › Allergen Management System › should display allergens tab 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeTruthy[2m()[22m
+
+    Received: [31mfalse[39m
+
+      25 |
+      26 |         const json = await response.json();
+    > 27 |         expect(response.ok()).toBeTruthy();
+         |                               ^
+      28 |         VENUE_ID = json.data[0].id;
+      29 |         console.log(`Created Allergen Venue: ${VENUE_ID}`);
+      30 |     });
+        at C:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\tests\allergens.spec.ts:27:31
+
+
+[1A[2K[2/4] [chromium] › tests\allergens.spec.ts:44:9 › Allergen Management System › should create a new allergen
+[1A[2K[3/4] [chromium] › tests\allergens.spec.ts:54:9 › Allergen Management System › should delete an allergen
+[1A[2K[4/4] [chromium] › tests\allergens.spec.ts:74:9 › Allergen Management System › should edit allergen and add translation
+[1A[2K  1 failed
+    [chromium] › tests\allergens.spec.ts:38:9 › Allergen Management System › should display allergens tab 
+  3 did not run
+
+[36m  Serving HTML report at http://localhost:52608. Press Ctrl+C to quit.[39m

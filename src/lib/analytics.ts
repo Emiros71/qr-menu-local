@@ -1,4 +1,4 @@
-export type EventType = 'view' | 'click' | 'scan' | 'VIEW_MENU' | 'CLICK_PRODUCT';
+export type EventType = 'view' | 'click' | 'scan' | 'VIEW_MENU' | 'CLICK_PRODUCT' | 'VIEW_POPUP' | 'CLICK_POPUP' | 'DISMISS_POPUP';
 export type TargetType = 'category' | 'product' | 'venue';
 
 import { createClient } from "@/utils/supabase/client";
@@ -63,6 +63,9 @@ export const AnalyticsService = {
             eventType = 'click';
             targetType = 'product';
             targetId = params.productId || '';
+        } else if (['VIEW_POPUP', 'CLICK_POPUP', 'DISMISS_POPUP'].includes(params.type)) {
+            eventType = params.type as EventType;
+            targetType = 'venue';
         }
 
         const event: AnalyticsEvent = {

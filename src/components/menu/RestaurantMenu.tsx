@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, useMemo } from "react";
-import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft, Check, ArrowUp, CakeSlice, Coffee, Utensils, Pizza, Sandwich, IceCream, Soup, GlassWater, X } from "lucide-react";
+import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft, Check, ArrowUp, CakeSlice, Coffee, Utensils, Pizza, Sandwich, IceCream, Soup, GlassWater, X, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Venue } from "@/data/db";
 import { AnalyticsService } from "@/lib/analytics";
@@ -470,24 +470,30 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                     transition={{ duration: 0.8, delay: 0.2 }}
                     className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-10 mt-8"
                 >
-                    {venue.logo && (
+                    {venue.theme?.showLogoInMenu === true && (
                         <motion.div
                             initial={{ scale: 0.5, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ duration: 0.5, type: "spring", bounce: 0.4 }}
-                            className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm p-1 shadow-2xl ring-1 ring-white/20 mb-4"
+                            className="w-20 h-20 rounded-full bg-black/40 backdrop-blur-sm p-[2px] shadow-2xl ring-1 ring-white/20 mb-4 flex items-center justify-center z-10"
                         >
-                            <div className="w-full h-full rounded-full overflow-hidden relative">
-                                <Image src={venue.logo} alt="Logo" fill className="object-contain" />
+                            <div className="w-full h-full rounded-full overflow-hidden relative flex items-center justify-center bg-[#4b4b4b]">
+                                {venue.logo ? (
+                                    <Image src={venue.logo} alt="Logo" fill className="object-cover" />
+                                ) : (
+                                    <Home className="w-8 h-8 text-white stroke-[1.5]" />
+                                )}
                             </div>
                         </motion.div>
                     )}
                     <h1 className="text-4xl md:text-6xl font-black text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)] tracking-tight mb-2">
                         {venue.name}
                     </h1>
-                    <p className="text-white/80 text-sm md:text-lg max-w-lg font-medium drop-shadow-md leading-relaxed px-4">
-                        {venue.description}
-                    </p>
+                    {venue.theme?.showDescriptionInMenu !== false && venue.description && (
+                        <p className="text-white/80 text-sm md:text-lg max-w-lg font-medium drop-shadow-md leading-relaxed px-4">
+                            {venue.description}
+                        </p>
+                    )}
                 </motion.div>
             </div>
 
@@ -507,7 +513,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                     </div>
 
                     {/* Categories */}
-                    <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 snap-x">
+                    <div className="flex gap-3 overflow-x-auto scrollbar-hide py-2 pb-4 -mx-4 px-4 snap-x">
                         {displayCategories.map((cat) => {
                             const available = isTimeInRange(currentTimeTimezone, cat.startTime, cat.endTime);
                             return (
@@ -638,8 +644,8 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                                         return (
                                             <motion.div
-                                                key={product.id}
-                                                layoutId={`product-${product.id}`}
+                                                key={`${cat.id}-${product.id}`}
+                                                layoutId={`product-${cat.id}-${product.id}`}
                                                 initial={{ opacity: 0, y: 20 }}
                                                 whileInView={{ opacity: 1, y: 0 }}
                                                 viewport={{ once: true, margin: "-50px" }}

@@ -10,7 +10,8 @@ export const SettingsService = {
                 title: "CROWNE PLAZA",
                 subtitle: "ANKARA",
                 instagramUrl: "https://instagram.com",
-                websiteUrl: "https://crowneplaza.com"
+                websiteUrl: "https://crowneplaza.com",
+                landingLogo: ""
             };
         }
 

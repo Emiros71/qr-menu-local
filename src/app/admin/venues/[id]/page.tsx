@@ -76,7 +76,46 @@ const AdminProductImage = ({ product, defaultImage, onClick }: { product: Produc
 
 const THEME_PRESETS = [
     {
-        name: "Lüks (FineDine Dark)",
+        name: "Aura (Kraliyet Laciverti)",
+        colors: {
+            primary: "#1A3673",
+            secondary: "#F8FAFC",
+            background: "#FFFFFF",
+            foreground: "#0F172A",
+            headerColor: "#FFFFFF",
+            labelColor: "#1A3673",
+            cardColor: "#F4F6F8",
+            cardStyle: 'modern'
+        }
+    },
+    {
+        name: "One Bar (Minimal Siyah)",
+        colors: {
+            primary: "#000000",
+            secondary: "#F3F4F6",
+            background: "#FFFFFF",
+            foreground: "#18181B",
+            headerColor: "#FFFFFF",
+            labelColor: "#000000",
+            cardColor: "#FAFAFA",
+            cardStyle: 'minimal'
+        }
+    },
+    {
+        name: "The Cafe (Orman Yeşili)",
+        colors: {
+            primary: "#115E26",
+            secondary: "#F0FDF4",
+            background: "#FFFFFF",
+            foreground: "#064E3B",
+            headerColor: "#FFFFFF",
+            labelColor: "#115E26",
+            cardColor: "#F7FBF7",
+            cardStyle: 'bordered'
+        }
+    },
+    {
+        name: "Lüks Karanlık (Klasik)",
         colors: {
             primary: "#D4AF37",
             secondary: "#27272a",
@@ -86,45 +125,6 @@ const THEME_PRESETS = [
             labelColor: "#D4AF37",
             cardColor: "#1E1E1E",
             cardStyle: 'modern'
-        }
-    },
-    {
-        name: "Ferah (FineDine Light)",
-        colors: {
-            primary: "#EA580C",
-            secondary: "#FFFFFF",
-            background: "#F3F4F6",
-            foreground: "#111827",
-            headerColor: "#FFFFFF",
-            labelColor: "#EA580C",
-            cardColor: "#FFFFFF",
-            cardStyle: 'minimal'
-        }
-    },
-    {
-        name: "Gece Mavisi (Midnight)",
-        colors: {
-            primary: "#38BDF8",
-            secondary: "#0F172A",
-            background: "#020617",
-            foreground: "#F0F9FF",
-            headerColor: "#020617",
-            labelColor: "#0EA5E9",
-            cardColor: "#111827",
-            cardStyle: 'modern'
-        }
-    },
-    {
-        name: "Organik (Doğal)",
-        colors: {
-            primary: "#15803d",
-            secondary: "#F0FDF4",
-            background: "#FCFAF7",
-            foreground: "#1c1917",
-            headerColor: "#FFFFFF",
-            labelColor: "#15803d",
-            cardColor: "#FFFFFF",
-            cardStyle: 'bordered'
         }
     }
 ];
@@ -297,7 +297,29 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         setSaving(true);
         try {
             // 1. Save Venue Settings
-            if (venueSettingsChanged && venueData) {
+            if (unwrappedParams.id === 'new' && venueData) {
+                const newSlug = venueData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
+                const createdInfo = await VenueService.createVenue({
+                    name: venueData.name,
+                    slug: newSlug,
+                    description: venueData.description || "Yeni Mekan",
+                    theme: venueData.theme,
+                    coverImage: venueData.coverImage,
+                    logo: venueData.logo,
+                    supportedLanguages: venueData.supportedLanguages,
+                    defaultLanguage: venueData.defaultLanguage,
+                    timezone: venueData.timezone,
+                    popup_settings: venueData.popup_settings
+                });
+
+                if (createdInfo && createdInfo.id) {
+                    alert("Yeni mekan başarıyla oluşturuldu! Ara yüz yenileniyor...");
+                    router.push(`/admin/venues/${createdInfo.id}`);
+                    return; // Stop here, reload page with new ID to continue editing categories/products safely
+                } else {
+                    throw new Error("Mekan oluşturulamadı.");
+                }
+            } else if (venueSettingsChanged && venueData) {
                 // Fetch current venue state for diff
                 try {
                     const originalVenue = await VenueService.getVenueById(venueData.id);
@@ -313,8 +335,10 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                 await VenueService.updateVenue(venueData.id, {
                     name: venueData.name,
+                    description: venueData.description,
                     theme: venueData.theme,
                     coverImage: venueData.coverImage,
+                    logo: venueData.logo,
                     supportedLanguages: venueData.supportedLanguages,
                     defaultLanguage: venueData.defaultLanguage,
                     timezone: venueData.timezone,
@@ -951,20 +975,52 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             <CardDescription>Genel görünüm ve marka ayarları.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Kapak Görseli</label>
-                                <ImageUpload
-                                    value={venueData.coverImage || ""}
-                                    onChange={(url) => handleVenueChange('coverImage', url)}
-                                    onRemove={() => handleVenueChange('coverImage', "")}
-                                    folder="qr-menu/venues"
-                                />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Kapak Görseli</label>
+                                    <ImageUpload
+                                        value={venueData.coverImage || ""}
+                                        onChange={(url) => handleVenueChange('coverImage', url)}
+                                        onRemove={() => handleVenueChange('coverImage', "")}
+                                        folder="qr-menu/venues"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Mekan Logosu</label>
+                                    <ImageUpload
+                                        value={(venueData as any).logo || ""}
+                                        onChange={(url) => handleVenueChange('logo', url)}
+                                        onRemove={() => handleVenueChange('logo', "")}
+                                        folder="qr-menu/venues/logos"
+                                    />
+                                    <div className="flex flex-col gap-3 mt-4">
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={venueData.theme?.showLogoInMenu === true}
+                                                onCheckedChange={(c) => handleVenueChange('theme', { showLogoInMenu: c })}
+                                            />
+                                            <span className="text-sm font-medium text-zinc-700">Logoyu menü içerisinde göster</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={venueData.theme?.showDescriptionInMenu !== false}
+                                                onCheckedChange={(c) => handleVenueChange('theme', { showDescriptionInMenu: c })}
+                                            />
+                                            <span className="text-sm font-medium text-zinc-700">Açıklamayı menü içerisinde göster</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-zinc-500 max-w-[200px] mt-2">Menü karşılama ekranında görünecek ekstra alanları yönetin.</p>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Mekan Adı</label>
                                     <Input value={venueData.name} onChange={(e) => handleVenueChange('name', e.target.value)} className="bg-white text-zinc-900" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Açıklama</label>
+                                    <Input value={venueData.description || ""} onChange={(e) => handleVenueChange('description', e.target.value)} placeholder="Örn: Taze kahve ve günlük tatlılar..." className="bg-white text-zinc-900" />
                                 </div>
                                 <div className="space-y-4 col-span-2">
                                     <div className="flex items-center justify-between border-b pb-2 mb-2 mt-2">

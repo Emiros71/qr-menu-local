@@ -1,0 +1,31 @@
+
+Running 4 tests using 1 worker
+
+[1A[2K[1/4] [chromium] › tests\allergens.spec.ts:41:9 › Allergen Management System › should display allergens tab
+[1A[2K[chromium] › tests\allergens.spec.ts:41:9 › Allergen Management System › should display allergens tab
+API Error: { error: [32m'Missing or invalid authorization header'[39m }
+
+[1A[2K  1) [chromium] › tests\allergens.spec.ts:41:9 › Allergen Management System › should display allergens tab 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeTruthy[2m()[22m
+
+    Received: [31mfalse[39m
+
+      28 |             console.error('API Error:', json);
+      29 |         }
+    > 30 |         expect(response.ok()).toBeTruthy();
+         |                               ^
+      31 |         VENUE_ID = json.data[0].id;
+      32 |         console.log(`Created Allergen Venue: ${VENUE_ID}`);
+      33 |     });
+        at C:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\tests\allergens.spec.ts:30:31
+
+
+[1A[2K[2/4] [chromium] › tests\allergens.spec.ts:47:9 › Allergen Management System › should create a new allergen
+[1A[2K[3/4] [chromium] › tests\allergens.spec.ts:57:9 › Allergen Management System › should delete an allergen
+[1A[2K[4/4] [chromium] › tests\allergens.spec.ts:77:9 › Allergen Management System › should edit allergen and add translation
+[1A[2K  1 failed
+    [chromium] › tests\allergens.spec.ts:41:9 › Allergen Management System › should display allergens tab 
+  3 did not run
+
+[36m  Serving HTML report at http://localhost:50899. Press Ctrl+C to quit.[39m

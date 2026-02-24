@@ -5,8 +5,11 @@ test.describe.serial('Audit Logging Verification', () => {
     let VENUE_ID: string;
     let PRODUCT_ID: string;
 
+    const HEADERS = { 'x-e2e-bypass': 'super-secret-e2e-bypass' };
+
     test('1. Create Venue (Should Log CREATE_VENUE)', async ({ request }) => {
         const response = await request.post('/api/admin/update', {
+            headers: HEADERS,
             data: {
                 table: 'venues',
                 action: 'create',
@@ -25,6 +28,7 @@ test.describe.serial('Audit Logging Verification', () => {
 
     test('2. Create Product (Should Log CREATE_PRODUCT)', async ({ request }) => {
         const response = await request.post('/api/admin/update', {
+            headers: HEADERS,
             data: {
                 table: 'products',
                 action: 'create',
@@ -44,6 +48,7 @@ test.describe.serial('Audit Logging Verification', () => {
 
     test('3. Update Product with Nested Translations (Should Log UPDATE_PRODUCT with Deep Diff)', async ({ request }) => {
         const response = await request.post('/api/admin/update', {
+            headers: HEADERS,
             data: {
                 table: 'products',
                 action: 'update',

@@ -1,0 +1,32 @@
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\admin\venues\[id]\page.tsx[24m[0m
+[0m    [2m13:97[22m   [33mwarning[39m  'GripVertical' is defined but never used                                                                                                                                                                                                                                                 [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m13:111[22m  [33mwarning[39m  'Download' is defined but never used                                                                                                                                                                                                                                                     [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m883:38[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element')[0m
+[0m   [2m885:41[22m   [33mwarning[39m  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  [2m@next/next/no-img-element[22m[0m
+[0m  [2m1232:34[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\api\admin\update\route.ts[24m[0m
+[0m  [2m101:15[22m  [33mwarning[39m  '_resourceType' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\api\admin\users\route.ts[24m[0m
+[0m  [2m34:27[22m  [33mwarning[39m  '_req' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\app\login\page.tsx[24m[0m
+[0m  [2m126:18[22m  [33mwarning[39m  '_err' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\components\admin\ProductImporter.tsx[24m[0m
+[0m  [2m100:23[22m  [33mwarning[39m  '_catEn' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\components\admin\Sidebar.tsx[24m[0m
+[0m  [2m190:30[22m  [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element')[0m
+[0m  [2m192:33[22m  [33mwarning[39m  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  [2m@next/next/no-img-element[22m[0m
+[0m[0m
+[0m[4mC:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\src\components\menu\RestaurantMenu.tsx[24m[0m
+[0m   [2m83:12[22m  [33mwarning[39m  '_isScrolled' is assigned a value but never used                                                       [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m294:5[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')[0m
+[0m  [2m343:9[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')[0m
+[0m[0m
+[0m[33m[1m✖ 14 problems (0 errors, 14 warnings)[22m[39m[0m
+[0m[33m[1m[22m[39m[33m[1m  0 errors and 5 warnings potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[33m[1m[22m[39m[0m

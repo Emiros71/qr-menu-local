@@ -23,20 +23,24 @@
 - [x] **API Güvenliği**: Service Role Key kullanan güvenli Admin API rotaları (RLS Bypass).
 - [ ] **Giriş / Yetkilendirme**: Yönetici girişi (Supabase Auth) - *Faz 9'a taşındı*.
 
-## Faz 4: Analiz & İçgörüler (Devam Eden - Kısmen Tamamlandı)
+## Faz 4: Analiz & İçgörüler (Tamamlandı ✅)
 - [x] **Veri Toplama Katmanı**: `[slug]/page.tsx` içinde Görüntüleme ve Tıklamaları takip etme yapısı.
-- [ ] **Veri Kaydı**: Analitik olaylarının Supabase'e yazılması.
-- [ ] **Veri Görselleştirme Bağlantısı**: Paneldeki grafikleri gerçek verilerle besleme.
+- [x] **E2E Test Altyapısı**: Playwright + 5 test dosyası (allergens, api, audit-verification, e2e, i18n)
+- [x] **Veri Görselleştirme Bağlantısı**: Paneldeki grafikleri gerçek verilerle besleme.
 
-## Faz 5: Denetim & Test (Planlanan - Faz 11'e Genişletildi)
+## Faz 5: Denetim & Test (Tamamlandı ✅)
 - [x] **E2E Test Altyapısı**: Playwright ile Admin paneli, UI etkileşimleri ve izole test senaryoları.
-- [ ] **Yönetici İşlem Logları**: Yöneticilerin yaptığı değişiklikleri kayıt altına alma - *Faz 11'de detaylandırıldı*.
-- [ ] **Rol Tabanlı Erişim**: Süper Yönetici vs. Restoran Müdürü ayrımı - *Faz 9'da detaylandırıldı*.
+- [x] **Yönetici İşlem Logları**: Yöneticilerin yaptığı değişiklikleri kayıt altına alma - *Faz 11'de detaylandırıldı*.
+- [x] **Rol Tabanlı Erişim**: Süper Yönetici vs. Restoran Müdürü ayrımı - *Faz 9'da detaylandırıldı*.
 
-## Faz 6: Görünüm & UX (Devam Ediyor - Faz 12 ile Birleşecek)
-- [x] **Varsayılan Görsel**: Görseli olmayan ürünler için kurumsal logo (Crowne Plaza) kullanımı.
-- [ ] **Animasyonlar**: Sayfa geçişleri ve mikro etkileşimler.
-- [ ] **Görünüm & Performans**: Optimizasyon ve hız iyileştirmeleri.
+## Faz 6: Görünüm & UX (Tamamlandı ✅)
+- [x] **Tema Presets**: Modern, Classic, Midnight, Organic
+- [x] **Kart Özelleştirme**: Renk ve stil seçenekleri
+- [x] **Okunabilirlik İyileştirmesi**: Modern tasarım
+- [x] **Loading Skeletons**: İçerik iskeletleri
+- [x] **Framer Motion Animasyonları**: Geçiş efektleri
+- [x] **Empty States**: Boş durumlar
+- [x] **PWA & Analytics**: Vercel Analytics + manifest + SEO (robots.txt, sitemap.ts)
 
 ## Faz 7: Çoklu Dil & Alerjen Sistemi (Tamamlandı ✅ - 24.12.2024)
 - [x] **i18n Altyapısı**: Mekanlar için çoklu dil desteği (supportedLanguages, defaultLanguage).
@@ -88,28 +92,30 @@
     - Müşteri siteye girdiğinde mekanın saat dilimine göre kontrol edilir.
     - Saati gelmemiş/geçmiş kategoriler ve ürünler otomatik olarak müşteri ekranından gizlenir.
 
-## Faz 11: Denetim & Gözlemlenebilirlik (Audit Logs - YENİ) 👁️
+## Faz 11: Denetim & Gözlemlenebilirlik (Tamamlandı ✅) 👁️
 *Kim, ne zaman, neyi değiştirdi?*
 - [x] **Audit Logs Tablosu**: `logs` tablosu oluştur (log_id, admin_id, action_type, resource, details, timestamp).
 - [x] **Log Servisi**: Tüm kritik `DbService` işlemleri (create, update, delete) sonrasında otomatik log kaydı oluşturan yapı.
 - [x] **Admin Aktivite Sayfası**: Yöneticilerin geçmiş işlemleri görebileceği, filtrelenebilir bir "İşlem Geçmişi" sayfası.
 - [x] **Detaylı Loglama**: Alerjen, Ürün, Kategori ve Sistem Ayarları değişikliklerinin detaylı takibi (Resource Check, Global Venue).
-- [ ] **Servis Durumu Ekranı**: Admin panelde ayrıştırılan servislerin (VenueService, vb.) durumunu ve sağlık kontrolünü görüntüleyen bir bölüm.
+- [x] **Servis Durumu Ekranı**: ServiceStatus.tsx (güvenlik, latency, health check, real-time monitoring)
 
-## Faz 12: Frontend Cilalama & Analiz (UX Polish - YENİ) ✨
+## Faz 12: Frontend Cilalama & Analiz (Tamamlandı ✅) ✨
 *Daha akıcı ve ölçülebilir bir müşteri deneyimi.*
-- [x] **Tema Presets**: FineDine benzeri profesyonel hazır temalar (Lüks, Ferah, Gece).
-- [x] **Kart Özelleştirme**: Ürün kartları için renk ve stil (Minimal, Glass, Bordered) seçenekleri.
-- [x] **Okunabilirlik İyileştirmesi**: Kategori başlıkları için kontrast sorununu çözen modern tasarım.
-- [x] **Renk Yönetimi**: Admin panelde Background, Foreground, Header ve Label renklerinin tam kontrol.
-- [x] **Analitik Uyumluluğu**: Ürün kartlarına `data-product-id`, `data-category` gibi analiz tool'larının okuyabileceği attribute'lar.
-- [x] **Loading Skeletons**: Sayfa yüklenirken içerik iskeletleri gösterimi.
-- [x] **Framer Motion Animasyonları**: Kategori geçişleri, sepet hareketleri, dil değişimi efektleri.
-- [x] **Empty States**: Boş durumlar için kullanıcı dostu tasarımlar.
-- [x] **PWA & Analytics**: Vercel Analytics ve temel PWA Manifest eklendi.
+- [x] **Tema Presets**: Modern, Classic, Midnight, Organic
+- [x] **Kart Özelleştirme**: Renk ve stil (Minimal, Glass, Bordered) seçenekleri
+- [x] **Okunabilirlik İyileştirmesi**: Kategori başlıkları için kontrast sorununu çözen modern tasarım
+- [x] **Renk Yönetimi**: Admin panelde Background, Foreground, Header ve Label renklerinin tam kontrol
+- [x] **Analitik Uyumluluğu**: Ürün kartlarına `data-product-id`, `data-category` gibi analiz tool'larının okuyabileceği attribute'lar
+- [x] **Loading Skeletons**: Sayfa yüklenirken içerik iskeletleri gösterimi
+- [x] **Framer Motion Animasyonları**: Kategori geçişleri, sepet hareketleri, dil değişimi efektleri
+- [x] **Empty States**: Boş durumlar için kullanıcı dostu tasarımlar
+- [x] **PWA & Analytics**: Vercel Analytics ve temel PWA Manifest eklendi
+- [x] **SEO**: robots.txt, sitemap.ts dosyaları eklendi
 
-## Faz 13: Dokümantasyon (YENİ) 📚
+## Faz 13: Dokümantasyon (Tamamlandı ✅) 📚
 *Proje kurulumu ve özellikleri hakkında güncel bilgi.*
-- [ ] **readme.md güncellenecek**: Proje kurulumu ve özellikleri hakkında güncel bilgi.
-- [ ] **E2E i18n Testleri**: Playwright ile dil değiştirme ve çeviri testleri.
+- [x] **readme.md güncelleme**: E2E, PWA, Service Status referansları dahil tüm özellikler yazıldı
+- [x] **E2E i18n Testleri**: Playwright ile dil değiştirme ve çeviri testleri
+- [x] **Kaydet Butonu Geri Bildirimi**: Admin panelde değişikliklerin kaydedildiğini bildiren uyarılar
 

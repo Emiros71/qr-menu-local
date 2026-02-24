@@ -12,7 +12,7 @@ export const VenueService = {
                 : mockVenues;
         }
 
-        let query = supabase.from('venues').select('*');
+        let query = supabase.from('venues').select('*').order('order_index', { ascending: true });
         if (profile && profile.role !== 'SUPER_ADMIN') {
             if (profile.venue_ids && profile.venue_ids.length > 0) {
                 query = query.in('id', profile.venue_ids);
@@ -30,6 +30,7 @@ export const VenueService = {
 
         return data.map((v: Record<string, unknown>) => ({
             ...v,
+            orderIndex: v.order_index,
             categories: [] as [],
             products: [] as []
         })) as unknown as Venue[];
@@ -105,6 +106,9 @@ export const VenueService = {
             id: venueData.id,
             slug: venueData.slug,
             name: venueData.name,
+            description: venueData.description,
+            logo: venueData.logo,
+            orderIndex: venueData.order_index,
             coverImage: venueData.cover_image || venueData.coverImage,
             timezone: venueData.timezone,
             theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme,
@@ -193,6 +197,9 @@ export const VenueService = {
             id: venueData.id,
             slug: venueData.slug,
             name: venueData.name,
+            description: venueData.description,
+            logo: venueData.logo,
+            orderIndex: venueData.order_index,
             coverImage: venueData.cover_image || venueData.coverImage,
             timezone: venueData.timezone,
             theme: typeof venueData.theme === 'string' ? JSON.parse(venueData.theme) : venueData.theme,
@@ -209,6 +216,48 @@ export const VenueService = {
         };
 
         return venue;
+    },
+
+    createVenue: async (venueConfig: Partial<Venue>): Promise<Venue | null> => {
+        if (!isSupabaseConfigured()) return null;
+
+        const dbInsert: Record<string, unknown> = { ...venueConfig };
+
+        // Remove relationships that don't belong in venues table
+        delete dbInsert.categories;
+        delete dbInsert.products;
+        delete dbInsert.allergens;
+        delete dbInsert.id; // Let DB generate UUID
+
+        if (venueConfig.coverImage !== undefined) {
+            dbInsert.cover_image = venueConfig.coverImage;
+            delete dbInsert.coverImage;
+        }
+        if (venueConfig.supportedLanguages !== undefined) {
+            dbInsert.supported_languages = venueConfig.supportedLanguages;
+            delete dbInsert.supportedLanguages;
+        }
+        if (venueConfig.defaultLanguage !== undefined) {
+            dbInsert.default_language = venueConfig.defaultLanguage;
+            delete dbInsert.defaultLanguage;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            dbInsert.user_id = user.id;
+        }
+
+        try {
+            const data = await performActionViaApi('venues', 'create', dbInsert);
+            if (data && data.length > 0) {
+                return data[0] as unknown as Venue;
+            }
+            return null;
+        } catch (e: any) {
+            console.error("Error creating venue:", JSON.stringify(e, null, 2));
+            console.error("Original error object:", e);
+            return null;
+        }
     },
 
     updateVenue: async (id: string, updates: Partial<Venue>) => {
@@ -260,6 +309,25 @@ export const VenueService = {
         } catch (e) {
             console.error(e);
             throw e;
+        }
+    },
+
+    updateVenueOrder: async (orderedIds: string[]) => {
+        if (!isSupabaseConfigured()) return;
+
+        try {
+            // Update order_index for each id one by one via API
+            for (let index = 0; index < orderedIds.length; index++) {
+                const id = orderedIds[index];
+                await performActionViaApi('venues', 'update', { order_index: index }, id);
+            }
+        } catch (e) {
+            console.error("Error updating venue order via API:", e);
+            // Fallback direct updates
+            for (let index = 0; index < orderedIds.length; index++) {
+                const id = orderedIds[index];
+                await supabase.from('venues').update({ order_index: index }).eq('id', id);
+            }
         }
     }
 };

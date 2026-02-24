@@ -1,0 +1,141 @@
+[dotenv@17.2.3] injecting env (6) from .env.local -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+
+Running 17 tests using 5 workers
+
+[1A[2K[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+
+[1A[2K[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+
+[1A[2K[1/17] [chromium] › tests\api.spec.ts:11:9 › Admin API Tests › should create a new category via API
+[1A[2K[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+
+[1A[2K[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  write to custom object with { processEnv: myObject }
+
+[1A[2K[2/17] [chromium] › tests\audit-verification.spec.ts:10:9 › Audit Logging Verification › 1. Create Venue (Should Log CREATE_VENUE)
+[1A[2K[3/17] [chromium] › tests\e2e.spec.ts:36:9 › QR Menu SaaS E2E Tests › Landing page should load and display venues
+[1A[2K[4/17] [chromium] › tests\allergens.spec.ts:40:9 › Allergen Management System › should display allergens tab
+[1A[2K[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+
+[1A[2K[5/17] [chromium] › tests\i18n.spec.ts:35:9 › i18n Functionality Tests › Admin should be able to add category translations via Modal
+[1A[2K[chromium] › tests\e2e.spec.ts:36:9 › QR Menu SaaS E2E Tests › Landing page should load and display venues
+Created E2E Venue: 7a649575-deba-4487-84da-aa75725c29a4 (e2e-venue-1771853115881)
+
+[1A[2K[chromium] › tests\allergens.spec.ts:40:9 › Allergen Management System › should display allergens tab
+Created Allergen Venue: 639b9257-12ca-4098-b594-d57035d8d593
+
+[1A[2K[chromium] › tests\audit-verification.spec.ts:10:9 › Audit Logging Verification › 1. Create Venue (Should Log CREATE_VENUE)
+Venue Created: 08cc0d69-fb0a-4e6f-aa39-266cd3a750f3
+
+[1A[2K[6/17] [chromium] › tests\audit-verification.spec.ts:29:9 › Audit Logging Verification › 2. Create Product (Should Log CREATE_PRODUCT)
+[1A[2K[chromium] › tests\i18n.spec.ts:35:9 › i18n Functionality Tests › Admin should be able to add category translations via Modal
+Created i18n Venue: 2d808f7e-f384-41cc-bcc8-68a2caedafe1
+
+[1A[2K  1) [chromium] › tests\audit-verification.spec.ts:29:9 › Audit Logging Verification › 2. Create Product (Should Log CREATE_PRODUCT) 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeTruthy[2m()[22m
+
+    Received: [31mfalse[39m
+
+      41 |             }
+      42 |         });
+    > 43 |         expect(response.ok()).toBeTruthy();
+         |                               ^
+      44 |         const json = await response.json();
+      45 |         PRODUCT_ID = json.data[0].id;
+      46 |         console.log('Product Created:', PRODUCT_ID);
+        at C:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\tests\audit-verification.spec.ts:43:31
+
+
+[1A[2K[7/17] [chromium] › tests\audit-verification.spec.ts:49:9 › Audit Logging Verification › 3. Update Product with Nested Translations (Should Log UPDATE_PRODUCT with Deep Diff)
+[1A[2K[8/17] [chromium] › tests\api.spec.ts:36:9 › Admin API Tests › should create a new product via API
+[1A[2K[9/17] [chromium] › tests\api.spec.ts:60:9 › Admin API Tests › should update the created product via API
+[1A[2K[10/17] [chromium] › tests\api.spec.ts:79:9 › Admin API Tests › should delete the created product via API
+[1A[2K[11/17] [chromium] › tests\api.spec.ts:88:9 › Admin API Tests › should delete the created category via API
+[1A[2K[12/17] [chromium] › tests\e2e.spec.ts:44:9 › QR Menu SaaS E2E Tests › Customer should be able to view the new venue menu
+[1A[2K[13/17] [chromium] › tests\e2e.spec.ts:54:9 › QR Menu SaaS E2E Tests › Admin should be able to manage categories and products via UI
+[1A[2K[chromium] › tests\e2e.spec.ts:54:9 › QR Menu SaaS E2E Tests › Admin should be able to manage categories and products via UI
+Cleaning up venue...
+
+[1A[2K  2) [chromium] › tests\e2e.spec.ts:54:9 › QR Menu SaaS E2E Tests › Admin should be able to manage categories and products via UI 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: locator('h1')
+    Expected pattern: [32m/E2E Test Venue/i[39m
+    Received string:  [31m"Güvenli Yönetim Paneli"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 5000ms[22m
+    [2m  - waiting for locator('h1')[22m
+    [2m    9 × locator resolved to <h1 class="text-2xl font-bold tracking-tight text-zinc-900">Güvenli Yönetim Paneli</h1>[22m
+    [2m      - unexpected value "Güvenli Yönetim Paneli"[22m
+
+
+      59 |
+      60 |         // Wait for page to load data (name should appear)
+    > 61 |         await expect(page.locator('h1')).toContainText(/E2E Test Venue/i);
+         |                                          ^
+      62 |
+      63 |         // --- A. Create Category ---
+      64 |         await page.getByRole('tab', { name: 'Kategoriler' }).click();
+        at C:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\tests\e2e.spec.ts:61:42
+
+    Error Context: test-results\e2e-QR-Menu-SaaS-E2E-Tests-e1811-egories-and-products-via-UI-chromium\error-context.md
+
+
+[1A[2K  3) [chromium] › tests\allergens.spec.ts:40:9 › Allergen Management System › should display allergens tab 
+
+    [31mTest timeout of 60000ms exceeded.[39m
+
+    Error: page.click: Test timeout of 60000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('text=Alerjenler')[22m
+
+
+      39 |
+      40 |     test('should display allergens tab', async ({ page }) => {
+    > 41 |         await page.click('text=Alerjenler');
+         |                    ^
+      42 |         await expect(page.locator('text=Alerjen Yönetimi')).toBeVisible();
+      43 |         await expect(page.locator('input[placeholder*="Yeni alerjen"]')).toBeVisible();
+      44 |     });
+        at C:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\tests\allergens.spec.ts:41:20
+
+    Error Context: test-results\allergens-Allergen-Managem-82651-hould-display-allergens-tab-chromium\error-context.md
+
+
+[1A[2K[14/17] [chromium] › tests\allergens.spec.ts:46:9 › Allergen Management System › should create a new allergen
+[1A[2K[15/17] [chromium] › tests\allergens.spec.ts:56:9 › Allergen Management System › should delete an allergen
+[1A[2K[16/17] [chromium] › tests\allergens.spec.ts:76:9 › Allergen Management System › should edit allergen and add translation
+[1A[2K  4) [chromium] › tests\i18n.spec.ts:35:9 › i18n Functionality Tests › Admin should be able to add category translations via Modal 
+
+    [31mTest timeout of 60000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('button', { name: 'Kategoriler' })[22m
+
+
+      38 |
+      39 |         // 1. Go to Categories Tab
+    > 40 |         await page.getByRole('button', { name: 'Kategoriler' }).click();
+         |                                                                 ^
+      41 |
+      42 |         // 2. Click "Yeni Kategori" (The big dashed button)
+      43 |         await page.getByText('Yeni Kategori').click();
+        at C:\Users\emir.altinsay\Documents\gemini\qr\qr-menu-saas\tests\i18n.spec.ts:40:65
+
+    Error Context: test-results\i18n-i18n-Functionality-Te-19ac5-gory-translations-via-Modal-chromium\error-context.md
+
+
+[1A[2K[17/17] [chromium] › tests\i18n.spec.ts:69:9 › i18n Functionality Tests › Customer Menu should show Language Selector and switch languages
+[1A[2K  4 failed
+    [chromium] › tests\allergens.spec.ts:40:9 › Allergen Management System › should display allergens tab 
+    [chromium] › tests\audit-verification.spec.ts:29:9 › Audit Logging Verification › 2. Create Product (Should Log CREATE_PRODUCT) 
+    [chromium] › tests\e2e.spec.ts:54:9 › QR Menu SaaS E2E Tests › Admin should be able to manage categories and products via UI 
+    [chromium] › tests\i18n.spec.ts:35:9 › i18n Functionality Tests › Admin should be able to add category translations via Modal 
+  5 did not run
+  8 passed (1.0m)
+
+[36m  Serving HTML report at http://localhost:56376. Press Ctrl+C to quit.[39m

@@ -1,29 +1,31 @@
 import { test, expect } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 test.describe.serial('QR Menu SaaS E2E Tests', () => {
     let VENUE_ID: string;
     let VENUE_SLUG: string;
 
     // Setup: Create a fresh venue for testing
-    test.beforeAll(async ({ request }) => {
+    test.beforeAll(async () => {
         const timestamp = Date.now();
         VENUE_SLUG = `e2e-venue-${timestamp}`;
 
-        const response = await request.post('/api/admin/update', {
-            data: {
-                table: 'venues',
-                action: 'create',
-                updates: {
-                    name: `E2E Test Venue ${timestamp}`,
-                    slug: VENUE_SLUG,
-                    theme: { primary: "#000000", secondary: "#ffffff", background: "#ffffff", foreground: "#000000" }
-                }
-            }
-        });
+        const { data, error } = await supabase.from('venues').insert({
+            name: `E2E Test Venue ${timestamp}`,
+            slug: VENUE_SLUG,
+            theme: { primary: "#000000", secondary: "#ffffff", background: "#ffffff", foreground: "#000000" }
+        }).select();
 
-        const json = await response.json();
-        expect(response.ok()).toBeTruthy();
-        VENUE_ID = json.data[0].id;
+        if (error) {
+            console.error('Supabase Setup Error:', error);
+        }
+        expect(error).toBeNull();
+        VENUE_ID = data![0].id;
         console.log(`Created E2E Venue: ${VENUE_ID} (${VENUE_SLUG})`);
     });
 
@@ -84,16 +86,10 @@ test.describe.serial('QR Menu SaaS E2E Tests', () => {
     });
 
     // Cleanup via API
-    test.afterAll(async ({ request }) => {
+    test.afterAll(async () => {
         if (VENUE_ID) {
             console.log('Cleaning up venue...');
-            await request.post('/api/admin/update', {
-                data: {
-                    table: 'venues',
-                    action: 'delete',
-                    id: VENUE_ID
-                }
-            });
+            await supabase.from('venues').delete().eq('id', VENUE_ID);
         }
     });
 

@@ -32,26 +32,26 @@ export default function ImageUpload({
             const file = await compressImage(rawFile, { maxSizeMB: 1.5 });
             // Updated to use Signed Upload (More Secure)
 
+            // Generate semantic public_id
+            const safeName = rawFile.name
+                .split('.')[0]
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '')
+                .substring(0, 50) || 'image';
+            const publicId = `${safeName}-${Math.random().toString(36).substring(2, 8)}`;
+
             // 1. Get Signature from our Server
             const timestamp = Math.round((new Date()).getTime() / 1000);
-
-            // Params we want to sign
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const _paramsToSign = {
-                timestamp,
-                folder,
-                // We use process.env value passed from props or default
-                upload_preset: undefined // Signed uploads usually don't need preset if we sign params manually, OR we use a signed preset. Let's stick to manual signing without preset for maximum control, OR utilize a signed preset if configured.
-                // Actually, simplest signed flow:
-                // timestamp + folder -> sign it.
-            };
 
             const signRes = await fetch('/api/sign-cloudinary', {
                 method: 'POST',
                 body: JSON.stringify({
                     paramsToSign: {
                         timestamp,
-                        folder
+                        folder,
+                        public_id: publicId
                     }
                 })
             });
@@ -64,6 +64,7 @@ export default function ImageUpload({
             formData.append("file", file);
             formData.append("timestamp", timestamp.toString());
             formData.append("folder", folder);
+            formData.append("public_id", publicId);
             formData.append("signature", signature);
             formData.append("api_key", process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "");
 
