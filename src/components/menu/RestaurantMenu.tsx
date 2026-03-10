@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, useMemo } from "react";
-import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft, Check, ArrowUp, CakeSlice, Coffee, Utensils, Pizza, Sandwich, IceCream, Soup, GlassWater, X, Home } from "lucide-react";
+import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft, Check, ArrowUp, CakeSlice, Coffee, Utensils, Pizza, Sandwich, IceCream, Soup, GlassWater, X, Home, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Venue } from "@/data/db";
 import { AnalyticsService } from "@/lib/analytics";
@@ -75,6 +75,82 @@ function ProductImage({ src, alt, defaultImage }: { src?: string, alt: string, d
 
 import ProductModal from "./ProductModal";
 
+const SubcategoryAccordion = ({ subcat, venueProducts, subCategories, renderProductCard, localize, isAvailable, currentTimeTimezone, searchTerm }: any) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Direct products of this subcategory
+    const directProducts = venueProducts.filter((p: any) =>
+        p.categoryId === subcat.id && p.isAvailable !== false &&
+        isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) &&
+        (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    // Direct children categories
+    const mySubcats = subCategories.filter((s: any) => s.parentId === subcat.id);
+
+    // Helper to check if any descendant has products
+    const hasAnyDescendantProducts = (catId: string): boolean => {
+        const hasDirect = venueProducts.some((p: any) => p.categoryId === catId && p.isAvailable !== false && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
+        if (hasDirect) return true;
+        const children = subCategories.filter((s: any) => s.parentId === catId);
+        return children.some((c: any) => hasAnyDescendantProducts(c.id));
+    };
+
+    // Filter children to only those that have descendant products
+    const activeChildSubcats = mySubcats.filter((c: any) => hasAnyDescendantProducts(c.id));
+
+    if (directProducts.length === 0 && activeChildSubcats.length === 0) return null;
+
+    return (
+        <div className={cn("border border-[var(--foreground)]/10 rounded-2xl overflow-hidden mt-4", !isAvailable && "opacity-50 grayscale pointer-events-none")}>
+            <button onClick={() => setIsOpen(!isOpen)} className="w-full h-14 px-4 flex items-center justify-between bg-[var(--card-color)] hover:bg-[var(--foreground)]/5 transition-colors">
+                <span className="font-bold text-lg text-[var(--foreground)] opacity-90">{localize(subcat, 'name')}</span>
+                <ChevronDown className={cn("h-5 w-5 text-[var(--foreground)]/60 transition-transform duration-300", isOpen ? "rotate-180" : "")} />
+            </button>
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden bg-[var(--background)]"
+                    >
+                        <div className="p-4 pt-4 border-t border-[var(--foreground)]/5">
+                            {directProducts.length > 0 && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {directProducts.map((p: any) => renderProductCard(p, subcat.id))}
+                                </div>
+                            )}
+
+                            {activeChildSubcats.length > 0 && (
+                                <div className={cn("space-y-4", directProducts.length > 0 ? "mt-6" : "")}>
+                                    {activeChildSubcats.map((childCat: any) => {
+                                        const childAvailable = isAvailable && isTimeInRange(currentTimeTimezone, childCat.startTime, childCat.endTime);
+                                        return (
+                                            <SubcategoryAccordion
+                                                key={childCat.id}
+                                                subcat={childCat}
+                                                venueProducts={venueProducts}
+                                                subCategories={subCategories}
+                                                renderProductCard={renderProductCard}
+                                                localize={localize}
+                                                isAvailable={childAvailable}
+                                                currentTimeTimezone={currentTimeTimezone}
+                                                searchTerm={searchTerm}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
 // ... previous imports
 
 export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
@@ -96,17 +172,90 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
             : ((venue.popup_settings as any)?.isActive ? [venue.popup_settings] : []); // eslint-disable-line @typescript-eslint/no-explicit-any
     }, [venue.popup_settings]);
 
+    // --- i18n Logic (Moved to top to prevent hoisting issues) ---
+    const supportedLangs = venue.supportedLanguages && venue.supportedLanguages.length > 0 ? venue.supportedLanguages : ['tr'];
+    const defaultLang = venue.defaultLanguage || 'tr';
+    const [currentLang, setCurrentLang] = useState(defaultLang);
+    const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
+
+    useEffect(() => {
+        // Detect browser language on mount
+        if (typeof navigator !== 'undefined') {
+            const browserLang = navigator.language.split('-')[0];
+            if (supportedLangs.includes(browserLang) && browserLang !== currentLang) {
+                setCurrentLang(browserLang);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [supportedLangs]);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const localize = (obj: any, field: string) => {
+        if (!obj) return "";
+        // If current lang is default, return direct field
+        if (currentLang === defaultLang) return obj[field];
+        // Try translations, fallback to default field
+        return obj.translations?.[currentLang]?.[field] || obj[field];
+    };
+
+    // Allergen localization helper
+    const localizeAllergen = (allergenName: string) => {
+        if (currentLang === defaultLang) return allergenName;
+        // Find allergen in venue's allergen list (case-insensitive)
+        const allergen = venue.allergens?.find(a => a.name.toLowerCase() === allergenName.toLowerCase());
+        // Return translation if exists, otherwise return original name
+        return allergen?.translations?.[currentLang]?.name || allergenName;
+    };
+
     const activeCategories = useMemo(() => {
         return venue.categories.filter(c => c.isAvailable !== false);
     }, [venue.categories]);
 
+    const topLevelCategories = useMemo(() => activeCategories.filter(c => !c.parentId), [activeCategories]);
+    const subCategories = useMemo(() => activeCategories.filter(c => c.parentId), [activeCategories]);
+
+    // PRE-FILTER PRODUCTS BY SEARCH TERM (Optimization for 300+ products)
+    const filteredProducts = useMemo(() => {
+        if (!searchTerm) return venue.products.filter(p => p.isAvailable);
+        const lowerSearch = searchTerm.toLowerCase();
+        return venue.products.filter(p =>
+            p.isAvailable && (
+                localize(p, 'name').toLowerCase().includes(lowerSearch) ||
+                localize(p, 'description').toLowerCase().includes(lowerSearch)
+            )
+        );
+    }, [venue.products, searchTerm, currentLang]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // MAP PRODUCTS TO CATEGORIES ONCE (Huge performance gain)
+    const categoryProductMap = useMemo(() => {
+        const map: Record<string, any[]> = {};
+
+        filteredProducts.forEach(p => {
+            if (!isTimeInRange(currentTimeTimezone, p.startTime, p.endTime)) return;
+
+            if (!map[p.categoryId]) map[p.categoryId] = [];
+            map[p.categoryId].push(p);
+        });
+
+        return map;
+    }, [filteredProducts, currentTimeTimezone]);
+
+    const discountedProducts = useMemo(() => {
+        return venue.products.filter(p =>
+            p.discount_type && p.discount_amount &&
+            p.isAvailable &&
+            activeCategories.some(c => c.id === p.categoryId) &&
+            isTimeInRange(currentTimeTimezone, p.startTime, p.endTime)
+        );
+    }, [venue.products, activeCategories, currentTimeTimezone]);
+
     const nativeCampaignCatIndex = useMemo(() => {
-        return activeCategories.findIndex(c =>
+        return topLevelCategories.findIndex(c =>
             (c.name || '').toLowerCase().includes('kampanya') ||
             (c.name || '').toLowerCase().includes('campaign')
         );
-    }, [activeCategories]);
-    const nativeCampaignCatId = nativeCampaignCatIndex > -1 ? venue.categories[nativeCampaignCatIndex].id : null;
+    }, [topLevelCategories]);
+    const nativeCampaignCatId = nativeCampaignCatIndex > -1 ? topLevelCategories[nativeCampaignCatIndex].id : null;
 
     useEffect(() => {
         if (activePopups.length > 0) {
@@ -241,43 +390,8 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const venueDefaultImage = (venue.theme as any)?.defaultProductImage || FALLBACK_DEFAULT_IMAGE;
 
-    // --- i18n Logic ---
-    const supportedLangs = venue.supportedLanguages && venue.supportedLanguages.length > 0 ? venue.supportedLanguages : ['tr'];
-    const defaultLang = venue.defaultLanguage || 'tr';
-    const [currentLang, setCurrentLang] = useState(defaultLang);
-    const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
-
+    // Track page view on mount
     useEffect(() => {
-        // Detect browser language on mount
-        if (typeof navigator !== 'undefined') {
-            const browserLang = navigator.language.split('-')[0];
-            if (supportedLangs.includes(browserLang) && browserLang !== currentLang) {
-                setCurrentLang(browserLang);
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [supportedLangs]);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const localize = (obj: any, field: string) => {
-        if (!obj) return "";
-        // If current lang is default, return direct field
-        if (currentLang === defaultLang) return obj[field];
-        // Try translations, fallback to default field
-        return obj.translations?.[currentLang]?.[field] || obj[field];
-    };
-
-    // Allergen localization helper
-    const localizeAllergen = (allergenName: string) => {
-        if (currentLang === defaultLang) return allergenName;
-        // Find allergen in venue's allergen list (case-insensitive)
-        const allergen = venue.allergens?.find(a => a.name.toLowerCase() === allergenName.toLowerCase());
-        // Return translation if exists, otherwise return original name
-        return allergen?.translations?.[currentLang]?.name || allergenName;
-    };
-
-    useEffect(() => {
-        // Track page view on mount
         AnalyticsService.trackEvent({
             type: 'VIEW_MENU',
             venueId: venue.id,
@@ -285,15 +399,8 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
         });
     }, [venue.id, venue.slug]);
 
-    const discountedProducts = venue.products.filter(p =>
-        p.discount_type && p.discount_amount &&
-        p.isAvailable &&
-        activeCategories.some(c => c.id === p.categoryId) &&
-        isTimeInRange(currentTimeTimezone, p.startTime, p.endTime)
-    );
-
     const displayCategories = useMemo(() => {
-        const cats = [...activeCategories];
+        const cats = [...topLevelCategories];
 
         if (nativeCampaignCatIndex > 0) {
             const campaignCat = cats.splice(nativeCampaignCatIndex, 1)[0];
@@ -315,7 +422,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
             } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         }
         return cats;
-    }, [activeCategories, nativeCampaignCatIndex, discountedProducts.length, currentLang, venue.id]);
+    }, [topLevelCategories, nativeCampaignCatIndex, discountedProducts.length, currentLang, venue.id]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -380,6 +487,99 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
         if (n.includes('burger') || n.includes('sand')) return <Sandwich className="h-7 w-7 text-zinc-700" />;
         if (n.includes('dondurma') || n.includes('ice')) return <IceCream className="h-7 w-7 text-zinc-700" />;
         return <MenuIcon className="h-7 w-7 text-zinc-700" />;
+    };
+
+    const renderProductCard = (product: any, catId: string) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const cardStyle = (venue.theme as any)?.cardStyle || 'modern'; // eslint-disable-line @typescript-eslint/no-explicit-any
+        let cardClassName = "relative flex flex-col gap-3 p-3 rounded-2xl transition-all duration-300 group overflow-hidden cursor-pointer ";
+
+        if (cardStyle === 'minimal') cardClassName += "bg-[var(--card-color)] hover:shadow-sm";
+        else if (cardStyle === 'bordered') cardClassName += "bg-[var(--card-color)] border border-[var(--foreground)]/10";
+        else if (cardStyle === 'glass') cardClassName += "bg-white/10 backdrop-blur-md border border-white/20 shadow-lg hover:bg-white/20";
+        else cardClassName += "bg-[var(--card-color)] shadow-sm hover:shadow-md border border-[var(--foreground)]/5";
+
+        return (
+            <div
+                key={`${catId}-${product.id}`}
+                className={cn(cardClassName, "animate-in fade-in slide-in-from-bottom-2 duration-500")}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    AnalyticsService.trackEvent({
+                        type: 'CLICK_PRODUCT',
+                        venueId: venue.id,
+                        productId: product.id,
+                        metadata: { productName: product.name }
+                    });
+                    setSelectedProduct(product);
+                }}
+            >
+                {/* Hover Glow Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)]/0 to-[var(--primary)]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+                <div className="flex gap-4 items-start">
+                    {/* Product Image */}
+                    <div className="relative w-28 h-28 shrink-0 rounded-xl overflow-hidden bg-black/20 shadow-inner">
+                        <ProductImage src={product.image} alt={localize(product, 'name')} defaultImage={venueDefaultImage} />
+                        {product.isChefRecommendation && (
+                            <div className="absolute top-0 left-0 bg-[var(--label-color)] text-white text-[9px] uppercase font-bold px-2 py-1 rounded-br-lg shadow-sm z-10">
+                                ★
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex flex-col flex-1 gap-1 relative z-10">
+                        <div className="flex-1">
+                            <div className="flex justify-between items-start gap-2">
+                                <h4 className="font-bold text-base text-[var(--foreground)] leading-tight group-hover:text-[var(--primary)] transition-colors">
+                                    {localize(product, 'name')}
+                                </h4>
+                            </div>
+                            <p className="text-sm text-[var(--foreground)]/60 line-clamp-2 leading-relaxed mt-0.5">
+                                {localize(product, 'description')}
+                            </p>
+
+                            {/* Allergens */}
+                            {product.allergens && product.allergens.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                    {product.allergens.slice(0, 3).map((allergen: string) => (
+                                        <span key={allergen} className="text-[9px] font-medium px-1 py-0.5 bg-white/5 text-zinc-400 rounded border border-white/10">
+                                            {localizeAllergen(allergen)}
+                                        </span>
+                                    ))}
+                                    {product.allergens.length > 3 && <span className="text-[9px] text-zinc-500">...</span>}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-between mt-auto pt-1">
+                            <div className="flex flex-col">
+                                {product.discount_type && product.discount_amount ? (
+                                    <>
+                                        <span className="text-[10px] text-[var(--foreground)]/50 line-through">
+                                            ₺{product.price}
+                                        </span>
+                                        <span className="font-bold text-base text-[var(--primary)] flex items-center gap-1.5">
+                                            ₺{getDiscountedPrice(product.price, product.discount_type, product.discount_amount)?.toFixed(2).replace(/\.00$/, '')}
+                                            <span className="text-[9px] bg-red-500 text-white px-1 py-0.5 rounded-full">
+                                                {product.discount_type === 'percentage' ? `%${product.discount_amount}` : `-${product.discount_amount}₺`}
+                                            </span>
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="font-bold text-base text-[var(--primary)]">
+                                        ₺{product.price}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-[var(--foreground)] group-hover:bg-[var(--primary)] group-hover:text-white transition-all">
+                                <ChevronRight className="h-4 w-4" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     const themeStyles = venue.theme ? {
@@ -522,7 +722,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                     id={`btn-${cat.id}`}
                                     onClick={() => available ? scrollToCategory(cat.id) : null}
                                     className={cn(
-                                        "flex flex-col items-center gap-2 group min-w-[72px] snap-start",
+                                        "flex flex-col items-center gap-2 group min-w-[80px] w-[88px] shrink-0 snap-start",
                                         available ? "cursor-pointer" : "cursor-not-allowed opacity-50 grayscale"
                                     )}
                                 >
@@ -546,13 +746,16 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex flex-col items-center">
-                                        <span className={cn(
-                                            "text-[11px] font-bold whitespace-nowrap px-2 py-0.5 rounded-full transition-colors",
-                                            activeCategory === cat.id && available
-                                                ? "text-white bg-[var(--primary)] shadow-sm"
-                                                : "text-zinc-500 group-hover:text-zinc-900"
-                                        )}>
+                                    <div className="flex flex-col items-center w-full px-1">
+                                        <span
+                                            className={cn(
+                                                "text-[10px] leading-snug font-bold text-center line-clamp-2 px-1.5 py-1 rounded-[8px] transition-colors w-full break-words",
+                                                activeCategory === cat.id && available
+                                                    ? "text-white bg-[var(--primary)] shadow-sm"
+                                                    : "text-zinc-500 group-hover:text-zinc-900"
+                                            )}
+                                            title={localize(cat, 'name')}
+                                        >
                                             {localize(cat, 'name')}
                                         </span>
                                     </div>
@@ -573,28 +776,33 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                         const categoryProducts = cat.id === 'campaigns-dynamic-cat'
                             ? discountedProducts.filter(p => (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())))
-                            : venue.products.filter(p =>
-                                (p.categoryId === cat.id) &&
-                                p.isAvailable &&
-                                isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && // Product-level time check!
-                                (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase()))
+                            : (categoryProductMap[cat.id] || []).filter(p =>
+                                isNativeCampaigns ? !discountedProducts.some(dp => dp.id === p.id) : true
                             );
 
+                        // If it's the "Campaigns" section (native or dynamic), make sure it includes campaign products
                         if (isNativeCampaigns) {
-                            const discountedNotInCategory = discountedProducts.filter(dp =>
-                                dp.categoryId !== cat.id &&
-                                (searchTerm === "" || localize(dp, 'name').toLowerCase().includes(searchTerm.toLowerCase()))
-                            );
-
-                            // Prevent duplicates if already in array
-                            discountedNotInCategory.forEach(dp => {
+                            discountedProducts.forEach(dp => {
                                 if (!categoryProducts.some(existingP => existingP.id === dp.id)) {
                                     categoryProducts.push(dp);
                                 }
                             });
                         }
 
-                        if (categoryProducts.length === 0) return null;
+                        const relatedSubcats = subCategories.filter(s => s.parentId === cat.id);
+
+                        // If no products and no subcategories, skip
+                        // Helper to check for subcategory trees
+                        const hasProductsInTree = (catId: string): boolean => {
+                            const hasDirect = venue.products.some((p: any) => p.categoryId === catId && p.isAvailable !== false && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
+                            if (hasDirect) return true;
+                            const children = subCategories.filter((s: any) => s.parentId === catId);
+                            return children.some((c: any) => hasProductsInTree(c.id));
+                        };
+
+                        const hasAnyValidSubcat = relatedSubcats.some(s => hasProductsInTree(s.id));
+
+                        if (categoryProducts.length === 0 && !hasAnyValidSubcat) return null;
 
                         return (
                             <section key={cat.id} id={cat.id} className={cn("mb-12 scroll-mt-[200px]", !available && "opacity-50 pointer-events-none grayscale")}>
@@ -632,111 +840,50 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {categoryProducts.map((product) => {
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        const cardStyle = (venue.theme as any)?.cardStyle || 'modern';
-                                        let cardClassName = "relative flex flex-col gap-3 p-3 rounded-2xl transition-all duration-300 group overflow-hidden cursor-pointer ";
-
-                                        if (cardStyle === 'minimal') cardClassName += "bg-[var(--card-color)] hover:shadow-sm";
-                                        else if (cardStyle === 'bordered') cardClassName += "bg-[var(--card-color)] border border-[var(--foreground)]/10";
-                                        else if (cardStyle === 'glass') cardClassName += "bg-white/10 backdrop-blur-md border border-white/20 shadow-lg hover:bg-white/20";
-                                        else cardClassName += "bg-[var(--card-color)] shadow-sm hover:shadow-md border border-[var(--foreground)]/5";
-
-                                        return (
-                                            <motion.div
-                                                key={`${cat.id}-${product.id}`}
-                                                layoutId={`product-${cat.id}-${product.id}`}
-                                                initial={{ opacity: 0, y: 20 }}
-                                                whileInView={{ opacity: 1, y: 0 }}
-                                                viewport={{ once: true, margin: "-50px" }}
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                className={cardClassName}
-                                                data-product-id={product.id}
-                                                data-category={cat.id}
-                                                onClick={() => {
-                                                    AnalyticsService.trackEvent({
-                                                        type: 'CLICK_PRODUCT',
-                                                        venueId: venue.id,
-                                                        productId: product.id,
-                                                        metadata: { productName: product.name }
-                                                    });
-                                                    setSelectedProduct(product);
-                                                }}
-                                            >
-                                                {/* Hover Glow Effect */}
-                                                <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)]/0 to-[var(--primary)]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-                                                {/* Product Image */}
-                                                <div className="relative w-28 h-28 shrink-0 rounded-xl overflow-hidden bg-black/20 shadow-inner">
-                                                    <ProductImage src={product.image} alt={localize(product, 'name')} defaultImage={venueDefaultImage} />
-                                                    {product.isChefRecommendation && (
-                                                        <div className="absolute top-0 left-0 bg-[var(--label-color)] text-white text-[9px] uppercase font-bold px-2 py-1 rounded-br-lg shadow-sm z-10">
-                                                            ★
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Content */}
-                                                <div className="flex flex-col flex-1 gap-2 py-1 relative z-10">
-                                                    <div className="flex-1">
-                                                        <div className="flex justify-between items-start gap-2">
-                                                            <h4 className="font-bold text-base text-[var(--foreground)] leading-tight group-hover:text-[var(--primary)] transition-colors">
-                                                                {localize(product, 'name')}
-                                                            </h4>
-                                                        </div>
-                                                        <p className="text-sm text-[var(--foreground)]/60 line-clamp-2 leading-relaxed mt-1">
-                                                            {localize(product, 'description')}
-                                                        </p>
-
-                                                        {/* Allergens (Minimal List - Dark Mode Friendly) */}
-                                                        {product.allergens && product.allergens.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1.5 mt-2.5">
-                                                                {product.allergens.map(allergen => (
-                                                                    <span key={allergen} className="text-[10px] font-medium px-1.5 py-0.5 bg-white/5 text-zinc-400 rounded border border-white/10 flex items-center gap-1">
-                                                                        {localizeAllergen(allergen)}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between mt-auto">
-                                                        <div className="flex flex-col">
-                                                            {product.discount_type && product.discount_amount ? (
-                                                                <>
-                                                                    <span className="text-xs text-[var(--foreground)]/50 line-through">
-                                                                        ₺{product.price}
-                                                                    </span>
-                                                                    <span className="font-bold text-lg text-[var(--primary)] flex items-center gap-2">
-                                                                        ₺{getDiscountedPrice(product.price, product.discount_type, product.discount_amount)?.toFixed(2).replace(/\.00$/, '')}
-                                                                        <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full -translate-y-1 inline-block">
-                                                                            {product.discount_type === 'percentage' ? `%${product.discount_amount}` : `-${product.discount_amount}₺`}
-                                                                        </span>
-                                                                    </span>
-                                                                </>
-                                                            ) : (
-                                                                <span className="font-bold text-lg text-[var(--primary)]">
-                                                                    ₺{product.price}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <button className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[var(--foreground)] group-hover:bg-[var(--primary)] group-hover:text-white transition-all transform group-hover:scale-110 shadow-sm border border-white/5">
-                                                            <ChevronRight className="h-5 w-5" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        );
-                                    })}
+                                    {categoryProducts.map((product) => renderProductCard(product, cat.id))}
                                 </div>
+
+                                {relatedSubcats.length > 0 && (() => {
+                                    // Helper to check if a category tree has any products matching filters
+                                    const hasAnyDescendantProductsMenu = (catId: string): boolean => {
+                                        const hasDirect = venue.products.some((p: any) => p.categoryId === catId && p.isAvailable !== false && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
+                                        if (hasDirect) return true;
+                                        const children = subCategories.filter((s: any) => s.parentId === catId);
+                                        return children.some((c: any) => hasAnyDescendantProductsMenu(c.id));
+                                    };
+
+                                    const activeRelatedSubcats = relatedSubcats.filter(subcat => hasAnyDescendantProductsMenu(subcat.id));
+
+                                    if (activeRelatedSubcats.length === 0) return null;
+
+                                    return (
+                                        <div className="mt-8 space-y-4">
+                                            {activeRelatedSubcats.map(subcat => {
+                                                const subAvailable = available && isTimeInRange(currentTimeTimezone, subcat.startTime, subcat.endTime);
+                                                return (
+                                                    <SubcategoryAccordion
+                                                        key={subcat.id}
+                                                        subcat={subcat}
+                                                        venueProducts={venue.products}
+                                                        subCategories={subCategories}
+                                                        renderProductCard={renderProductCard}
+                                                        localize={localize}
+                                                        isAvailable={subAvailable}
+                                                        currentTimeTimezone={currentTimeTimezone}
+                                                        searchTerm={searchTerm}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
                             </section>
                         );
                     })}
                 </AnimatePresence>
 
                 {/* Empty State / No Results */}
-                {venue.products.filter(p => p.isAvailable && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase()))).length === 0 && (
+                {filteredProducts.length === 0 && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}

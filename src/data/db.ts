@@ -22,6 +22,8 @@ export type Category = {
     name: string;
     image?: string;
     coverImage?: string;
+    parentId?: string | null;
+    children?: Category[];
     startTime?: string; // "HH:mm:ss" format
     endTime?: string;   // "HH:mm:ss" format
     translations?: Record<string, TranslationData>;

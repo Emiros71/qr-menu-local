@@ -94,6 +94,7 @@ export const VenueService = {
                 name: c.name as string,
                 image,
                 coverImage,
+                parentId: c.parent_id as string | null,
                 venueId: c.venue_id as string,
                 startTime: c.start_time as string,
                 endTime: c.end_time as string,
@@ -185,6 +186,7 @@ export const VenueService = {
                 name: c.name as string,
                 image,
                 coverImage,
+                parentId: c.parent_id as string | null,
                 venueId: c.venue_id as string,
                 startTime: c.start_time as string,
                 endTime: c.end_time as string,
@@ -313,7 +315,13 @@ export const VenueService = {
     },
 
     updateVenueOrder: async (orderedIds: string[]) => {
-        if (!isSupabaseConfigured()) return;
+        if (!isSupabaseConfigured()) {
+            orderedIds.forEach((id, index) => {
+                const v = mockVenues.find(v => v.id === id);
+                if (v) v.orderIndex = index;
+            });
+            return;
+        }
 
         try {
             // Update order_index for each id one by one via API

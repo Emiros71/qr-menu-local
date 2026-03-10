@@ -15,6 +15,7 @@ export const CategoryService = {
         if (updates.endTime !== undefined) dbUpdates.end_time = updates.endTime;
 
         if (updates.isAvailable !== undefined) dbUpdates.is_available = updates.isAvailable;
+        if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId === "" ? null : updates.parentId;
 
         // Handle Image Store (JSON or String)
         if (updates.image !== undefined || updates.coverImage !== undefined) {
@@ -76,6 +77,7 @@ export const CategoryService = {
         if (category.endTime !== undefined) dbCategory.end_time = category.endTime;
 
         if (category.isAvailable !== undefined) dbCategory.is_available = category.isAvailable;
+        if (category.parentId !== undefined) dbCategory.parent_id = category.parentId === "" ? null : category.parentId;
 
         // Use Image column to store both icon and cover as JSON
         const icon = category.image;
@@ -95,6 +97,7 @@ export const CategoryService = {
                 image: category.image,
                 coverImage: category.coverImage,
                 venueId: data.venue_id,
+                parentId: data.parent_id,
                 translations: data.translations,
                 startTime: data.start_time,
                 endTime: data.end_time
@@ -109,6 +112,7 @@ export const CategoryService = {
                 image: category.image,
                 coverImage: category.coverImage,
                 venueId: data.venue_id,
+                parentId: data.parent_id,
                 translations: data.translations,
                 startTime: data.start_time,
                 endTime: data.end_time

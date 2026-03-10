@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import { Venue, Product, Category, Allergen } from "@/data/db";
 import { VenueService } from "@/services/venue-service";
 import { CategoryService } from "@/services/category-service";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Switch } from "@/components/ui/Switch";
-import { ArrowLeft, ArrowUp, ArrowDown, Plus, Save, Search as SearchIcon, Trash2, Edit2, Check, X, Star, Image as LucideImage, Globe, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, Plus, Save, Search as SearchIcon, Trash2, Edit2, Check, X, Star, Image as LucideImage, Globe, Loader2, AlertTriangle, ChevronLeft, ChevronRight, Filter, RotateCcw } from "lucide-react";
 import ImageUpload from "@/components/ui/ImageUpload";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -143,20 +143,110 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     const [allergens, setAllergens] = useState<Allergen[]>([]);
 
     // Dirty State (Track changes)
-    const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set()); // Product IDs that changed
-    const [unsavedCategoryChanges, setUnsavedCategoryChanges] = useState<Set<string>>(new Set()); // Category IDs that changed
+    const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
+    const [unsavedCategoryChanges, setUnsavedCategoryChanges] = useState<Set<string>>(new Set());
     const [venueSettingsChanged, setVenueSettingsChanged] = useState(false);
 
     // UI States
     const [activeTab, setActiveTab] = useState('menu');
     const [modalTab, setModalTab] = useState<'general' | 'translations'>('general');
 
+    // Pagination & Filtering
+    const ITEMS_PER_PAGE = 20;
+    const [currentPage, setCurrentPage] = useState(1);
+    const [filterCategory, setFilterCategory] = useState<string>('');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+    const [filterChef, setFilterChef] = useState(false);
+    const [filterDiscount, setFilterDiscount] = useState(false);
+
     // Allergen Management
     const [isAddingAllergen, setIsAddingAllergen] = useState(false);
     const [newAllergen, setNewAllergen] = useState("");
 
     const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null); // For Details Modal
+    const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+
+    // Helper: get depth of a category in tree
+    const getCategoryDepth = (catId: string | null | undefined, cats: Category[]): number => {
+        if (!catId) return 0;
+        const cat = cats.find(c => c.id === catId);
+        if (!cat || !cat.parentId) return 0;
+        return 1 + getCategoryDepth(cat.parentId, cats);
+    };
+
+    // Helper: get breadcrumb path for a category
+    const getCategoryBreadcrumb = (catId: string, cats: Category[]): string => {
+        const cat = cats.find(c => c.id === catId);
+        if (!cat) return '';
+        if (!cat.parentId) return cat.name;
+        return getCategoryBreadcrumb(cat.parentId, cats) + ' > ' + cat.name;
+    };
+
+    // Helper: sort categories in tree order (parent then children recursively)
+    const sortCategoriesTree = (cats: Category[]): Category[] => {
+        const result: Category[] = [];
+        const addChildren = (parentId: string | null) => {
+            cats.filter(c => (c.parentId || null) === parentId).forEach(c => {
+                result.push(c);
+                addChildren(c.id);
+            });
+        };
+        addChildren(null);
+        return result;
+    };
+
+    // Helper: check if selecting parentId would create a circular reference
+    const wouldCreateCircle = (catId: string, parentId: string, cats: Category[]): boolean => {
+        if (catId === parentId) return true;
+        let current = parentId;
+        const visited = new Set<string>();
+        while (current) {
+            if (visited.has(current)) return true;
+            visited.add(current);
+            const cat = cats.find(c => c.id === current);
+            if (!cat?.parentId) break;
+            if (cat.parentId === catId) return true;
+            current = cat.parentId;
+        }
+        return false;
+    };
+
+    // Filtered & paginated products
+    const filteredProducts = useMemo(() => {
+        let result = [...products];
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(p => p.name.toLowerCase().includes(q));
+        }
+        if (filterCategory) {
+            // Include products from selected category AND its subcategories
+            const getDescendantIds = (parentId: string): string[] => {
+                const children = categories.filter(c => c.parentId === parentId);
+                return [parentId, ...children.flatMap(c => getDescendantIds(c.id))];
+            };
+            const catIds = getDescendantIds(filterCategory);
+            result = result.filter(p => catIds.includes(p.categoryId));
+        }
+        if (filterStatus === 'active') result = result.filter(p => p.isAvailable);
+        if (filterStatus === 'inactive') result = result.filter(p => !p.isAvailable);
+        if (filterChef) result = result.filter(p => p.isChefRecommendation);
+        if (filterDiscount) result = result.filter(p => p.discount_type && p.discount_amount);
+        return result;
+    }, [products, searchQuery, filterCategory, filterStatus, filterChef, filterDiscount, categories]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
+    const paginatedProducts = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredProducts.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredProducts, currentPage]);
+
+    // Reset page when filters change
+    useEffect(() => { setCurrentPage(1); }, [searchQuery, filterCategory, filterStatus, filterChef, filterDiscount]);
+
+    const hasActiveFilters = filterCategory || filterStatus !== 'all' || filterChef || filterDiscount;
+    const resetFilters = () => { setFilterCategory(''); setFilterStatus('all'); setFilterChef(false); setFilterDiscount(false); setSearchQuery(''); };
+
+    const treeSortedCategories = useMemo(() => sortCategoriesTree(categories), [categories]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load Data
     useEffect(() => {
@@ -444,7 +534,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
     const handleCreateCategory = () => {
         if (!venueData) return;
-        setEditingCategory({ id: 'new', name: '', translations: {} } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        setEditingCategory({ id: 'new', name: '', translations: {}, parentId: null } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         setCategoryModalTab('general');
         setIsCategoryModalOpen(true);
     };
@@ -464,7 +554,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     name: editingCategory.name,
                     translations: editingCategory.translations,
                     image: editingCategory.image,
-                    coverImage: editingCategory.coverImage
+                    coverImage: editingCategory.coverImage,
+                    parentId: editingCategory.parentId
                 });
                 if (created) {
                     setCategories(prev => [...prev, created as import('@/data/db').Category]);
@@ -477,7 +568,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     name: editingCategory.name,
                     translations: editingCategory.translations,
                     image: editingCategory.image,
-                    coverImage: editingCategory.coverImage
+                    coverImage: editingCategory.coverImage,
+                    parentId: editingCategory.parentId
                 });
 
                 // Update local state
@@ -517,23 +609,33 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         setUnsavedCategoryChanges(prev => new Set(prev).add(catId));
     };
 
-    const handleMoveCategory = async (index: number, direction: 'up' | 'down') => {
-        const newCategories = [...categories];
-        if (direction === 'up' && index > 0) {
-            const temp = newCategories[index - 1];
-            newCategories[index - 1] = newCategories[index];
-            newCategories[index] = temp;
-        } else if (direction === 'down' && index < newCategories.length - 1) {
-            const temp = newCategories[index + 1];
-            newCategories[index + 1] = newCategories[index];
-            newCategories[index] = temp;
-        } else {
-            return;
+    const handleMoveCategory = async (catId: string, direction: 'up' | 'down') => {
+        const cat = categories.find(c => c.id === catId);
+        if (!cat) return;
+
+        // Find siblings
+        const siblings = categories.filter(c => (c.parentId || null) === (cat.parentId || null));
+        const currentIndex = siblings.findIndex(c => c.id === catId);
+
+        let targetSibling = null;
+        if (direction === 'up' && currentIndex > 0) {
+            targetSibling = siblings[currentIndex - 1];
+        } else if (direction === 'down' && currentIndex < siblings.length - 1) {
+            targetSibling = siblings[currentIndex + 1];
         }
 
-        setCategories(newCategories);
+        if (!targetSibling) return;
+
+        const mainIndexA = categories.findIndex(c => c.id === cat.id);
+        const mainIndexB = categories.findIndex(c => c.id === targetSibling.id);
+
+        const newCats = [...categories];
+        newCats[mainIndexA] = targetSibling;
+        newCats[mainIndexB] = cat;
+
+        setCategories(newCats);
         try {
-            await CategoryService.updateCategoryOrder(newCategories.map(c => c.id));
+            await CategoryService.updateCategoryOrder(newCats.map(c => c.id));
         } catch (e) {
             console.error(e);
             alert("Kategori sıralaması güncellenemedi.");
@@ -673,11 +775,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
 
     if (loading) return <div className="min-h-screen flex items-center justify-center text-zinc-900">Yükleniyor...</div>;
-    if (!venueData) return <div>Mekan bulunamadı.</div>;
-
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    if (!venueData) return <div className="min-h-screen flex items-center justify-center text-zinc-900">Mekan bulunamadı.</div>;
 
     return (
         <div className="space-y-6 pb-20 text-zinc-900">
@@ -746,29 +844,83 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             {/* 1. PRODUCTS TAB */}
             {activeTab === 'products' && (
                 <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <div className="relative w-72">
-                            <Input
-                                placeholder="Ürün Ara..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 bg-white text-zinc-900"
-                            />
-                            <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                    <div className="flex flex-col gap-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-lg font-semibold text-zinc-900">Ürünler <span className="text-zinc-500 text-sm ml-2 font-normal">({filteredProducts.length} Tüm Ürünler)</span></h2>
+                            <div className="flex gap-2">
+                                <ProductImporter
+                                    onImport={handleImportProducts}
+                                    onExport={handleExportProducts}
+                                    existingCategories={categories}
+                                />
+                                <Button onClick={handleCreateProduct}>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Yeni Ürün
+                                </Button>
+                            </div>
                         </div>
 
-                        <div className="flex gap-2">
-                            <ProductImporter
-                                onImport={handleImportProducts}
-                                onExport={handleExportProducts}
-                                existingCategories={categories}
-                            />
-                            <Button onClick={handleCreateProduct}>
-                                <Plus className="h-4 w-4 mr-2" />
-                                Yeni Ürün
-                            </Button>
+                        {/* Filter Bar */}
+                        <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-xl flex flex-wrap gap-4 items-end shadow-sm">
+                            <div className="flex-1 min-w-[200px] space-y-1.5">
+                                <label className="text-xs font-semibold text-zinc-500">Ürün Ara</label>
+                                <div className="relative">
+                                    <Input
+                                        placeholder="Ad veya açıklamada ara..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-9 bg-white"
+                                    />
+                                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                                </div>
+                            </div>
+                            <div className="w-56 space-y-1.5">
+                                <label className="text-xs font-semibold text-zinc-500">Kategori</label>
+                                <select
+                                    value={filterCategory}
+                                    onChange={(e) => setFilterCategory(e.target.value)}
+                                    className="w-full h-10 px-3 rounded-md border border-input bg-white text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                                >
+                                    <option value="">Tümü</option>
+                                    {treeSortedCategories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>
+                                            {getCategoryBreadcrumb(cat.id, categories)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="w-36 space-y-1.5">
+                                <label className="text-xs font-semibold text-zinc-500">Durum</label>
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value as any)}
+                                    className="w-full h-10 px-3 rounded-md border border-input bg-white text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                                >
+                                    <option value="all">Tümü</option>
+                                    <option value="active">Aktif</option>
+                                    <option value="inactive">Gizli</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-4 items-center h-10">
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <Switch checked={filterChef} onCheckedChange={setFilterChef} />
+                                    <span className="text-sm text-zinc-600 group-hover:text-zinc-900 transition-colors flex items-center gap-1"><Star className="w-4 h-4 text-amber-500" /> Şef</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <Switch checked={filterDiscount} onCheckedChange={setFilterDiscount} />
+                                    <span className="text-sm text-zinc-600 group-hover:text-zinc-900 transition-colors">İndirimli</span>
+                                </label>
+                            </div>
+                            {hasActiveFilters && (
+                                <Button variant="ghost" size="sm" onClick={resetFilters} className="h-10 text-red-500 hover:text-red-600 hover:bg-red-50">
+                                    <RotateCcw className="w-4 h-4 mr-2" />
+                                    Temizle
+                                </Button>
+                            )}
                         </div>
                     </div>
+
+
 
                     <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
                         <table className="w-full text-left text-sm">
@@ -784,7 +936,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-200">
-                                {filteredProducts.map((product) => (
+                                {paginatedProducts.map((product) => (
                                     <tr key={product.id} className={cn("transition-colors group", unsavedChanges.has(product.id) ? "bg-amber-50/40" : "hover:bg-zinc-50/50")}>
 
                                         {/* Image */}
@@ -873,89 +1025,182 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 ))}
                             </tbody>
                         </table>
+
+                        {filteredProducts.length === 0 && (
+                            <div className="py-12 text-center text-zinc-500 flex flex-col items-center">
+                                <SearchIcon className="w-12 h-12 text-zinc-300 mb-4" />
+                                <p className="text-lg font-medium text-zinc-900">Ürün bulunamadı</p>
+                                <p className="text-sm mt-1 mb-4">Arama kriterlerinize uyan ürün bulunmuyor.</p>
+                                {hasActiveFilters && (
+                                    <Button variant="outline" onClick={resetFilters}>Filtreleri Temizle</Button>
+                                )}
+                            </div>
+                        )}
+
+                        {filteredProducts.length > 0 && (
+                            <div className="bg-zinc-50 border-t border-zinc-200 px-6 py-4 flex items-center justify-between">
+                                <div className="text-sm text-zinc-500">
+                                    Toplam <span className="font-medium text-zinc-900">{filteredProducts.length}</span> üründen <span className="font-medium text-zinc-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)}</span> arası gösteriliyor
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline" size="sm"
+                                        onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 300, behavior: 'smooth' }); }}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeft className="w-4 h-4 mr-1" /> Önceki
+                                    </Button>
+
+                                    <div className="flex items-center gap-1 mx-2">
+                                        {Array.from({ length: totalPages }).map((_, i) => {
+                                            const p = i + 1;
+                                            if (totalPages > 7) {
+                                                if (p !== 1 && p !== totalPages && Math.abs(currentPage - p) > 1) {
+                                                    if (p === 2 || p === totalPages - 1) return <span key={p} className="text-zinc-400 px-1">...</span>;
+                                                    return null;
+                                                }
+                                            }
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => { setCurrentPage(p); window.scrollTo({ top: 300, behavior: 'smooth' }); }}
+                                                    className={cn("w-8 h-8 rounded text-sm font-medium transition-colors", currentPage === p ? "bg-primary text-primary-foreground" : "hover:bg-zinc-200 text-zinc-600")}
+                                                >
+                                                    {p}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <Button
+                                        variant="outline" size="sm"
+                                        onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 300, behavior: 'smooth' }); }}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Sonraki <ChevronRight className="w-4 h-4 ml-1" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
 
             {activeTab === 'categories' && (
                 <div className="flex flex-col gap-3">
-                    {categories.map((cat, index) => (
-                        <Card key={cat.id} className="group hover:border-primary/50 transition-colors bg-white relative flex items-center p-4">
+                    {treeSortedCategories.map((cat, index) => {
+                        const depth = getCategoryDepth(cat.id, categories);
+                        // find subcategory product counts recursively
+                        const getCatAndSubcatsProductsCount = (catId: string): number => {
+                            const directProducts = products.filter(p => p.categoryId === catId).length;
+                            const subcats = categories.filter(c => c.parentId === catId);
+                            let subcatProds = 0;
+                            subcats.forEach(sc => subcatProds += getCatAndSubcatsProductsCount(sc.id));
+                            return directProducts + subcatProds;
+                        };
+                        const totalProds = getCatAndSubcatsProductsCount(cat.id);
+                        const directProds = products.filter(p => p.categoryId === cat.id);
 
-                            {/* Sorting Arrows */}
-                            <div className="flex flex-col gap-1 mr-4">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-zinc-400 hover:text-zinc-900"
-                                    onClick={(e) => { e.stopPropagation(); handleMoveCategory(index, 'up'); }}
-                                    disabled={index === 0}
-                                >
-                                    <ArrowUp className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-zinc-400 hover:text-zinc-900"
-                                    onClick={(e) => { e.stopPropagation(); handleMoveCategory(index, 'down'); }}
-                                    disabled={index === categories.length - 1}
-                                >
-                                    <ArrowDown className="h-4 w-4" />
-                                </Button>
-                            </div>
+                        const siblings = categories.filter(c => (c.parentId || null) === (cat.parentId || null));
+                        const siblingIndex = siblings.findIndex(c => c.id === cat.id);
+                        const isFirstSibling = siblingIndex === 0;
+                        const isLastSibling = siblingIndex === siblings.length - 1;
 
-                            <div
-                                className="flex-1 flex items-center gap-4 cursor-pointer"
-                                onClick={() => handleEditCategory(cat)}
+                        return (
+                            <Card
+                                key={cat.id}
+                                className={cn(
+                                    "group hover:border-primary/50 transition-colors bg-white relative",
+                                    depth > 0 ? "border-l-[3px] border-l-primary/40 rounded-l-sm" : ""
+                                )}
+                                style={{ marginLeft: `${depth * 2}rem` }}
                             >
-                                <div className="h-16 w-16 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-300 shrink-0 overflow-hidden border border-zinc-100 relative">
-                                    {cat.image ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <LucideImage className="h-6 w-6 opacity-50" />
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="font-bold text-zinc-900 truncate pr-8">{cat.name}</div>
-                                    <div className="text-xs text-zinc-500 mt-0.5">
-                                        {products.filter(p => p.categoryId === cat.id).length} Ürün
-                                        {products.filter(p => p.categoryId === cat.id).length > 0 && (
-                                            <div className="text-[10px] text-zinc-400 mt-1 truncate" title={products.filter(p => p.categoryId === cat.id).map(p => p.name).join(', ')}>
-                                                {products.filter(p => p.categoryId === cat.id).map(p => p.name).join(', ')}
+                                <div className="flex items-center p-4">
+                                    {/* Sorting Arrows */}
+                                    <div className="flex flex-col gap-1 mr-4">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-zinc-400 hover:text-zinc-900"
+                                            onClick={(e) => { e.stopPropagation(); handleMoveCategory(cat.id, 'up'); }}
+                                            disabled={isFirstSibling}
+                                        >
+                                            <ArrowUp className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-zinc-400 hover:text-zinc-900"
+                                            onClick={(e) => { e.stopPropagation(); handleMoveCategory(cat.id, 'down'); }}
+                                            disabled={isLastSibling}
+                                        >
+                                            <ArrowDown className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+
+                                    {/* Content Clickable Area */}
+                                    <div
+                                        className="flex-1 flex items-center gap-4 cursor-pointer"
+                                        onClick={() => handleEditCategory(cat)}
+                                    >
+                                        <div className="h-16 w-16 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-300 shrink-0 overflow-hidden border border-zinc-100 relative shadow-sm">
+                                            {cat.image ? (
+                                                <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <LucideImage className="h-6 w-6 opacity-50" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0 pr-6">
+                                            <div className="flex items-center gap-2">
+                                                <div className="font-bold text-lg text-zinc-900 truncate">{cat.name}</div>
+                                                {cat.parentId && (
+                                                    <span className="text-[10px] font-medium bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full border border-zinc-200">
+                                                        Alt Kategori
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
-                                        {(cat.startTime || cat.endTime) && (
-                                            <div className="text-[10px] font-mono text-amber-600 bg-amber-50 inline-block px-1.5 py-0.5 rounded mt-1 border border-amber-200">
-                                                ⏱ {cat.startTime?.substring(0, 5) || '00:00'} - {cat.endTime?.substring(0, 5) || '23:59'}
+                                            <div className="text-xs text-zinc-500 mt-1 flex items-center gap-3">
+                                                <span>{totalProds} Ürün {depth === 0 && categories.filter(c => c.parentId === cat.id).length > 0 ? `(${categories.filter(c => c.parentId === cat.id).length} Alt Kategori)` : ''}</span>
+                                                {(cat.startTime || cat.endTime) && (
+                                                    <span className="font-mono text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                                        ⏱ {cat.startTime?.substring(0, 5) || '00:00'} - {cat.endTime?.substring(0, 5) || '23:59'}
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
+                                            {directProds.length > 0 && (
+                                                <div className="text-[11px] text-zinc-400 mt-1.5 truncate max-w-xl" title={directProds.map(p => p.name).join(', ')}>
+                                                    İçerik: {directProds.map(p => p.name).join(', ')}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Right Controls - Fixed Layout */}
+                                    <div className="flex items-center gap-6 pl-4 border-l border-zinc-100 shrink-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className={cn("text-xs font-medium w-10 text-right transiiton-colors", cat.isAvailable !== false ? 'text-primary' : 'text-zinc-400')}>
+                                                {cat.isAvailable !== false ? 'Aktif' : 'Gizli'}
+                                            </span>
+                                            <Switch
+                                                checked={cat.isAvailable !== false}
+                                                onCheckedChange={(val) => {
+                                                    handleCategoryChange(cat.id, 'isAvailable', val);
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="flex gap-1.5">
+                                            <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleEditCategory(cat)}>
+                                                <Edit2 className="h-4 w-4 text-zinc-500" />
+                                            </Button>
+                                            <Button variant="outline" size="sm" className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200" onClick={() => handleDeleteCategory(cat.id)}>
+                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs font-medium text-zinc-500">
-                                        {cat.isAvailable !== false ? 'Aktif' : 'Gizli'}
-                                    </span>
-                                    <div onClick={(e) => e.stopPropagation()}>
-                                        <Switch
-                                            checked={cat.isAvailable !== false}
-                                            onCheckedChange={(val) => {
-                                                handleCategoryChange(cat.id, 'isAvailable', val);
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-zinc-100" onClick={(e) => { e.stopPropagation(); handleEditCategory(cat); }}>
-                                        <Edit2 className="h-3.5 w-3.5 text-zinc-500" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}>
-                                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
+                            </Card>
+                        );
+                    })}
                     <button
                         onClick={handleCreateCategory}
                         className="h-full min-h-[80px] border-2 border-dashed border-zinc-200 rounded-xl flex items-center justify-center gap-2 text-zinc-500 hover:border-primary hover:text-primary transition-colors bg-zinc-50/50"
@@ -1872,14 +2117,34 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             <div className="p-6 space-y-6">
                                 {categoryModalTab === 'general' && (
                                     <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-200">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Kategori Adı</label>
-                                            <Input
-                                                value={editingCategory.name}
-                                                onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
-                                                placeholder="Örn: Ana Yemekler"
-                                                autoFocus
-                                            />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Kategori Adı</label>
+                                                <Input
+                                                    value={editingCategory.name}
+                                                    onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
+                                                    placeholder="Örn: Ana Yemekler"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Bağlı Olduğu Üst Kategori</label>
+                                                <select
+                                                    value={editingCategory.parentId || ''}
+                                                    onChange={(e) => setEditingCategory(prev => prev ? ({ ...prev, parentId: e.target.value || null }) : null)}
+                                                    className="w-full h-10 px-3 rounded-md border border-input bg-white text-zinc-900 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                                                >
+                                                    <option value="">(Ana Kategori)</option>
+                                                    {treeSortedCategories
+                                                        .filter(c => c.id !== editingCategory.id && !wouldCreateCircle(editingCategory.id, c.id, categories))
+                                                        .map(c => (
+                                                            <option key={c.id} value={c.id}>
+                                                                {getCategoryBreadcrumb(c.id, categories)}
+                                                            </option>
+                                                        ))
+                                                    }
+                                                </select>
+                                            </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">

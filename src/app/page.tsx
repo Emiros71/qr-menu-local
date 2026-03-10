@@ -109,7 +109,7 @@ export default function LandingPage() {
                         <div className="text-white/50 text-sm">Yükleniyor...</div>
                     ) : (
                         <div className="grid gap-3">
-                            {venues.map((venue) => (
+                            {[...venues].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)).map((venue) => (
                                 <Link key={venue.id} href={`/${venue.slug}`} className="group relative overflow-hidden rounded-xl bg-white/5 border border-white/10 p-4 flex items-center justify-between hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] hover:border-white/30 hover:shadow-lg hover:shadow-[var(--shadow-color)]" style={{ "--shadow-color": venue.theme.primary + '40' } as React.CSSProperties}>
                                     <div className="flex items-center gap-4 z-10">
                                         <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden relative border border-white/10 shrink-0">
@@ -136,9 +136,13 @@ export default function LandingPage() {
                     )}
                 </div>
 
-                <footer className="absolute bottom-6 text-white/20 text-[10px] uppercase tracking-widest">
-                    Powered by QR Menu SaaS
-                </footer>
+                <a 
+                    href="https://www.linkedin.com/in/emir-altinsay" 
+                    target="_blank" 
+                    className="absolute bottom-6 text-white/20 text-[10px] uppercase tracking-widest hover:text-white/50 transition-colors"
+                >
+                    Powered by Emir
+                </a>
             </div>
         </div>
     );
