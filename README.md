@@ -15,9 +15,11 @@ A comprehensive, multi-tenant QR Menu Software as a Service (SaaS) platform buil
 - **Card Styles:** Multiple product card layout options (Modern, Bordered).
 
 ### 🏷️ Product & Category Management
-- **Smart Categories:** Manual drag-and-drop ordering and Active/Inactive toggles.
+- **Multi-Level Categories:** Create nesting with infinite depth (e.g., Alcohols > Wines > Red Wines). Recursive rendering ensures all levels appear correctly in the customer menu.
+- **Smart Analytics-Ready Categories:** Manual drag-and-drop ordering and Active/Inactive toggles.
+- **Performance Optimized Admin:** Paginated product lists and advanced filtering (Category, Status, Chef recommendation, Discounts).
 - **Time-Based Visibility:** Set specific service hours (e.g., Breakfast 06:00-12:00) for both categories and individual products.
-- **Excel Sync:** Bulk import/export products via Excel, seamlessly syncing Turkish and English titles, descriptions, and categories.
+- **Excel Sync:** Bulk import/export products via Excel, seamlessly syncing titles, descriptions, and categories.
 
 ### 💡 Marketing & Campaigns
 - **Interactive Pop-ups:** Create targeted promotional pop-ups for customers entering the menu.

@@ -119,3 +119,10 @@
 - [x] **E2E i18n Testleri**: Playwright ile dil değiştirme ve çeviri testleri
 - [x] **Kaydet Butonu Geri Bildirimi**: Admin panelde değişikliklerin kaydedildiğini bildiren uyarılar
 
+## Faz 14: Çok Seviyeli Kategoriler & Performans (Tamamlandı ✅) 🚀
+- [x] **N-Seviye Kategori Altyapısı**: Kategori ağacı yapısı (Tree Structure) ve recursive (özyinelemeli) kategori gösterimi.
+- [x] **Recursive Menü Gösterimi**: Müşteri menüsünde iç içe sınırsız derinlikte kategori ve ürün gösterimi desteği.
+- [x] **Admin Panel Performansı**: Ürün listelemede sayfalama (Pagination - 20 öğe) ve gecikmelerin giderilmesi.
+- [x] **Gelişmiş Filtreleme**: Kategori, Durum (Aktif/Pasif), Şefin Tavsiyesi ve İndirimli ürünler için Admin filtreleri.
+- [x] **Dinamik Kategori Sıralama**: Hiyerarşik yapıya uygun (Parent/Child korumalı) sürükle/bırak (yukarı/aşağı) mantığı.
+- [x] **UI İyileştirmeleri**: Admin kategori listesinde derinlik göstergesi ve tasarım sabitlemeleri.
