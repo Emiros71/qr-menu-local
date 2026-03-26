@@ -40,7 +40,7 @@ BEGIN
   VALUES (new.id, new.raw_user_meta_data->>'full_name', 'venue_manager'); -- Default to venue_manager for now
   RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger the function every time a user is created
 CREATE OR REPLACE TRIGGER on_auth_user_created

@@ -37,11 +37,11 @@ BEGIN
         NEW.id,
         NEW.email,
         NEW.raw_user_meta_data->>'full_name',
-        COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'VENUE_MANAGER'::user_role)
+        COALESCE((NEW.raw_user_meta_data->>'role')::public.user_role, 'VENUE_MANAGER'::public.user_role)
     );
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Bind trigger
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
