@@ -44,7 +44,7 @@ async function seed() {
             continue;
         }
 
-        venueIdMap[ven.id] = vData.id;
+        venueIdMap[String(ven.id)] = vData.id;
         const realVenueId = vData.id;
 
         // 2. Insert Categories
@@ -65,14 +65,14 @@ async function seed() {
                 continue;
             }
 
-            categoryIdMap[cat.id] = cData.id;
+            categoryIdMap[String(cat.id)] = cData.id;
         }
 
         // 3. Insert Products
         // We need to loop products and match them to the NEW category ID
         // The current mock structure has products flat in venue but with categoryId link
         for (const prod of ven.products) {
-            const realCategoryId = categoryIdMap[prod.categoryId];
+            const realCategoryId = categoryIdMap[String(prod.categoryId)];
 
             if (!realCategoryId) {
                 console.warn(`Skipping product ${prod.name} because category ${prod.categoryId} wasn't found.`);
