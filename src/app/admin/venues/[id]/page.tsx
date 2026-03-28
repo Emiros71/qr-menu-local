@@ -216,7 +216,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         let result = [...products];
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            result = result.filter(p => p.name.toLowerCase().includes(q));
+            result = result.filter(p => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q));
         }
         if (filterCategory) {
             // Include products from selected category AND its subcategories

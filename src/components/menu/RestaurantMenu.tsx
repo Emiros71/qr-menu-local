@@ -78,11 +78,10 @@ import ProductModal from "./ProductModal";
 const SubcategoryAccordion = ({ subcat, venueProducts, subCategories, renderProductCard, localize, isAvailable, currentTimeTimezone, searchTerm }: any) => {
     const [isOpen, setIsOpen] = useState(false);
 
-    // Direct products of this subcategory
+    // Direct products of this subcategory (venueProducts is already pre-filtered by search & availability)
     const directProducts = venueProducts.filter((p: any) =>
-        p.categoryId === subcat.id && p.isAvailable !== false &&
-        isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) &&
-        (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase()))
+        p.categoryId === subcat.id &&
+        isTimeInRange(currentTimeTimezone, p.startTime, p.endTime)
     );
 
     // Direct children categories
@@ -90,7 +89,7 @@ const SubcategoryAccordion = ({ subcat, venueProducts, subCategories, renderProd
 
     // Helper to check if any descendant has products
     const hasAnyDescendantProducts = (catId: string): boolean => {
-        const hasDirect = venueProducts.some((p: any) => p.categoryId === catId && p.isAvailable !== false && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
+        const hasDirect = venueProducts.some((p: any) => p.categoryId === catId && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime));
         if (hasDirect) return true;
         const children = subCategories.filter((s: any) => s.parentId === catId);
         return children.some((c: any) => hasAnyDescendantProducts(c.id));
@@ -339,7 +338,8 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                 const searchTermLower = currentPopup.link.toLowerCase().trim();
                 const targetProduct = venue.products.find(p =>
                     p.id === currentPopup.link ||
-                    localize(p, 'name').toLowerCase().includes(searchTermLower)
+                    localize(p, 'name').toLowerCase().includes(searchTermLower) ||
+                    localize(p, 'description').toLowerCase().includes(searchTermLower)
                 );
 
                 if (targetProduct) {
@@ -777,7 +777,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                         const isNativeCampaigns = (nativeCampaignCatIndex !== -1 ? 0 : -1) === index;
 
                         const categoryProducts = cat.id === 'campaigns-dynamic-cat'
-                            ? discountedProducts.filter(p => (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())))
+                            ? discountedProducts.filter(p => (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase()) || localize(p, 'description').toLowerCase().includes(searchTerm.toLowerCase())))
                             : (categoryProductMap[cat.id] || []).filter(p =>
                                 isNativeCampaigns ? !discountedProducts.some(dp => dp.id === p.id) : true
                             );
@@ -796,7 +796,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                         // If no products and no subcategories, skip
                         // Helper to check for subcategory trees
                         const hasProductsInTree = (catId: string): boolean => {
-                            const hasDirect = venue.products.some((p: any) => p.categoryId === catId && p.isAvailable !== false && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
+                            const hasDirect = filteredProducts.some((p: any) => p.categoryId === catId && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime));
                             if (hasDirect) return true;
                             const children = subCategories.filter((s: any) => s.parentId === catId);
                             return children.some((c: any) => hasProductsInTree(c.id));
@@ -848,7 +848,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                 {relatedSubcats.length > 0 && (() => {
                                     // Helper to check if a category tree has any products matching filters
                                     const hasAnyDescendantProductsMenu = (catId: string): boolean => {
-                                        const hasDirect = venue.products.some((p: any) => p.categoryId === catId && p.isAvailable !== false && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime) && (searchTerm === "" || localize(p, 'name').toLowerCase().includes(searchTerm.toLowerCase())));
+                                        const hasDirect = filteredProducts.some((p: any) => p.categoryId === catId && isTimeInRange(currentTimeTimezone, p.startTime, p.endTime));
                                         if (hasDirect) return true;
                                         const children = subCategories.filter((s: any) => s.parentId === catId);
                                         return children.some((c: any) => hasAnyDescendantProductsMenu(c.id));
@@ -866,7 +866,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                                     <SubcategoryAccordion
                                                         key={subcat.id}
                                                         subcat={subcat}
-                                                        venueProducts={venue.products}
+                                                        venueProducts={filteredProducts}
                                                         subCategories={subCategories}
                                                         renderProductCard={renderProductCard}
                                                         localize={localize}
