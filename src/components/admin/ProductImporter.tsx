@@ -102,8 +102,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 // i18n Parsing
                 const nameEn = getVal("Ürün Adı (EN)") || getVal("Product Name EN") || getVal("Name EN");
                 const descEn = getVal("Açıklama (EN)") || getVal("Description EN");
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const _catEn = getVal("Kategori (EN)") || getVal("Category EN");
+                const catEn = getVal("Kategori (EN)") || getVal("Category EN");
 
                 const translations: Record<string, unknown> = {};
                 if (nameEn || descEn) {
@@ -113,16 +112,13 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     };
                 }
 
-                // Kategori çevirisi için geçici alan (daha sonra işlenebilir veya şimdilik sadece ürün bazlı tutulur)
-                // Not: Kategori çevirisi şu anki import yapısında karmaşık olabilir, çünkü kategori tek bir entity. 
-                // Şimdilik sadece ürün çevirilerine odaklanıyoruz.
-
                 return {
                     id: getVal("ID"), // Optional ID for updates
                     name: getVal("Name") || getVal("Ürün Adı") || "İsimsiz Ürün",
                     description: getVal("Description") || getVal("Açıklama") || "",
                     price: parseFloat(getVal("Price") || getVal("Fiyat") || "0"),
                     categoryName: getVal("Category") || getVal("Kategori") || "Genel",
+                    categoryNameEn: catEn,
                     allergens: (getVal("Allergens") || getVal("Alerjenler") || "").split(",").map((s: string) => s.trim()).filter(Boolean),
                     isChefRecommendation: ["evet", "yes", "true", "1"].includes(String(getVal("Chef") || getVal("Şef")).toLowerCase()),
                     imageFilename: imgFile,

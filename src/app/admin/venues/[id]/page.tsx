@@ -700,14 +700,33 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                 const catName = (item.categoryName || "Genel").toLowerCase();
                 let categoryId = catMap.get(catName);
+
+                const catTranslations = item.categoryNameEn ? { en: { name: item.categoryNameEn } } : undefined;
+
                 if (!categoryId) {
                     // Create new category if not exists
-                    const newCat = await CategoryService.createCategory({ venueId: venueData!.id, name: item.categoryName || "Genel" });
+                    const newCatPayload: Record<string, unknown> = { venueId: venueData!.id, name: item.categoryName || "Genel" };
+                    if (catTranslations) newCatPayload.translations = catTranslations;
+                    
+                    const newCat = await CategoryService.createCategory(newCatPayload);
                     if (newCat && newCat.id) {
                         categoryId = newCat.id;
                         catMap.set(catName, newCat.id);
                         // Update local state immediately so next items find it
                         setCategories(prev => [...prev, newCat as import('@/data/db').Category]);
+                    }
+                } else if (item.categoryNameEn) {
+                    // Update existing category translation if provided
+                    const existingCat = categories.find(c => c.id === categoryId);
+                    const existingEnName = existingCat?.translations && typeof existingCat.translations === 'object' 
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        ? (existingCat.translations as any)?.en?.name 
+                        : null;
+                        
+                    if (existingEnName !== item.categoryNameEn) {
+                        const mergedTranslations = { ...(typeof existingCat?.translations === 'object' ? existingCat.translations : {}), ...catTranslations };
+                        await CategoryService.updateCategory(categoryId, { translations: mergedTranslations });
+                        setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, translations: mergedTranslations } : c));
                     }
                 }
 
