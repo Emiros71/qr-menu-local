@@ -479,7 +479,14 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     const cat = categories.find(c => c.id === catId);
                     if (cat) {
                         try {
-                            await CategoryService.updateCategory(catId, { isAvailable: cat.isAvailable });
+                            await CategoryService.updateCategory(catId, {
+                                isAvailable: cat.isAvailable,
+                                startTime: cat.startTime,
+                                endTime: cat.endTime,
+                                name: cat.name,
+                                translations: cat.translations,
+                                parentId: cat.parentId
+                            });
                         } catch (err) {
                             console.error("Category update failed for", catId, err);
                         }
@@ -569,7 +576,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     translations: editingCategory.translations,
                     image: editingCategory.image,
                     coverImage: editingCategory.coverImage,
-                    parentId: editingCategory.parentId
+                    parentId: editingCategory.parentId,
+                    startTime: editingCategory.startTime,
+                    endTime: editingCategory.endTime
                 });
 
                 // Update local state
