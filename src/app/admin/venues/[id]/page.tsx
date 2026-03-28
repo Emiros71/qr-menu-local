@@ -216,7 +216,12 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         let result = [...products];
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            result = result.filter(p => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q));
+            // Find categories whose name matches the search
+            const matchingCatIds = new Set<string>();
+            categories.forEach(c => {
+                if (c.name.toLowerCase().includes(q)) matchingCatIds.add(c.id);
+            });
+            result = result.filter(p => p.name.toLowerCase().includes(q) || matchingCatIds.has(p.categoryId));
         }
         if (filterCategory) {
             // Include products from selected category AND its subcategories
@@ -875,7 +880,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 <label className="text-xs font-semibold text-zinc-500">Ürün Ara</label>
                                 <div className="relative">
                                     <Input
-                                        placeholder="Ad veya açıklamada ara..."
+                                        placeholder="Ürün veya kategori ara..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="pl-9 bg-white"

@@ -214,16 +214,29 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
     const subCategories = useMemo(() => activeCategories.filter(c => c.parentId), [activeCategories]);
 
     // PRE-FILTER PRODUCTS BY SEARCH TERM (Optimization for 300+ products)
+    // Find category IDs whose name matches the search term (including subcategories)
+    const matchingCategoryIds = useMemo(() => {
+        if (!searchTerm) return new Set<string>();
+        const lowerSearch = searchTerm.toLowerCase();
+        const ids = new Set<string>();
+        activeCategories.forEach(c => {
+            if (localize(c, 'name').toLowerCase().includes(lowerSearch)) {
+                ids.add(c.id);
+            }
+        });
+        return ids;
+    }, [activeCategories, searchTerm, currentLang]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const filteredProducts = useMemo(() => {
         if (!searchTerm) return venue.products.filter(p => p.isAvailable);
         const lowerSearch = searchTerm.toLowerCase();
         return venue.products.filter(p =>
             p.isAvailable && (
                 localize(p, 'name').toLowerCase().includes(lowerSearch) ||
-                localize(p, 'description').toLowerCase().includes(lowerSearch)
+                matchingCategoryIds.has(p.categoryId)
             )
         );
-    }, [venue.products, searchTerm, currentLang]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [venue.products, searchTerm, currentLang, matchingCategoryIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // MAP PRODUCTS TO CATEGORIES ONCE (Huge performance gain)
     const categoryProductMap = useMemo(() => {
