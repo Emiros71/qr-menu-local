@@ -90,7 +90,11 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
             const mapped = jsonData.map(row => {
-                const getVal = (key: string) => row[key] || row[key.toLowerCase()] || row[key.toUpperCase()] || "";
+                const getVal = (key: string) => {
+                    const trimmedKey = key.trim().toLowerCase();
+                    const matchingKey = Object.keys(row).find(k => k.trim().toLowerCase() === trimmedKey);
+                    return matchingKey ? String(row[matchingKey]).trim() : "";
+                };
 
                 // Try to find image filename 
                 const imgFile = getVal("Görsel Dosya Adı") || getVal("Dosya") || getVal("Image") || "";

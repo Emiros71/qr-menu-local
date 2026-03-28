@@ -681,7 +681,23 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             const catMap = new Map<string, string>(); // Name -> ID
             categories.forEach(c => catMap.set(c.name.toLowerCase(), c.id));
 
+            // Sync customized allergens globally
+            const existingAllergens = await AllergenService.getAllergens();
+            const knownAllergenLower = new Set(existingAllergens.map(a => a.name.toLowerCase()));
+
             for (const item of importedData) {
+                // Determine if there are new allergens
+                if (item.allergens && Array.isArray(item.allergens)) {
+                    for (const aName of item.allergens) {
+                        const lowered = typeof aName === "string" ? aName.toLowerCase() : "";
+                        if (lowered && !knownAllergenLower.has(lowered)) {
+                            // Register to global allergen library
+                            await AllergenService.createAllergen({ name: aName, translations: {} });
+                            knownAllergenLower.add(lowered);
+                        }
+                    }
+                }
+
                 const catName = (item.categoryName || "Genel").toLowerCase();
                 let categoryId = catMap.get(catName);
                 if (!categoryId) {
@@ -697,37 +713,53 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                 if (!categoryId) continue; // Should not happen
 
+                // Parse image string
+                const rawImage = String(item.image || "").trim();
+
                 // Check if it is UPDATE (has ID) or CREATE
                 if (item.id) {
-                    await ProductService.updateProduct(item.id, {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const updatePayload: any = {
                         name: item.name,
                         description: item.description,
                         price: item.price,
                         categoryId: categoryId, // Allow category change
-                        image: item.image,
                         isAvailable: item.isAvailable,
                         isChefRecommendation: item.isChefRecommendation,
                         allergens: item.allergens,
                         discount_type: item.discount_type,
                         discount_amount: item.discount_amount,
                         startTime: item.startTime,
-                        endTime: item.endTime
-                    });
+                        endTime: item.endTime,
+                        translations: item.translations
+                    };
+
+                    // Handle safe image update
+                    if (rawImage.toLowerCase() === "delete" || rawImage.toLowerCase() === "sil") {
+                        updatePayload.image = ""; // Force delete
+                    } else if (rawImage !== "") {
+                        updatePayload.image = rawImage; // Only update if explicitly provided
+                    }
+
+                    await ProductService.updateProduct(item.id, updatePayload);
                 } else {
+                    const newImage = (rawImage.toLowerCase() === "delete" || rawImage.toLowerCase() === "sil") ? "" : rawImage;
+
                     await ProductService.createProduct({
                         venueId: venueData.id,
                         categoryId: categoryId,
                         name: item.name,
                         description: item.description,
                         price: item.price,
-                        image: item.image,
+                        image: newImage,
                         isAvailable: item.isAvailable,
                         isChefRecommendation: item.isChefRecommendation,
                         allergens: item.allergens,
                         discount_type: item.discount_type,
                         discount_amount: item.discount_amount,
                         startTime: item.startTime,
-                        endTime: item.endTime
+                        endTime: item.endTime,
+                        translations: item.translations
                     });
                 }
             }
