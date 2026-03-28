@@ -716,6 +716,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                     <div className="flex gap-3 overflow-x-auto scrollbar-hide py-2 pb-4 -mx-4 px-4 snap-x">
                         {displayCategories.map((cat) => {
                             const available = isTimeInRange(currentTimeTimezone, cat.startTime, cat.endTime);
+                            if (!available) return null;
                             return (
                                 <button
                                     key={cat.id}
@@ -771,6 +772,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                 <AnimatePresence>
                     {displayCategories.map((cat, index) => {
                         const available = isTimeInRange(currentTimeTimezone, cat.startTime, cat.endTime);
+                        if (!available) return null;
 
                         const isNativeCampaigns = (nativeCampaignCatIndex !== -1 ? 0 : -1) === index;
 
