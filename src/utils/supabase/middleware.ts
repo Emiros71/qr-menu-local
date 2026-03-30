@@ -13,11 +13,7 @@ export async function updateSession(request: NextRequest) {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
-        return createServerClient(
-            'http://localhost:54321', // Dummy URL
-            'dummy-anon-key',
-            { cookies: {} }
-        );
+        return response;
     }
 
     const supabase = createServerClient(

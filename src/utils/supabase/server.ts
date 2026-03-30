@@ -11,7 +11,14 @@ export async function createClient() {
         return createServerClient(
             'http://localhost:54321', // Dummy URL
             'dummy-key',
-            { cookies: {} }
+            {
+                cookies: {
+                    getAll() {
+                        return []
+                    },
+                    setAll() {},
+                },
+            }
         );
     }
 
