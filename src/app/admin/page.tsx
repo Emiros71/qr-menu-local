@@ -12,10 +12,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ServiceStatus } from "@/components/admin/ServiceStatus";
 import { createClient } from "@/utils/supabase/client";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 
-const VisitorAreaChart = dynamic(() => import("@/components/admin/Charts").then(mod => mod.VisitorAreaChart), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center text-muted-foreground">Yükleniyor...</div> });
-const ProductBarChart = dynamic(() => import("@/components/admin/Charts").then(mod => mod.ProductBarChart), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center text-muted-foreground">Yükleniyor...</div> });
+const VisitorAreaChart = nextDynamic(() => import("@/components/admin/Charts").then(mod => mod.VisitorAreaChart), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center text-muted-foreground">Yükleniyor...</div> });
+const ProductBarChart = nextDynamic(() => import("@/components/admin/Charts").then(mod => mod.ProductBarChart), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center text-muted-foreground">Yükleniyor...</div> });
 import { format, subDays, subMonths } from "date-fns";
 import { tr } from "date-fns/locale";
 
