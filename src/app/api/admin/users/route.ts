@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 // Initialize Supabase Admin Client (Bypasses RLS & can manage users)
 function getSupabaseAdmin() {
     return createClient(

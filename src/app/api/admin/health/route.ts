@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 // Servislerin eriştiği ana tablolar
 const SERVICES_MAP = {
     VenueService: 'venues',

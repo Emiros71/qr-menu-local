@@ -2,6 +2,8 @@ import { VenueService } from "@/services/venue-service";
 import AdminSidebar from "@/components/admin/Sidebar";
 import { createClient } from "@/utils/supabase/server";
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminLayout({
     children,
 }: {
