@@ -7,6 +7,10 @@ export const dynamic = 'force-dynamic';
 
 // Admin client to bypass RLS for writing logs
 function getSupabaseAdmin() {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return null;
+    }
+
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -18,6 +22,11 @@ export async function POST(request: Request) {
         const supabaseAdmin = getSupabaseAdmin();
         const body = await request.json();
         const { action, resource, details } = body;
+
+        // Logging should never block app usage in partially bootstrapped local installs.
+        if (!supabaseAdmin) {
+            return NextResponse.json({ success: true, skipped: 'missing_service_role_key' });
+        }
 
         // Try to get current user if exists (for CREATE/UPDATE actions)
         const cookieStore = await cookies();
@@ -53,7 +62,7 @@ export async function POST(request: Request) {
 
         if (error) {
             console.error("API Log Insert Error:", error);
-            return NextResponse.json({ error: error.message }, { status: 500 });
+            return NextResponse.json({ success: true, skipped: error.message });
         }
 
         return NextResponse.json({ success: true });

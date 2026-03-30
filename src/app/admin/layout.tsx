@@ -14,13 +14,24 @@ export default async function AdminLayout({
 
     let profile = null;
     if (user) {
-        const { data } = await supabase
-            .from('profiles')
-            .select('role, venue_ids')
-            .eq('id', user.id)
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('role, venue_ids')
+                .eq('id', user.id)
+                .single();
 
-        profile = data ? { role: data.role, venue_ids: data.venue_ids || [] } : { role: user.user_metadata?.role || 'SUPER_ADMIN', venue_ids: [] };
+            if (error) {
+                console.warn("Profiles lookup failed in admin layout, using auth metadata fallback.", error);
+            }
+
+            profile = data
+                ? { role: data.role, venue_ids: data.venue_ids || [] }
+                : { role: user.user_metadata?.role || 'SUPER_ADMIN', venue_ids: [] };
+        } catch (error) {
+            console.warn("Profiles table is not ready yet, using auth metadata fallback.", error);
+            profile = { role: user.user_metadata?.role || 'SUPER_ADMIN', venue_ids: [] };
+        }
     }
 
     // Fetch filtered venues on the server based on RBAC Profile
