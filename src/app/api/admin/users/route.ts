@@ -3,16 +3,18 @@ import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 
 // Initialize Supabase Admin Client (Bypasses RLS & can manage users)
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-        auth: {
-            autoRefreshToken: false,
-            persistSession: false
+function getSupabaseAdmin() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
         }
-    }
-);
+    );
+}
 
 // Helper to check if the requester is a SUPER_ADMIN
 async function isSuperAdmin() {
@@ -36,6 +38,7 @@ export async function GET(_req: NextRequest) {
     if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
+        const supabaseAdmin = getSupabaseAdmin();
         // Fetch auth users
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
         if (authError) throw authError;
@@ -69,6 +72,7 @@ export async function POST(req: NextRequest) {
     if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
+        const supabaseAdmin = getSupabaseAdmin();
         const body = await req.json();
         const { email, password, full_name, role, venue_ids, tags } = body;
 
@@ -109,6 +113,7 @@ export async function PUT(req: NextRequest) {
     if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
+        const supabaseAdmin = getSupabaseAdmin();
         const body = await req.json();
         const { id, email, password, full_name, role, venue_ids, tags } = body;
 
@@ -152,6 +157,7 @@ export async function DELETE(req: NextRequest) {
     if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
+        const supabaseAdmin = getSupabaseAdmin();
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
 

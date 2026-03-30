@@ -4,13 +4,16 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 
 // Admin client to bypass RLS for writing logs
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+}
 
 export async function POST(request: Request) {
     try {
+        const supabaseAdmin = getSupabaseAdmin();
         const body = await request.json();
         const { action, resource, details } = body;
 
