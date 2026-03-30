@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,17 +14,13 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Security State
     const [failedAttempts, setFailedAttempts] = useState(0);
     const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
     const [timeLeft, setTimeLeft] = useState(0);
 
-    const router = useRouter();
     const supabase = createClient();
 
-    // Check Lockout Timer and Load Persisted State
     useEffect(() => {
-        // Load state from LocalStorage on mount
         const storedLockout = localStorage.getItem('login_lockout_until');
         const storedAttempts = localStorage.getItem('login_failed_attempts');
 
@@ -38,16 +33,14 @@ export default function LoginPage() {
             if (lockoutTime > Date.now()) {
                 setLockoutUntil(lockoutTime);
             } else {
-                // Expired while away
                 localStorage.removeItem('login_lockout_until');
-                localStorage.removeItem('login_failed_attempts'); // Optional: reset attempts logic
+                localStorage.removeItem('login_failed_attempts');
                 setLockoutUntil(null);
                 setFailedAttempts(0);
             }
         }
     }, []);
 
-    // Timer Interval logic
     useEffect(() => {
         if (!lockoutUntil) return;
 
@@ -55,60 +48,60 @@ export default function LoginPage() {
             const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
             if (remaining <= 0) {
                 setLockoutUntil(null);
-                setFailedAttempts(0); // Reset attempts after lockout
+                setFailedAttempts(0);
                 localStorage.removeItem('login_lockout_until');
                 localStorage.removeItem('login_failed_attempts');
             } else {
                 setTimeLeft(remaining);
             }
         }, 1000);
+
         return () => clearInterval(interval);
     }, [lockoutUntil]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Brute Force Check
         if (lockoutUntil) return;
 
         setLoading(true);
         setError(null);
 
         try {
-            const { error: signInError } = await supabase.auth.signInWithPassword({
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
 
             if (signInError) {
-                // Determine error type
-                const isInvalidCreds = signInError.message === "Invalid login credentials";
-                const errorMessage = isInvalidCreds ? "E-posta veya şifre hatalı." : signInError.message;
+                const isInvalidCreds = signInError.message === 'Invalid login credentials';
+                const errorMessage = isInvalidCreds ? 'E-posta veya sifre hatali.' : signInError.message;
 
                 setError(errorMessage);
 
-                // Increase security counter
                 const newAttempts = failedAttempts + 1;
                 setFailedAttempts(newAttempts);
                 localStorage.setItem('login_failed_attempts', newAttempts.toString());
 
-                // Log Failure (High Priority Security Event)
                 AuditService.log({
                     action: 'LOGIN_FAILED',
                     resource: 'auth',
                     details: { email, error: signInError.message, attempt: newAttempts }
                 });
 
-                // Lockout logic: Lock for 30s after 3 attempts
                 if (newAttempts >= 3) {
-                    const lockoutTime = Date.now() + 30000; // 30 seconds
+                    const lockoutTime = Date.now() + 30000;
                     setLockoutUntil(lockoutTime);
                     localStorage.setItem('login_lockout_until', lockoutTime.toString());
                 }
-
             } else {
-                // Success!
-                // Clear Security State
+                const session = signInData.session ?? (await supabase.auth.getSession()).data.session;
+
+                if (!session) {
+                    setError('Giris basarili oldu ama oturum olusturulamadi. Lutfen tekrar deneyin.');
+                    return;
+                }
+
                 setFailedAttempts(0);
                 setLockoutUntil(null);
                 localStorage.removeItem('login_failed_attempts');
@@ -120,12 +113,11 @@ export default function LoginPage() {
                     details: { email }
                 });
 
-                router.push('/admin');
-                router.refresh();
+                window.location.assign('/admin');
             }
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (_err) {
-            setError('Beklenmeyen bir hata oluştu.');
+        } catch (err) {
+            console.error('Login failed unexpectedly:', err);
+            setError(err instanceof Error ? err.message : 'Beklenmeyen bir hata olustu.');
         } finally {
             setLoading(false);
         }
@@ -133,11 +125,9 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Subtle Grid Background */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
             <div className="w-full max-w-[400px] relative z-10">
-                {/* Logo / Brand Area */}
                 <div className="text-center mb-10">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-900 text-white mb-6 shadow-lg shadow-zinc-900/10">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6">
@@ -145,14 +135,13 @@ export default function LoginPage() {
                         </svg>
                     </div>
                     <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-                        Güvenli Yönetim Paneli
+                        Guvenli Yonetim Paneli
                     </h1>
                     <p className="text-zinc-500 text-sm mt-2">
-                        Erişim kısıtlamalı alandır. Tüm işlemler kayıt altına alınmaktadır.
+                        Erisim kisitlamali alandir. Tum islemler kayit altina alinmaktadir.
                     </p>
                 </div>
 
-                {/* Feedback Message */}
                 {error && !lockoutUntil && (
                     <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3 text-red-600 text-sm animate-in slide-in-from-top-2">
                         <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
@@ -160,12 +149,11 @@ export default function LoginPage() {
                     </div>
                 )}
 
-                {/* Security Lockout Message */}
                 {lockoutUntil && (
                     <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 text-amber-800 text-sm animate-pulse">
                         <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
                         <div>
-                            <p className="font-semibold">Çok fazla başarısız deneme.</p>
+                            <p className="font-semibold">Cok fazla basarisiz deneme.</p>
                             <p className="mt-1 flex items-center gap-1">
                                 <Timer className="h-3 w-3" />
                                 {timeLeft} saniye sonra tekrar deneyin.
@@ -189,13 +177,13 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-[13px] font-medium text-zinc-700">Şifre</label>
+                        <label className="text-[13px] font-medium text-zinc-700">Sifre</label>
                         <Input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="h-11 bg-white border-zinc-200 focus:border-zinc-400 focus:ring-zinc-100 text-zinc-900 transition-all rounded-lg"
-                            placeholder="••••••••"
+                            placeholder="********"
                             disabled={!!lockoutUntil}
                             required
                         />
@@ -213,7 +201,7 @@ export default function LoginPage() {
                     >
                         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                             <span className="flex items-center justify-center gap-2">
-                                {lockoutUntil ? 'Kilitlendi' : 'Güvenli Giriş'}
+                                {lockoutUntil ? 'Kilitlendi' : 'Guvenli Giris'}
                                 {!lockoutUntil && <ArrowRight className="h-4 w-4 opacity-50" />}
                             </span>
                         )}
