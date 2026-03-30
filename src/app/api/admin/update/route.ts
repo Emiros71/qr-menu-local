@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getServerSupabaseUrl } from "@/utils/supabase/config";
 
 export const dynamic = 'force-dynamic';
 
 // Initialize Supabase with Service Role Key (Bypasses RLS)
 function getSupabaseAdmin() {
+    const supabaseUrl = getServerSupabaseUrl();
     return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        supabaseUrl!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 }
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
             const token = authHeader.split(' ')[1];
 
             // Verify token with non-admin client
-            const supabaseAuth = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+            const supabaseAuth = createClient(getServerSupabaseUrl()!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
             const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
 
             if (userError || !user) {

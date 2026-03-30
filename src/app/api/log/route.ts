@@ -2,17 +2,20 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { getServerSupabaseUrl } from '@/utils/supabase/config';
 
 export const dynamic = 'force-dynamic';
 
 // Admin client to bypass RLS for writing logs
 function getSupabaseAdmin() {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const supabaseUrl = getServerSupabaseUrl();
+
+    if (!supabaseUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
         return null;
     }
 
     return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        supabaseUrl,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 }
@@ -30,8 +33,12 @@ export async function POST(request: Request) {
 
         // Try to get current user if exists (for CREATE/UPDATE actions)
         const cookieStore = await cookies();
+        const supabaseUrl = getServerSupabaseUrl();
+        if (!supabaseUrl || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            return NextResponse.json({ success: true, skipped: 'missing_supabase_url_or_anon_key' });
+        }
         const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            supabaseUrl,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             {
                 cookies: {
