@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/utils/supabase/server";
+import { getServerSupabaseUrl } from "@/utils/supabase/config";
 
 export const dynamic = "force-dynamic";
 
 // Initialize Supabase Admin Client (Bypasses RLS & can manage users)
 function getSupabaseAdmin() {
+    const supabaseUrl = getServerSupabaseUrl();
     return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        supabaseUrl!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
         {
             auth: {
@@ -21,17 +23,22 @@ function getSupabaseAdmin() {
 // Helper to check if the requester is a SUPER_ADMIN
 async function isSuperAdmin() {
     const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
 
     if (!user) return false;
 
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+    try {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
 
-    return profile?.role === 'SUPER_ADMIN';
+        return profile?.role === 'SUPER_ADMIN' || user.user_metadata?.role === 'SUPER_ADMIN';
+    } catch {
+        return user.user_metadata?.role === 'SUPER_ADMIN';
+    }
 }
 
 // GET all users (with their profiles)
