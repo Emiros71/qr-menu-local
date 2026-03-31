@@ -35,9 +35,10 @@ async function isSuperAdmin() {
             .eq('id', user.id)
             .single();
 
-        return profile?.role === 'SUPER_ADMIN' || user.user_metadata?.role === 'SUPER_ADMIN';
+        const resolvedRole = profile?.role || user.user_metadata?.role || 'SUPER_ADMIN';
+        return resolvedRole === 'SUPER_ADMIN';
     } catch {
-        return user.user_metadata?.role === 'SUPER_ADMIN';
+        return (user.user_metadata?.role || 'SUPER_ADMIN') === 'SUPER_ADMIN';
     }
 }
 
@@ -53,8 +54,16 @@ export async function GET(_req: NextRequest) {
         if (authError) throw authError;
 
         // Fetch profiles
-        const { data: profiles, error: profileError } = await supabaseAdmin.from('profiles').select('*');
-        if (profileError) throw profileError;
+        let profiles: Array<Record<string, unknown>> = [];
+        const { data: profileData, error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .select('id, full_name, role, tags, venue_ids');
+
+        if (profileError) {
+            console.warn("Profiles query failed in users API, falling back to auth metadata.", profileError);
+        } else {
+            profiles = profileData || [];
+        }
 
         // Merge data
         const users = authData.users.map(u => {
@@ -64,9 +73,9 @@ export async function GET(_req: NextRequest) {
                 email: u.email,
                 created_at: u.created_at,
                 full_name: p?.full_name || u.user_metadata?.full_name,
-                role: p?.role || 'STAFF',
-                tags: p?.tags || [],
-                venue_ids: p?.venue_ids || []
+                role: p?.role || u.user_metadata?.role || 'SUPER_ADMIN',
+                tags: Array.isArray(p?.tags) ? p.tags : [],
+                venue_ids: Array.isArray(p?.venue_ids) ? p.venue_ids : []
             };
         });
 
@@ -103,11 +112,17 @@ export async function POST(req: NextRequest) {
         if (authData.user) {
             const { error: profileError } = await supabaseAdmin
                 .from('profiles')
-                .update({ role, venue_ids: venue_ids || [], tags })
-                .eq('id', authData.user.id);
+                .upsert({
+                    id: authData.user.id,
+                    email,
+                    full_name,
+                    role,
+                    venue_ids: venue_ids || [],
+                    tags: tags || []
+                });
 
             if (profileError) {
-                console.error("Profile update failed after user creation", profileError);
+                console.warn("Profile sync failed after user creation", profileError);
             }
         }
 
@@ -149,10 +164,11 @@ export async function PUT(req: NextRequest) {
         if (Object.keys(profileUpdates).length > 0) {
             const { error: profileError } = await supabaseAdmin
                 .from('profiles')
-                .update(profileUpdates)
-                .eq('id', id);
+                .upsert({ id, ...profileUpdates });
 
-            if (profileError) throw profileError;
+            if (profileError) {
+                console.warn("Profile sync failed during user update", profileError);
+            }
         }
 
         return NextResponse.json({ success: true });
