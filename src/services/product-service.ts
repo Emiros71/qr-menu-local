@@ -86,53 +86,25 @@ export const ProductService = {
 
     createProduct: async (product: Record<string, unknown>) => {
         if (!isSupabaseConfigured()) return;
-        const dbProduct: Record<string, unknown> = { ...product };
+        const dbProduct: Record<string, unknown> = {};
 
-        // Map keys
-        if (product.isAvailable !== undefined) {
-            dbProduct.is_available = product.isAvailable;
-            delete dbProduct.isAvailable;
-        }
-        if (product.categoryId !== undefined) {
-            dbProduct.category_id = product.categoryId;
-            delete dbProduct.categoryId;
-        }
-        if (product.venueId !== undefined) {
-            dbProduct.venue_id = product.venueId;
-            delete dbProduct.venueId;
-        }
-        if (product.isChefRecommendation !== undefined) {
-            dbProduct.is_chef_recommendation = product.isChefRecommendation;
-            delete dbProduct.isChefRecommendation;
-        }
+        if (product.name !== undefined) dbProduct.name = product.name;
+        if (product.description !== undefined) dbProduct.description = product.description;
+        if (product.price !== undefined) dbProduct.price = product.price;
+        if (product.image !== undefined) dbProduct.image = product.image;
+        if (product.labels !== undefined) dbProduct.labels = product.labels;
+        if (product.translations !== undefined) dbProduct.translations = product.translations;
 
-        if (product.startTime !== undefined) {
-            dbProduct.start_time = product.startTime;
-            delete dbProduct.startTime;
-        }
-
-        if (product.endTime !== undefined) {
-            dbProduct.end_time = product.endTime;
-            delete dbProduct.endTime;
-        }
-
-        if (product.discount_type !== undefined) {
-            dbProduct.discount_type = product.discount_type;
-            delete dbProduct.discount_type; // we actually want to keep standard names if they match, but to be safe: db format is discount_type, typescript is discount_type. So we don't delete them.
-        }
-
-        if (product.discount_amount !== undefined) {
-            dbProduct.discount_amount = product.discount_amount;
-            delete dbProduct.discount_amount;
-        }
-
-        // Let's ensure the keys are exactly what the DB expects
+        dbProduct.category_id = product.categoryId;
+        dbProduct.venue_id = product.venueId;
+        dbProduct.is_available = product.isAvailable !== undefined ? product.isAvailable : true;
+        dbProduct.is_chef_recommendation = product.isChefRecommendation !== undefined ? product.isChefRecommendation : false;
+        dbProduct.start_time = product.startTime !== undefined ? product.startTime : null;
+        dbProduct.end_time = product.endTime !== undefined ? product.endTime : null;
         dbProduct.discount_type = product.discount_type !== undefined ? product.discount_type : null;
         dbProduct.discount_amount = product.discount_amount !== undefined ? product.discount_amount : null;
-        // Allergens and Labels don't change keys but ensuring they exist
-        if (product.allergens === undefined) dbProduct.allergens = [];
-
-        console.log("Creating product with payload:", dbProduct); // Debug log
+        dbProduct.allergens = product.allergens !== undefined ? product.allergens : [];
+        dbProduct.currency = product.currency !== undefined ? product.currency : 'TRY';
 
         // Use API to bypass RLS for Create
         try {
@@ -154,6 +126,7 @@ export const ProductService = {
                 isChefRecommendation: data.is_chef_recommendation,
                 labels: data.labels,
                 currency: 'TRY',
+                translations: data.translations,
                 startTime: data.start_time,
                 endTime: data.end_time,
                 discount_type: data.discount_type,
@@ -177,6 +150,7 @@ export const ProductService = {
                 isChefRecommendation: data.is_chef_recommendation,
                 labels: data.labels,
                 currency: 'TRY',
+                translations: data.translations,
                 startTime: data.start_time,
                 endTime: data.end_time
             };

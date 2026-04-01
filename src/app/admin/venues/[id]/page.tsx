@@ -677,122 +677,139 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         if (!venueData) return;
         setLoading(true);
         try {
-            // Find or create categories first
-            const catMap = new Map<string, string>(); // Name -> ID
-            categories.forEach(c => catMap.set(c.name.toLowerCase(), c.id));
+            const localCategories: Category[] = [...categories];
+            const catMap = new Map<string, string>();
+            localCategories.forEach(c => catMap.set(c.name.trim().toLowerCase(), c.id));
 
-            // Sync customized allergens globally
             const existingAllergens = await AllergenService.getAllergens();
             const knownAllergenLower = new Set(existingAllergens.map(a => a.name.toLowerCase()));
+            const failedItems: string[] = [];
+            let processedCount = 0;
 
             for (const item of importedData) {
-                // Determine if there are new allergens
-                if (item.allergens && Array.isArray(item.allergens)) {
-                    for (const aName of item.allergens) {
-                        const lowered = typeof aName === "string" ? aName.toLowerCase() : "";
-                        if (lowered && !knownAllergenLower.has(lowered)) {
-                            // Register to global allergen library
-                            await AllergenService.createAllergen({ name: aName, translations: {} });
-                            knownAllergenLower.add(lowered);
+                try {
+                    if (item.allergens && Array.isArray(item.allergens)) {
+                        for (const aName of item.allergens) {
+                            const lowered = typeof aName === "string" ? aName.toLowerCase() : "";
+                            if (lowered && !knownAllergenLower.has(lowered)) {
+                                await AllergenService.createAllergen({ name: aName, translations: {} });
+                                knownAllergenLower.add(lowered);
+                            }
                         }
                     }
-                }
 
-                const catName = (item.categoryName || "Genel").toLowerCase();
-                let categoryId = catMap.get(catName);
+                    const categoryDisplayName = String(item.categoryName || "Genel").trim() || "Genel";
+                    const catKey = categoryDisplayName.toLowerCase();
+                    let categoryId = catMap.get(catKey);
+                    const categoryNameEn = typeof item.categoryNameEn === 'string' ? item.categoryNameEn.trim() : '';
+                    const catTranslations = categoryNameEn ? { en: { name: categoryNameEn } } : undefined;
 
-                const catTranslations = item.categoryNameEn ? { en: { name: item.categoryNameEn } } : undefined;
+                    if (!categoryId) {
+                        const newCatPayload: Record<string, unknown> = { venueId: venueData.id, name: categoryDisplayName };
+                        if (catTranslations) newCatPayload.translations = catTranslations;
 
-                if (!categoryId) {
-                    // Create new category if not exists
-                    const newCatPayload: Record<string, unknown> = { venueId: venueData!.id, name: item.categoryName || "Genel" };
-                    if (catTranslations) newCatPayload.translations = catTranslations;
-                    
-                    const newCat = await CategoryService.createCategory(newCatPayload);
-                    if (newCat && newCat.id) {
-                        categoryId = newCat.id;
-                        catMap.set(catName, newCat.id);
-                        // Update local state immediately so next items find it
-                        setCategories(prev => [...prev, newCat as import('@/data/db').Category]);
+                        const newCat = await CategoryService.createCategory(newCatPayload);
+                        if (newCat?.id) {
+                            categoryId = newCat.id;
+                            catMap.set(catKey, newCat.id);
+                            localCategories.push(newCat as Category);
+                            setCategories([...localCategories]);
+                        }
+                    } else if (catTranslations) {
+                        const existingCat = localCategories.find(c => c.id === categoryId);
+                        const existingEnName = existingCat?.translations && typeof existingCat.translations === 'object'
+                            ? existingCat.translations?.en?.name
+                            : null;
+
+                        if (existingEnName !== categoryNameEn) {
+                            const mergedTranslations = {
+                                ...(typeof existingCat?.translations === 'object' ? existingCat.translations : {}),
+                                ...catTranslations
+                            };
+                            await CategoryService.updateCategory(categoryId, { translations: mergedTranslations });
+
+                            const nextCategories = localCategories.map(c =>
+                                c.id === categoryId ? { ...c, translations: mergedTranslations } : c
+                            );
+                            localCategories.splice(0, localCategories.length, ...nextCategories);
+                            setCategories(nextCategories);
+                        }
                     }
-                } else if (item.categoryNameEn) {
-                    // Update existing category translation if provided
-                    const existingCat = categories.find(c => c.id === categoryId);
-                    const existingEnName = existingCat?.translations && typeof existingCat.translations === 'object' 
+
+                    if (!categoryId) {
+                        throw new Error(`Kategori oluşturulamadı: ${categoryDisplayName}`);
+                    }
+
+                    const rawImage = String(item.image || "").trim();
+
+                    if (item.id && String(item.id).trim() !== "") {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        ? (existingCat.translations as any)?.en?.name 
-                        : null;
-                        
-                    if (existingEnName !== item.categoryNameEn) {
-                        const mergedTranslations = { ...(typeof existingCat?.translations === 'object' ? existingCat.translations : {}), ...catTranslations };
-                        await CategoryService.updateCategory(categoryId, { translations: mergedTranslations });
-                        setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, translations: mergedTranslations } : c));
+                        const updatePayload: any = {
+                            name: item.name,
+                            description: item.description,
+                            price: item.price,
+                            categoryId,
+                            isAvailable: item.isAvailable,
+                            isChefRecommendation: item.isChefRecommendation,
+                            allergens: item.allergens,
+                            discount_type: item.discount_type,
+                            discount_amount: item.discount_amount,
+                            startTime: item.startTime,
+                            endTime: item.endTime,
+                            translations: item.translations
+                        };
+
+                        if (rawImage.toLowerCase() === "delete" || rawImage.toLowerCase() === "sil") {
+                            updatePayload.image = "";
+                        } else if (rawImage !== "") {
+                            updatePayload.image = rawImage;
+                        }
+
+                        await ProductService.updateProduct(item.id, updatePayload);
+                    } else {
+                        const newImage = (rawImage.toLowerCase() === "delete" || rawImage.toLowerCase() === "sil") ? "" : rawImage;
+
+                        await ProductService.createProduct({
+                            venueId: venueData.id,
+                            categoryId,
+                            name: item.name,
+                            description: item.description,
+                            price: item.price,
+                            image: newImage,
+                            isAvailable: item.isAvailable,
+                            isChefRecommendation: item.isChefRecommendation,
+                            allergens: item.allergens,
+                            discount_type: item.discount_type,
+                            discount_amount: item.discount_amount,
+                            startTime: item.startTime,
+                            endTime: item.endTime,
+                            translations: item.translations
+                        });
                     }
-                }
 
-                if (!categoryId) continue; // Should not happen
-
-                // Parse image string
-                const rawImage = String(item.image || "").trim();
-
-                // Check if it is UPDATE (has ID) or CREATE
-                if (item.id) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const updatePayload: any = {
-                        name: item.name,
-                        description: item.description,
-                        price: item.price,
-                        categoryId: categoryId, // Allow category change
-                        isAvailable: item.isAvailable,
-                        isChefRecommendation: item.isChefRecommendation,
-                        allergens: item.allergens,
-                        discount_type: item.discount_type,
-                        discount_amount: item.discount_amount,
-                        startTime: item.startTime,
-                        endTime: item.endTime,
-                        translations: item.translations
-                    };
-
-                    // Handle safe image update
-                    if (rawImage.toLowerCase() === "delete" || rawImage.toLowerCase() === "sil") {
-                        updatePayload.image = ""; // Force delete
-                    } else if (rawImage !== "") {
-                        updatePayload.image = rawImage; // Only update if explicitly provided
-                    }
-
-                    await ProductService.updateProduct(item.id, updatePayload);
-                } else {
-                    const newImage = (rawImage.toLowerCase() === "delete" || rawImage.toLowerCase() === "sil") ? "" : rawImage;
-
-                    await ProductService.createProduct({
-                        venueId: venueData.id,
-                        categoryId: categoryId,
-                        name: item.name,
-                        description: item.description,
-                        price: item.price,
-                        image: newImage,
-                        isAvailable: item.isAvailable,
-                        isChefRecommendation: item.isChefRecommendation,
-                        allergens: item.allergens,
-                        discount_type: item.discount_type,
-                        discount_amount: item.discount_amount,
-                        startTime: item.startTime,
-                        endTime: item.endTime,
-                        translations: item.translations
-                    });
+                    processedCount++;
+                } catch (itemError) {
+                    console.error("Excel import item failed:", item, itemError);
+                    failedItems.push(`${item.name || item.categoryName || 'İsimsiz satır'}: ${itemError instanceof Error ? itemError.message : String(itemError)}`);
                 }
             }
 
-            // Refresh Products
             const updatedVenue = await VenueService.getVenueById(venueData.id);
             if (updatedVenue) {
+                setVenueData(updatedVenue);
                 setProducts(updatedVenue.products);
+                setCategories(updatedVenue.categories);
+                setAllergens(updatedVenue.allergens || []);
             }
-            alert("İçe aktırma/güncelleme tamamlandı.");
 
+            if (failedItems.length > 0) {
+                alert(`İçe aktarma tamamlandı. ${processedCount} satır işlendi, ${failedItems.length} satır hata verdi.\n\nİlk hata: ${failedItems[0]}`);
+            } else {
+                alert("İçe aktarma/güncelleme tamamlandı.");
+            }
         } catch (err) {
             console.error(err);
-            alert("İçe aktırma sırasında bir hata oluştu: " + err);
+            alert("İçe aktarma sırasında bir hata oluştu: " + err);
         } finally {
             setLoading(false);
         }
