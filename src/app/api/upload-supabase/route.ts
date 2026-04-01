@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getServerSupabaseUrl } from '@/utils/supabase/config';
+import { createClient as createServerClient } from '@/utils/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
+    const authClient = await createServerClient();
+    const { data: { session } } = await authClient.auth.getSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const folder = formData.get('folder') as string || 'qr-menu';
@@ -26,6 +33,23 @@ export async function POST(req: Request) {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName);
+    if (bucketError && !bucketError.message.toLowerCase().includes('not found')) {
+      return NextResponse.json({ error: bucketError.message }, { status: 500 });
+    }
+
+    if (!bucketData) {
+      const { error: createBucketError } = await supabase.storage.createBucket(bucketName, {
+        public: true
+      });
+
+      if (createBucketError && !createBucketError.message.toLowerCase().includes('already exists')) {
+        return NextResponse.json({ error: createBucketError.message }, { status: 500 });
+      }
+    } else if (!bucketData.public) {
+      await supabase.storage.updateBucket(bucketName, { public: true });
+    }
 
     // Generate safe filename from binary
     const bytes = await file.arrayBuffer();

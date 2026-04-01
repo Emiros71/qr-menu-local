@@ -71,43 +71,25 @@ export const AuditService = {
      * Fetches logs for the admin panel using client-side auth.
      */
     async getLogs(limit = 100, filters?: { type?: string, resource?: string, startDate?: string, endDate?: string, searchUser?: string }) {
-        // Use the browser client which has the session
-        const supabase = createClient();
+        const params = new URLSearchParams();
+        params.set('limit', String(limit));
 
-        let query = supabase
-            .from('audit_logs')
-            .select('*') // Removed join for now to debug
-            .order('created_at', { ascending: false })
-            .limit(limit);
+        if (filters?.type) params.set('type', filters.type);
+        if (filters?.resource) params.set('resource', filters.resource);
+        if (filters?.startDate) params.set('startDate', filters.startDate);
+        if (filters?.endDate) params.set('endDate', filters.endDate);
+        if (filters?.searchUser) params.set('searchUser', filters.searchUser);
 
-        if (filters?.type && filters.type !== 'ALL') {
-            query = query.eq('action_type', filters.type);
+        const response = await fetch(`/api/admin/logs?${params.toString()}`, {
+            credentials: 'include',
+            cache: 'no-store'
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Log fetch failed');
         }
 
-        if (filters?.resource && filters.resource !== 'ALL') {
-            query = query.eq('resource', filters.resource);
-        }
-
-        if (filters?.searchUser) {
-            // Filter by email in details JSON
-            query = query.textSearch('details', `'${filters.searchUser}'`);
-            // Note: Use simple text match or specific JSON path if PostgREST supports it easily, 
-            // but for now simple text search on JSONB is effective for email.
-        }
-
-        if (filters?.startDate) {
-            // Convert local input time to UTC ISO string for comparison
-            // Browser creates Date from local string -> toISOString gives UTC
-            query = query.gte('created_at', new Date(filters.startDate).toISOString());
-        }
-
-        if (filters?.endDate) {
-            query = query.lte('created_at', new Date(filters.endDate).toISOString());
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-        return data || [];
+        return result.data || [];
     }
 };
