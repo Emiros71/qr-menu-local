@@ -35,6 +35,20 @@ export default function ProductImporter({ onImport, onExport, existingCategories
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [uploadProgress, setUploadProgress] = useState(0);
 
+    const parseOptionalId = (rawValue: string) => {
+        const normalized = rawValue.trim();
+        if (!normalized) return "";
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(normalized) ? normalized : "";
+    };
+
+    const parsePrice = (rawValue: string) => {
+        if (!rawValue) return 0;
+        const normalized = rawValue.replace(/\s/g, "").replace(",", ".");
+        const parsed = Number.parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     const handleDownloadTemplate = () => {
         const headers = [
             {
@@ -113,10 +127,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 }
 
                 return {
-                    id: getVal("ID"), // Optional ID for updates
+                    id: parseOptionalId(getVal("ID")), // Optional ID for updates
                     name: getVal("Name") || getVal("Ürün Adı") || "İsimsiz Ürün",
                     description: getVal("Description") || getVal("Açıklama") || "",
-                    price: parseFloat(getVal("Price") || getVal("Fiyat") || "0"),
+                    price: parsePrice(getVal("Price") || getVal("Fiyat") || "0"),
                     categoryName: getVal("Category") || getVal("Kategori") || "Genel",
                     categoryNameEn: catEn,
                     allergens: (getVal("Allergens") || getVal("Alerjenler") || "").split(",").map((s: string) => s.trim()).filter(Boolean),
@@ -126,7 +140,9 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     translations: translations, // Add translations to product
                     isAvailable: true,
                     discount_type: getVal("İndirim Tipi") || getVal("Discount Type") || null,
-                    discount_amount: getVal("İndirim Değeri") || getVal("Discount Amount") ? parseFloat(getVal("İndirim Değeri") || getVal("Discount Amount")) : null,
+                    discount_amount: getVal("İndirim Değeri") || getVal("Discount Amount")
+                        ? parsePrice(getVal("İndirim Değeri") || getVal("Discount Amount"))
+                        : null,
                     startTime: getVal("Başlama Saati") || getVal("Start Time") || null,
                     endTime: getVal("Bitiş Saati") || getVal("End Time") || null
                 };

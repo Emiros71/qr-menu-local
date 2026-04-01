@@ -172,7 +172,7 @@ export const VenueService = {
             isChefRecommendation: p.is_chef_recommendation as boolean,
             labels: p.labels as string[],
             currency: 'TRY',
-            translations: p.translations as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+            translations: typeof p.translations === 'string' ? JSON.parse(p.translations) : p.translations as any, // eslint-disable-line @typescript-eslint/no-explicit-any
             startTime: p.start_time as string,
             endTime: p.end_time as string,
             discount_type: p.discount_type as 'percentage' | 'fixed' | null,
@@ -190,7 +190,7 @@ export const VenueService = {
                 venueId: c.venue_id as string,
                 startTime: c.start_time as string,
                 endTime: c.end_time as string,
-                translations: c.translations as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+                translations: typeof c.translations === 'string' ? JSON.parse(c.translations) : c.translations as any, // eslint-disable-line @typescript-eslint/no-explicit-any
                 isAvailable: c.is_available !== false
             };
         });
