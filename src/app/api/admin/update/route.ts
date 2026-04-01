@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
         const supabaseAdmin = getSupabaseAdmin();
         // --- 1. Authenticaton & RBAC Validation ---
         let profile = null;
+        let authenticatedUser: { id: string; user_metadata?: Record<string, unknown> } | null = null;
         const bypassKey = req.headers.get('x-e2e-bypass');
 
         if (process.env.NODE_ENV !== 'production' && bypassKey === 'super-secret-e2e-bypass') {
@@ -44,6 +45,8 @@ export async function POST(req: NextRequest) {
             if (!user) {
                 return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
             }
+
+            authenticatedUser = user;
 
             // Fetch User Profile
             try {
@@ -160,7 +163,11 @@ export async function POST(req: NextRequest) {
             }
         } else if (action === 'create') {
             if (!updates) return NextResponse.json({ error: "Missing data" }, { status: 400 });
-            result = await supabaseAdmin.from(table).insert(updates).select();
+            const createPayload = { ...updates };
+            if (table === 'venues' && authenticatedUser && !createPayload.user_id) {
+                createPayload.user_id = authenticatedUser.id;
+            }
+            result = await supabaseAdmin.from(table).insert(createPayload).select();
         } else {
             if (!updates) return NextResponse.json({ error: "Missing updates" }, { status: 400 });
 
