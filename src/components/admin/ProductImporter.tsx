@@ -38,8 +38,9 @@ export default function ProductImporter({ onImport, onExport, existingCategories
     const parseOptionalId = (rawValue: string) => {
         const normalized = rawValue.trim();
         if (!normalized) return "";
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        return uuidRegex.test(normalized) ? normalized : "";
+        const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+        const match = normalized.match(uuidRegex);
+        return match ? match[0] : "";
     };
 
     const parsePrice = (rawValue: string) => {
@@ -226,58 +227,31 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 // Helper to upload single file
                 const uploadFile = async (productIndex: number, filename: string) => {
                     const rawFile = fileMap.get(filename.toLowerCase());
-                    if (!rawFile) return; // File not found in selection
+                    if (!rawFile) {
+                        throw new Error(`Gorsel dosyasi secilmedi: ${filename}`);
+                    }
 
                     try {
                         // Sıkıştırma: Toplu yüklemelerde çok önemli (Max 1MB)
                         const file = await compressImage(rawFile, { maxSizeMB: 1 });
 
-                        // 1. Prepare Params
-                        const timestamp = Math.round((new Date()).getTime() / 1000);
-                        const folder = "qr-menu/products";
-                        // Use filename as public_id (remove extension) to avoid duplicates (overwrite mode)
-                        const public_id = filename.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "_");
-
-                        const paramsToSign = {
-                            timestamp,
-                            folder,
-                            public_id,
-                            use_filename: true,
-                            unique_filename: false,
-                            overwrite: true
-                        };
-
-                        // 2. Sign
-                        const signRes = await fetch('/api/sign-cloudinary', {
-                            method: 'POST',
-                            body: JSON.stringify({ paramsToSign })
-                        });
-
-                        if (!signRes.ok) throw new Error("Sign failed");
-                        const { signature } = await signRes.json();
-
-                        // 3. Upload
                         const formData = new FormData();
                         formData.append("file", file);
-                        Object.entries(paramsToSign).forEach(([key, value]) => {
-                            formData.append(key, value.toString());
-                        });
-                        formData.append("signature", signature);
-                        formData.append("api_key", process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "");
+                        formData.append("folder", "qr-menu/products");
 
-                        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
-                        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+                        const res = await fetch("/api/upload-supabase", {
                             method: "POST",
                             body: formData
                         });
 
                         const data = await res.json();
-                        if (data.secure_url) {
-                            finalProducts[productIndex].image = data.secure_url;
-                        }
+                        if (!res.ok) throw new Error(data?.error || "Upload failed");
+                        if (!data?.secure_url) throw new Error("Upload URL not returned");
+                        finalProducts[productIndex].image = data.secure_url;
 
                     } catch (err) {
                         console.error(`Failed to upload ${filename}`, err);
+                        throw err;
                     } finally {
                         uploadedCount++;
                         setUploadProgress(Math.round((uploadedCount / totalToUpload) * 100));

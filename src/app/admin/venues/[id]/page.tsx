@@ -684,6 +684,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             const existingAllergens = await AllergenService.getAllergens();
             const knownAllergenLower = new Set(existingAllergens.map(a => a.name.toLowerCase()));
             const existingProductsById = new Map(products.map(product => [product.id, product]));
+            const existingProductsByNameAndCategory = new Map(
+                products.map(product => [`${product.name.trim().toLowerCase()}::${product.categoryId}`, product])
+            );
             const failedItems: string[] = [];
             let processedCount = 0;
             let createdCount = 0;
@@ -744,11 +747,17 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     }
 
                     const rawImage = String(item.image || "").trim();
+                    const normalizedItemId = typeof item.id === "string" ? item.id.trim() : "";
+                    let existingProduct = normalizedItemId ? existingProductsById.get(normalizedItemId) || null : null;
 
-                    if (item.id && String(item.id).trim() !== "") {
-                        let existingProduct = existingProductsById.get(String(item.id).trim()) || null;
-                        if (!existingProduct) {
-                            existingProduct = await ProductService.getProductById(String(item.id).trim());
+                    if (!existingProduct) {
+                        const fallbackKey = `${String(item.name || "").trim().toLowerCase()}::${categoryId}`;
+                        existingProduct = existingProductsByNameAndCategory.get(fallbackKey) || null;
+                    }
+
+                    if (normalizedItemId || existingProduct) {
+                        if (!existingProduct && normalizedItemId) {
+                            existingProduct = await ProductService.getProductById(normalizedItemId);
                         }
 
                         if (!existingProduct) {
@@ -777,12 +786,17 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             updatePayload.image = rawImage;
                         }
 
-                        await ProductService.updateProduct(item.id, updatePayload);
+                        await ProductService.updateProduct(existingProduct.id, updatePayload);
+                        existingProductsById.set(existingProduct.id, { ...existingProduct, ...updatePayload, id: existingProduct.id } as Product);
+                        existingProductsByNameAndCategory.set(
+                            `${String(item.name || existingProduct.name).trim().toLowerCase()}::${categoryId}`,
+                            { ...existingProduct, ...updatePayload, id: existingProduct.id, categoryId } as Product
+                        );
                         updatedCount++;
                     } else {
                         const newImage = (rawImage.toLowerCase() === "delete" || rawImage.toLowerCase() === "sil") ? "" : rawImage;
 
-                        await ProductService.createProduct({
+                        const createdProduct = await ProductService.createProduct({
                             venueId: venueData.id,
                             categoryId,
                             name: item.name,
@@ -798,6 +812,13 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             endTime: item.endTime,
                             translations: item.translations
                         });
+                        if (createdProduct?.id) {
+                            existingProductsById.set(createdProduct.id, createdProduct as Product);
+                            existingProductsByNameAndCategory.set(
+                                `${String(createdProduct.name || item.name).trim().toLowerCase()}::${categoryId}`,
+                                createdProduct as Product
+                            );
+                        }
                         createdCount++;
                     }
 
