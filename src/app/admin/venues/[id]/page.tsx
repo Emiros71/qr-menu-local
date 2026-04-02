@@ -911,7 +911,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 "Ürün Adı (EN)": p.translations?.en?.name || "",
                 "Açıklama": p.description,
                 "Açıklama (EN)": p.translations?.en?.description || "",
-                "FiyatlandÄ±rma Tipi": p.pricingMode || 'single',
+                "Fiyatlandırma Tipi": p.pricingMode || 'single',
                 "Fiyat": p.price,
                 "Para Birimi": p.currency || 'TRY',
                 "Varyantlar": Array.isArray(p.priceVariants) ? p.priceVariants.map(v => `${v.label}:${v.price}`).join("|") : "",
@@ -1941,7 +1941,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">FiyatlandÄ±rma Tipi</label>
+                                            <label className="text-sm font-medium">Fiyatlandırma Tipi</label>
                                             <select
                                                 className="w-full h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
                                                 value={editingProduct.pricingMode || 'single'}
@@ -1957,7 +1957,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 }}
                                             >
                                                 <option value="single">Tek fiyat</option>
-                                                <option value="variants">VaryantlÄ± fiyat</option>
+                                                <option value="variants">Varyantlı fiyat</option>
                                             </select>
                                         </div>
                                         <div className="space-y-2">
@@ -1967,7 +1967,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 value={editingProduct.currency || 'TRY'}
                                                 onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, currency: e.target.value as Product['currency'] }) : null)}
                                             >
-                                                <option value="TRY">TRY (â‚º)</option>
+                                                <option value="TRY">TRY (₺)</option>
                                                 <option value="USD">USD ($)</option>
                                                 <option value="EUR">EUR (€)</option>
                                             </select>
@@ -1976,7 +1976,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                                     {(editingProduct.pricingMode || 'single') === 'variants' && (
                                         <div className="space-y-2 -mt-2">
-                                            <label className="text-sm font-medium">VaryantlÄ± Fiyatlar</label>
+                                            <label className="text-sm font-medium">Varyantlı Fiyatlar</label>
                                             <div className="space-y-2 rounded-lg border border-zinc-200 p-3 bg-zinc-50">
                                                 {(Array.isArray(editingProduct.priceVariants) && editingProduct.priceVariants.length > 0 ? editingProduct.priceVariants : DEFAULT_PRICE_VARIANTS).map((variant, index) => (
                                                     <div key={`${variant.label}-${index}`} className="grid grid-cols-[1fr_140px_40px] gap-2 items-center">
@@ -1991,7 +1991,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                                     return { ...prev, priceVariants: nextVariants };
                                                                 });
                                                             }}
-                                                            placeholder="Ã–rn: Medium"
+                                                            placeholder="Örn: Medium"
                                                         />
                                                         <Input
                                                             type="number"
@@ -2038,7 +2038,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                     Varyant Ekle
                                                 </Button>
                                             </div>
-                                            <p className="text-[10px] text-zinc-500">Kartlarda en dÃ¼ÅŸÃ¼k fiyat gÃ¶sterilir, detayda tÃ¼m boyutlar listelenir.</p>
+                                            <p className="text-[10px] text-zinc-500">Kartlarda en düşük fiyat gösterilir, detayda tüm boyutlar listelenir.</p>
                                         </div>
                                     )}
 
