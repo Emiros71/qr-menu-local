@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useMemo } from "react";
-import { Venue, Product, Category, Allergen } from "@/data/db";
+import { Venue, Product, Category, Allergen, getBaseProductPrice, getCurrencySymbol } from "@/data/db";
 import { VenueService } from "@/services/venue-service";
 import { CategoryService } from "@/services/category-service";
 import { ProductService } from "@/services/product-service";
@@ -36,6 +36,12 @@ const AVAILABLE_LANGUAGES = [
     { code: 'fr', name: 'Français', flag: '🇫🇷' },
     { code: 'ar', name: 'العربية', flag: '🇸🇦' },
     { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+];
+
+const DEFAULT_PRICE_VARIANTS = [
+    { label: 'Small', price: 0 },
+    { label: 'Medium', price: 0 },
+    { label: 'Large', price: 0 }
 ];
 
 const AdminProductImage = ({ product, defaultImage, onClick }: { product: Product, defaultImage?: string, onClick: () => void }) => {
@@ -481,6 +487,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             const updatePayload: any = {
                                 name: product.name,
                                 price: product.price,
+                                currency: product.currency,
+                                pricingMode: product.pricingMode,
+                                priceVariants: product.priceVariants,
                                 description: product.description,
                                 categoryId: product.categoryId,
                                 isAvailable: product.isAvailable,
@@ -551,6 +560,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             name: "Yeni Ürün",
             description: "Ürün açıklaması buraya...",
             price: 150,
+            currency: 'TRY' as const,
+            pricingMode: 'single' as const,
+            priceVariants: [],
             isAvailable: true,
             venueId: venueData.id,
             categoryId: categories[0]?.id,
@@ -800,6 +812,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             name: item.name,
                             description: item.description,
                             price: item.price,
+                            currency: item.currency,
+                            pricingMode: item.pricingMode,
+                            priceVariants: item.priceVariants,
                             categoryId,
                             isAvailable: item.isAvailable,
                             isChefRecommendation: item.isChefRecommendation,
@@ -833,6 +848,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             name: item.name,
                             description: item.description,
                             price: item.price,
+                            currency: item.currency,
+                            pricingMode: item.pricingMode,
+                            priceVariants: item.priceVariants,
                             image: newImage,
                             isAvailable: item.isAvailable,
                             isChefRecommendation: item.isChefRecommendation,
@@ -893,7 +911,10 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 "Ürün Adı (EN)": p.translations?.en?.name || "",
                 "Açıklama": p.description,
                 "Açıklama (EN)": p.translations?.en?.description || "",
+                "FiyatlandÄ±rma Tipi": p.pricingMode || 'single',
                 "Fiyat": p.price,
+                "Para Birimi": p.currency || 'TRY',
+                "Varyantlar": Array.isArray(p.priceVariants) ? p.priceVariants.map(v => `${v.label}:${v.price}`).join("|") : "",
                 "Kategori": catName,
                 "Kategori (EN)": categories.find(c => c.id === p.categoryId)?.translations?.en?.name || "",
                 "Alerjenler": p.allergens ? p.allergens.join(", ") : "",
@@ -917,7 +938,12 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     };
 
     const openAllergenModal = (product: Product) => {
-        setEditingProduct(product);
+        setEditingProduct({
+            ...product,
+            currency: product.currency || 'TRY',
+            pricingMode: product.pricingMode || 'single',
+            priceVariants: product.priceVariants || []
+        });
         setIsAllergenModalOpen(true);
     };
 
@@ -1915,6 +1941,109 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
+                                            <label className="text-sm font-medium">FiyatlandÄ±rma Tipi</label>
+                                            <select
+                                                className="w-full h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                value={editingProduct.pricingMode || 'single'}
+                                                onChange={(e) => {
+                                                    const nextMode = e.target.value as 'single' | 'variants';
+                                                    setEditingProduct(prev => prev ? ({
+                                                        ...prev,
+                                                        pricingMode: nextMode,
+                                                        priceVariants: nextMode === 'variants'
+                                                            ? (Array.isArray(prev.priceVariants) && prev.priceVariants.length > 0 ? prev.priceVariants : DEFAULT_PRICE_VARIANTS)
+                                                            : []
+                                                    }) : null);
+                                                }}
+                                            >
+                                                <option value="single">Tek fiyat</option>
+                                                <option value="variants">VaryantlÄ± fiyat</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Para Birimi</label>
+                                            <select
+                                                className="w-full h-10 rounded-md border border-zinc-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                value={editingProduct.currency || 'TRY'}
+                                                onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, currency: e.target.value as Product['currency'] }) : null)}
+                                            >
+                                                <option value="TRY">TRY (â‚º)</option>
+                                                <option value="USD">USD ($)</option>
+                                                <option value="EUR">EUR (€)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {(editingProduct.pricingMode || 'single') === 'variants' && (
+                                        <div className="space-y-2 -mt-2">
+                                            <label className="text-sm font-medium">VaryantlÄ± Fiyatlar</label>
+                                            <div className="space-y-2 rounded-lg border border-zinc-200 p-3 bg-zinc-50">
+                                                {(Array.isArray(editingProduct.priceVariants) && editingProduct.priceVariants.length > 0 ? editingProduct.priceVariants : DEFAULT_PRICE_VARIANTS).map((variant, index) => (
+                                                    <div key={`${variant.label}-${index}`} className="grid grid-cols-[1fr_140px_40px] gap-2 items-center">
+                                                        <Input
+                                                            value={variant.label}
+                                                            onChange={(e) => {
+                                                                const label = e.target.value;
+                                                                setEditingProduct(prev => {
+                                                                    if (!prev) return null;
+                                                                    const nextVariants = [...(prev.priceVariants && prev.priceVariants.length > 0 ? prev.priceVariants : DEFAULT_PRICE_VARIANTS)];
+                                                                    nextVariants[index] = { ...nextVariants[index], label };
+                                                                    return { ...prev, priceVariants: nextVariants };
+                                                                });
+                                                            }}
+                                                            placeholder="Ã–rn: Medium"
+                                                        />
+                                                        <Input
+                                                            type="number"
+                                                            value={variant.price}
+                                                            onChange={(e) => {
+                                                                const price = parseFloat(e.target.value) || 0;
+                                                                setEditingProduct(prev => {
+                                                                    if (!prev) return null;
+                                                                    const nextVariants = [...(prev.priceVariants && prev.priceVariants.length > 0 ? prev.priceVariants : DEFAULT_PRICE_VARIANTS)];
+                                                                    nextVariants[index] = { ...nextVariants[index], price };
+                                                                    return { ...prev, priceVariants: nextVariants };
+                                                                });
+                                                            }}
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setEditingProduct(prev => {
+                                                                    if (!prev) return null;
+                                                                    const current = prev.priceVariants && prev.priceVariants.length > 0 ? prev.priceVariants : DEFAULT_PRICE_VARIANTS;
+                                                                    if (current.length <= 1) return prev;
+                                                                    const nextVariants = [...current];
+                                                                    nextVariants.splice(index, 1);
+                                                                    return { ...prev, priceVariants: nextVariants };
+                                                                });
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setEditingProduct(prev => prev ? ({
+                                                        ...prev,
+                                                        priceVariants: [...(prev.priceVariants && prev.priceVariants.length > 0 ? prev.priceVariants : DEFAULT_PRICE_VARIANTS), { label: `Boy ${((prev.priceVariants?.length || DEFAULT_PRICE_VARIANTS.length) + 1)}`, price: 0 }]
+                                                    }) : null)}
+                                                >
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Varyant Ekle
+                                                </Button>
+                                            </div>
+                                            <p className="text-[10px] text-zinc-500">Kartlarda en dÃ¼ÅŸÃ¼k fiyat gÃ¶sterilir, detayda tÃ¼m boyutlar listelenir.</p>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
                                             <div className="flex justify-between items-center">
                                                 <label className="text-sm font-medium">Başlangıç Saati</label>
                                                 {editingProduct.startTime && (
@@ -2205,10 +2334,23 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         <div className="p-4 bg-zinc-50 flex justify-end gap-2 sticky bottom-0 border-t border-zinc-100">
                             <Button variant="ghost" onClick={() => setIsAllergenModalOpen(false)}>İptal</Button>
                             <Button onClick={async () => {
+                                const normalizedProduct = {
+                                    ...editingProduct,
+                                    currency: editingProduct.currency || 'TRY',
+                                    pricingMode: editingProduct.pricingMode || 'single',
+                                    priceVariants: (editingProduct.pricingMode || 'single') === 'variants'
+                                        ? (editingProduct.priceVariants || []).filter(variant => variant.label?.trim())
+                                        : [],
+                                    price: getBaseProductPrice({
+                                        price: editingProduct.price || 0,
+                                        pricingMode: editingProduct.pricingMode || 'single',
+                                        priceVariants: editingProduct.priceVariants || []
+                                    })
+                                };
                                 if (editingProduct.id === 'new') {
                                     // Create
                                     try {
-                                        const created = await ProductService.createProduct(editingProduct);
+                                        const created = await ProductService.createProduct(normalizedProduct);
                                         if (created) {
                                             setProducts(prev => [...prev, created]);
                                         }
@@ -2219,11 +2361,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     // Update
                                     try {
                                         const productId = editingProduct.id!;
-                                        await ProductService.updateProduct(productId, editingProduct);
+                                        await ProductService.updateProduct(productId, normalizedProduct);
 
                                         // Update local state
                                         // We assume success if no error thrown
-                                        setProducts(prev => prev.map(p => p.id === productId ? (editingProduct as Product) : p));
+                                        setProducts(prev => prev.map(p => p.id === productId ? (normalizedProduct as Product) : p));
 
                                         setIsAllergenModalOpen(false);
                                     } catch (e) {

@@ -1,11 +1,11 @@
 "use client";
 
-import { X } from "lucide-react";
-import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Product } from "@/data/db";
+import Image from "next/image";
+import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Product, getBaseProductPrice, getCurrencySymbol } from "@/data/db";
 
 interface ProductModalProps {
     product: Product | null;
@@ -16,6 +16,7 @@ interface ProductModalProps {
     currencySymbol?: string;
     defaultImage: string;
 }
+
 const getDiscountedPrice = (price: number, type?: 'percentage' | 'fixed' | null, amount?: number | null) => {
     if (!type || !amount) return null;
     if (type === 'percentage') return Math.max(0, price - (price * (amount / 100)));
@@ -44,19 +45,18 @@ export default function ProductModal({
     }, [isOpen]);
 
     const [mounted, setMounted] = useState(false);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => { setMounted(true); }, []);
 
-    if (!mounted) return null;
+    if (!mounted || !isOpen || !product) return null;
 
-    if (!isOpen || !product) return null;
+    const resolvedCurrencySymbol = getCurrencySymbol(product.currency) || currencySymbol;
+    const hasVariants = product.pricingMode === 'variants' && Array.isArray(product.priceVariants) && product.priceVariants.length > 0;
+    const basePrice = getBaseProductPrice(product);
 
-    // Use portal to render at root level
     return createPortal(
         <AnimatePresence>
             {isOpen && product && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                    {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -66,7 +66,6 @@ export default function ProductModal({
                         onClick={onClose}
                     />
 
-                    {/* Modal Content */}
                     <motion.div
                         layoutId={`product-${product.id}`}
                         initial={{ opacity: 0, scale: 0.9 }}
@@ -75,7 +74,6 @@ export default function ProductModal({
                         transition={{ duration: 0.3, type: "spring", bounce: 0.3 }}
                         className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col z-10"
                     >
-                        {/* Close Button */}
                         <button
                             onClick={onClose}
                             className="absolute top-4 right-4 z-10 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors backdrop-blur-md"
@@ -83,7 +81,6 @@ export default function ProductModal({
                             <X className="h-5 w-5" />
                         </button>
 
-                        {/* Product Image */}
                         <div className="relative w-full h-64 md:h-80 shrink-0 bg-zinc-100">
                             <Image
                                 src={product.image || defaultImage}
@@ -93,27 +90,28 @@ export default function ProductModal({
                             />
                         </div>
 
-                        {/* Details */}
                         <div className="p-6 overflow-y-auto">
                             <div className="flex justify-between items-start gap-4 mb-2">
                                 <h2 className="text-2xl font-bold text-zinc-900 leading-tight">
                                     {localize(product, 'name')}
                                 </h2>
                                 <span className="text-xl font-bold text-primary whitespace-nowrap flex flex-col items-end">
-                                    {product.discount_type && product.discount_amount ? (
+                                    {!hasVariants && product.discount_type && product.discount_amount ? (
                                         <>
                                             <span className="text-sm text-zinc-400 line-through">
-                                                {currencySymbol}{product.price}
+                                                {resolvedCurrencySymbol}{product.price}
                                             </span>
                                             <span className="flex items-center gap-2">
-                                                {currencySymbol}{getDiscountedPrice(product.price, product.discount_type, product.discount_amount)?.toFixed(2).replace(/\.00$/, '')}
+                                                {resolvedCurrencySymbol}{getDiscountedPrice(product.price, product.discount_type, product.discount_amount)?.toFixed(2).replace(/\.00$/, '')}
                                                 <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full inline-block shadow-sm">
-                                                    {product.discount_type === 'percentage' ? `%${product.discount_amount} İndirim` : `-${product.discount_amount}₺`}
+                                                    {product.discount_type === 'percentage' ? `%${product.discount_amount} İndirim` : `-${product.discount_amount}${resolvedCurrencySymbol}`}
                                                 </span>
                                             </span>
                                         </>
+                                    ) : hasVariants ? (
+                                        <span>{resolvedCurrencySymbol}{basePrice}+</span>
                                     ) : (
-                                        <span>{currencySymbol}{product.price}</span>
+                                        <span>{resolvedCurrencySymbol}{product.price}</span>
                                     )}
                                 </span>
                             </div>
@@ -122,7 +120,40 @@ export default function ProductModal({
                                 {localize(product, 'description')}
                             </p>
 
-                            {/* Allergens */}
+                            {hasVariants && (
+                                <div className="mb-6">
+                                    <h4 className="text-sm font-semibold text-zinc-900 mb-2 uppercase tracking-wide opacity-70">
+                                        Boyut Seçenekleri
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {product.priceVariants!.map(variant => {
+                                            const discountedVariantPrice = getDiscountedPrice(variant.price, product.discount_type, product.discount_amount);
+                                            return (
+                                                <div key={variant.label} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+                                                    <span className="font-medium text-zinc-800">{variant.label}</span>
+                                                    <div className="text-right">
+                                                        {discountedVariantPrice !== null ? (
+                                                            <>
+                                                                <div className="text-xs text-zinc-400 line-through">
+                                                                    {resolvedCurrencySymbol}{variant.price}
+                                                                </div>
+                                                                <div className="font-semibold text-primary">
+                                                                    {resolvedCurrencySymbol}{discountedVariantPrice.toFixed(2).replace(/\.00$/, '')}
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="font-semibold text-primary">
+                                                                {resolvedCurrencySymbol}{variant.price}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
                             {product.allergens && product.allergens.length > 0 && (
                                 <div className="mb-6">
                                     <h4 className="text-sm font-semibold text-zinc-900 mb-2 uppercase tracking-wide opacity-70">
@@ -142,18 +173,15 @@ export default function ProductModal({
                                 </div>
                             )}
 
-                            {/* Meta / Badges */}
                             <div className="flex gap-2">
                                 {product.isChefRecommendation && (
                                     <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full border border-amber-200">
                                         ★ Şefin Tavsiyesi
                                     </span>
                                 )}
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                {(product as any).calories && (
+                                {(product as Product & { calories?: number }).calories && (
                                     <span className="px-3 py-1 bg-zinc-100 text-zinc-600 text-xs font-bold rounded-full border border-zinc-200">
-                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                        🔥 {(product as any).calories} kcal
+                                        {(product as Product & { calories?: number }).calories} kcal
                                     </span>
                                 )}
                             </div>

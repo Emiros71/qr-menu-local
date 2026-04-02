@@ -12,6 +12,8 @@ export type Product = {
     description: string;
     price: number;
     currency: string;
+    pricingMode?: 'single' | 'variants';
+    priceVariants?: { label: string; price: number }[];
     image?: string;
     labels?: string[]; // e.g. ["New", "Spicy", "Vegetarian"]
 };
@@ -63,7 +65,7 @@ export const products: Product[] = [
         name: "Serpme Kahvaltı (2 Kişilik)",
         description: "Beyaz peynir, kaşar peyniri, tulum peyniri, siyah ve yeşil zeytin, bal, kaymak, tereyağı, reçel çeşitleri, domates, salatalık, biber, sahanda yumurta, sigara böreği, sınırsız çay.",
         price: 850,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1533089862017-5614ec42e716?q=80&w=2670&auto=format&fit=crop",
         labels: ["Popüler"],
     },
@@ -73,7 +75,7 @@ export const products: Product[] = [
         name: "Menemen",
         description: "Organik domates, biber ve köy yumurtası ile hazırlanan geleneksel lezzet.",
         price: 180,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1593584785033-9c7604d0863f?q=80&w=2581&auto=format&fit=crop",
     },
 
@@ -84,7 +86,7 @@ export const products: Product[] = [
         name: "Bruschetta Trio",
         description: "Kızarmış ekşi mayalı ekmek üzerinde domatesli, mantarlı ve avokadolu üç farklı lezzet.",
         price: 240,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1572695157363-bc31c5dd3386?q=80&w=2670&auto=format&fit=crop",
         labels: ["Vejetaryen"],
     },
@@ -94,7 +96,7 @@ export const products: Product[] = [
         name: "Dana Carpaccio",
         description: "İnce dilimlenmiş bonfile, roka, parmesan peyniri ve trüf yağı ile.",
         price: 420,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1541529086526-db283c563270?q=80&w=2670&auto=format&fit=crop",
     },
 
@@ -105,7 +107,7 @@ export const products: Product[] = [
         name: "Izgara Antrikot",
         description: "250g dinlendirilmiş antrikot, patates püresi ve sote sebzeler eşliğinde.",
         price: 950,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1546241072-48010ad2862c?q=80&w=2574&auto=format&fit=crop",
         labels: ["Şefin Tavsiyesi"],
     },
@@ -115,7 +117,7 @@ export const products: Product[] = [
         name: "Somon Izgara",
         description: "Norveç somonu, kinoa salatası ve limonlu tereyağı sosu ile.",
         price: 780,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1467003909585-2f8a7270028d?q=80&w=2574&auto=format&fit=crop",
     },
     {
@@ -124,7 +126,7 @@ export const products: Product[] = [
         name: "Mantarlı Risotto",
         description: "Arborio pirinci, porçini mantarı, parmesan ve trüf aroması.",
         price: 520,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1476124369491-e7addf5db371?q=80&w=2670&auto=format&fit=crop",
         labels: ["Glutensiz"],
     },
@@ -136,7 +138,7 @@ export const products: Product[] = [
         name: "Sezar Salata",
         description: "Marul, kruton, parmesan peyniri ve özel sezar sos.",
         price: 380,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1550304943-4f24f54ddde9?q=80&w=2670&auto=format&fit=crop",
     },
     {
@@ -145,7 +147,7 @@ export const products: Product[] = [
         name: "Kinoa & Avokado",
         description: "Taze yeşillikler, kinoa, avokado, cherry domates ve nar ekşisi sosu.",
         price: 410,
-        currency: "₺",
+        currency: "TRY",
         image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2670&auto=format&fit=crop",
         labels: ["Vegan"],
     },

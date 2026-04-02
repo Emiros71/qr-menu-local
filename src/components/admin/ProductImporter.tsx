@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
+import { Download, FileSpreadsheet, Image as ImageIcon, Loader2, Check, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Download, Upload, Loader2, FileSpreadsheet, Image as ImageIcon, Check } from "lucide-react";
 import { compressImage } from "@/utils/image-compression";
 
 interface ProductImporterProps {
@@ -12,13 +12,43 @@ interface ProductImporterProps {
     existingCategories: { id: string; name: string }[];
 }
 
-// Helper for batched processing
 const chunkArray = (array: unknown[], size: number) => {
     const chunked = [];
     for (let i = 0; i < array.length; i += size) {
         chunked.push(array.slice(i, i + size));
     }
     return chunked;
+};
+
+const parsePrice = (rawValue: string) => {
+    if (!rawValue) return 0;
+    const normalized = rawValue.replace(/\s/g, "").replace(",", ".");
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const parseOptionalId = (rawValue: string) => {
+    const normalized = rawValue.trim();
+    if (!normalized) return "";
+    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+    const match = normalized.match(uuidRegex);
+    return match ? match[0] : "";
+};
+
+const parseVariantString = (rawValue: string) => {
+    if (!rawValue) return [];
+    return rawValue
+        .split("|")
+        .map(part => part.trim())
+        .filter(Boolean)
+        .map(part => {
+            const [label, price] = part.split(":").map(piece => piece.trim());
+            return {
+                label: label || "",
+                price: parsePrice(price || "0")
+            };
+        })
+        .filter(variant => variant.label && Number.isFinite(variant.price));
 };
 
 export default function ProductImporter({ onImport, onExport, existingCategories }: ProductImporterProps) {
@@ -30,25 +60,9 @@ export default function ProductImporter({ onImport, onExport, existingCategories
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [parsedProducts, setParsedProducts] = useState<any[]>([]);
     const [unknownCategories, setUnknownCategories] = useState<string[]>([]);
-    const [categoryMapping, setCategoryMapping] = useState<Record<string, string>>({}); // "Unknown Name" -> "Target ID" (or "")
-
+    const [categoryMapping, setCategoryMapping] = useState<Record<string, string>>({});
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [uploadProgress, setUploadProgress] = useState(0);
-
-    const parseOptionalId = (rawValue: string) => {
-        const normalized = rawValue.trim();
-        if (!normalized) return "";
-        const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
-        const match = normalized.match(uuidRegex);
-        return match ? match[0] : "";
-    };
-
-    const parsePrice = (rawValue: string) => {
-        if (!rawValue) return 0;
-        const normalized = rawValue.replace(/\s/g, "").replace(",", ".");
-        const parsed = Number.parseFloat(normalized);
-        return Number.isFinite(parsed) ? parsed : 0;
-    };
 
     const handleDownloadTemplate = () => {
         const headers = [
@@ -58,7 +72,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 "Ürün Adı (EN)": "Example Product",
                 "Açıklama": "Lezzetli bir yemek",
                 "Açıklama (EN)": "A delicious meal",
+                "Fiyatlandırma Tipi": "single",
                 "Fiyat": 150,
+                "Para Birimi": "TRY",
+                "Varyantlar": "Small:130|Medium:150|Large:175",
                 "Kategori": "Ana Yemekler",
                 "Kategori (EN)": "Main Courses",
                 "Alerjenler": "Gluten, Süt",
@@ -72,21 +89,24 @@ export default function ProductImporter({ onImport, onExport, existingCategories
         ];
         const ws = XLSX.utils.json_to_sheet(headers);
         ws['!cols'] = [
-            { wch: 30 }, // ID
-            { wch: 20 }, // Ad
-            { wch: 20 }, // Ad EN
-            { wch: 30 }, // Açıklama
-            { wch: 30 }, // Açıklama EN
-            { wch: 10 }, // Fiyat
-            { wch: 20 }, // Kategori
-            { wch: 20 }, // Kategori EN
-            { wch: 20 }, // Alerjenler
-            { wch: 10 }, // Şef
-            { wch: 15 }, // İndirim Tipi
-            { wch: 15 }, // İndirim Değeri
-            { wch: 15 }, // Başlama Saati
-            { wch: 15 }, // Bitiş Saati
-            { wch: 40 }  // Görsel
+            { wch: 30 },
+            { wch: 24 },
+            { wch: 24 },
+            { wch: 32 },
+            { wch: 32 },
+            { wch: 18 },
+            { wch: 10 },
+            { wch: 12 },
+            { wch: 32 },
+            { wch: 20 },
+            { wch: 20 },
+            { wch: 20 },
+            { wch: 10 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 40 }
         ];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Şablon");
@@ -111,17 +131,20 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     return matchingKey ? String(row[matchingKey]).trim() : "";
                 };
 
-                // Try to find image filename 
                 const imgFile = getVal("Görsel Dosya Adı") || getVal("Dosya") || getVal("Image") || "";
-
-                // i18n Parsing
                 const nameEn = getVal("Ürün Adı (EN)") || getVal("Product Name EN") || getVal("Name EN");
                 const descEn = getVal("Açıklama (EN)") || getVal("Description EN");
                 const catEn = getVal("Kategori (EN)") || getVal("Category EN");
+                const pricingModeRaw = (getVal("Fiyatlandırma Tipi") || getVal("Pricing Mode") || "single").toLowerCase();
+                const pricingMode = pricingModeRaw === "variants" || pricingModeRaw === "varyant" || pricingModeRaw === "varyantlar"
+                    ? "variants"
+                    : "single";
+                const currency = (getVal("Para Birimi") || getVal("Currency") || "TRY").toUpperCase();
+                const priceVariants = parseVariantString(getVal("Varyantlar") || getVal("Variants"));
 
                 const translations: Record<string, unknown> = {};
                 if (nameEn || descEn) {
-                    translations['en'] = {
+                    translations.en = {
                         name: nameEn,
                         description: descEn
                     };
@@ -129,18 +152,21 @@ export default function ProductImporter({ onImport, onExport, existingCategories
 
                 const rawId = getVal("ID");
                 return {
-                    id: parseOptionalId(rawId), // Optional ID for updates
+                    id: parseOptionalId(rawId),
                     hasIdCell: rawId !== "",
                     name: getVal("Name") || getVal("Ürün Adı") || "İsimsiz Ürün",
                     description: getVal("Description") || getVal("Açıklama") || "",
                     price: parsePrice(getVal("Price") || getVal("Fiyat") || "0"),
+                    currency: ['TRY', 'USD', 'EUR'].includes(currency) ? currency : 'TRY',
+                    pricingMode,
+                    priceVariants,
                     categoryName: getVal("Category") || getVal("Kategori") || "Genel",
                     categoryNameEn: catEn,
                     allergens: (getVal("Allergens") || getVal("Alerjenler") || "").split(",").map((s: string) => s.trim()).filter(Boolean),
                     isChefRecommendation: ["evet", "yes", "true", "1"].includes(String(getVal("Chef") || getVal("Şef")).toLowerCase()),
                     imageFilename: imgFile,
-                    image: imgFile.startsWith("http") ? imgFile : "", // If already URL, use it
-                    translations: translations, // Add translations to product
+                    image: imgFile.startsWith("http") ? imgFile : "",
+                    translations,
                     isAvailable: true,
                     discount_type: getVal("İndirim Tipi") || getVal("Discount Type") || null,
                     discount_amount: getVal("İndirim Değeri") || getVal("Discount Amount")
@@ -154,7 +180,6 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             if (mapped.length > 0) {
                 setParsedProducts(mapped);
 
-                // Validation Step: Check Categories
                 const incomingCategories = Array.from(new Set(mapped.map(p => (p.categoryName || "Genel").trim()))).filter(Boolean);
                 const unknown = incomingCategories.filter(catName =>
                     !existingCategories.some(ec => ec.name.toLowerCase() === catName.toLowerCase())
@@ -162,9 +187,8 @@ export default function ProductImporter({ onImport, onExport, existingCategories
 
                 if (unknown.length > 0) {
                     setUnknownCategories(unknown);
-                    // Initialize mapping with matching ID or empty (create new)
                     const initialMap: Record<string, string> = {};
-                    unknown.forEach(u => initialMap[u] = "NEW");
+                    unknown.forEach(u => { initialMap[u] = "NEW"; });
                     setCategoryMapping(initialMap);
                     setStep('validate');
                 } else {
@@ -182,17 +206,13 @@ export default function ProductImporter({ onImport, onExport, existingCategories
     };
 
     const handleCategoryMapConfirm = () => {
-        // Apply mapping to parsedProducts
         const updated = parsedProducts.map(p => {
             const catName = (p.categoryName || "Genel").trim();
             const mappedId = categoryMapping[catName];
-
-            // If user selected an existing category ID, update the name to match system name
-            // If "NEW", keep original name (it will be created by parent)
             if (mappedId && mappedId !== "NEW") {
                 const targetCat = existingCategories.find(c => c.id === mappedId);
                 if (targetCat) {
-                    return { ...p, categoryName: targetCat.name }; // Normalize name
+                    return { ...p, categoryName: targetCat.name };
                 }
             }
             return p;
@@ -217,16 +237,12 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             const finalProducts = [...parsedProducts];
             const productsWithImages = finalProducts.filter(p => p.imageFilename && !p.image);
 
-            // 1. Upload Images if any selected
             if (selectedImages.length > 0 && productsWithImages.length > 0) {
                 const totalToUpload = productsWithImages.length;
                 let uploadedCount = 0;
-
-                // Create a map for fast lookup: filename -> File object
                 const fileMap = new Map<string, File>();
                 selectedImages.forEach(file => fileMap.set(file.name.toLowerCase(), file));
 
-                // Helper to upload single file
                 const uploadFile = async (productIndex: number, filename: string) => {
                     const rawFile = fileMap.get(filename.toLowerCase());
                     if (!rawFile) {
@@ -234,9 +250,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     }
 
                     try {
-                        // Sıkıştırma: Toplu yüklemelerde çok önemli (Max 1MB)
                         const file = await compressImage(rawFile, { maxSizeMB: 1 });
-
                         const formData = new FormData();
                         formData.append("file", file);
                         formData.append("folder", "qr-menu/products");
@@ -250,7 +264,6 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                         if (!res.ok) throw new Error(data?.error || "Upload failed");
                         if (!data?.secure_url) throw new Error("Upload URL not returned");
                         finalProducts[productIndex].image = data.secure_url;
-
                     } catch (err) {
                         console.error(`Failed to upload ${filename}`, err);
                         throw err;
@@ -260,7 +273,6 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     }
                 };
 
-                // Process in parallel (chunks of 5)
                 const tasks = [];
                 for (let i = 0; i < finalProducts.length; i++) {
                     const p = finalProducts[i];
@@ -275,22 +287,19 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 }
             }
 
-            // 2. Save to DB
             await onImport(finalProducts);
             setStep('idle');
             setParsedProducts([]);
             setSelectedImages([]);
-
         } catch (err) {
             console.error("Import process failed:", err);
             alert("İşlem sırasında bir hata oluştu.");
-            setStep('review'); // Go back to review on failure
+            setStep('review');
         } finally {
             setImporting(false);
         }
     };
 
-    // Derived State for UI
     const totalWithImageRef = parsedProducts.filter(p => p.imageFilename && !p.image).length;
     const matchCount = parsedProducts.filter(p => {
         if (!p.imageFilename || p.image) return false;
@@ -303,7 +312,6 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             filename: String(p.imageFilename),
             matched: selectedImages.some(f => f.name.toLowerCase() === String(p.imageFilename).toLowerCase())
         }));
-
 
     return (
         <>
@@ -326,14 +334,12 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 )}
             </div>
 
-            {/* Modal for Review & Image Match & Validation */}
             {(step === 'review' || step === 'uploading' || step === 'validate') && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="p-6">
                             <h3 className="text-lg font-semibold mb-2 text-zinc-900">
-                                {step === 'validate' ? "Kategori Eşleştirme" :
-                                    importing ? "Yükleniyor..." : "Verileri Doğrula"}
+                                {step === 'validate' ? "Kategori Eşleştirme" : importing ? "Yükleniyor..." : "Verileri Doğrula"}
                             </h3>
 
                             {step !== 'validate' && (
@@ -452,7 +458,11 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                                         {parsedProducts.slice(0, 5).map((p, i) => (
                                             <div key={i} className="flex justify-between border-b last:border-0 border-zinc-200 py-1">
                                                 <span className="text-zinc-900">{p.name}</span>
-                                                <span className="font-mono text-zinc-600">{p.price}₺</span>
+                                                <span className="font-mono text-zinc-600">
+                                                    {p.pricingMode === 'variants' && Array.isArray(p.priceVariants) && p.priceVariants.length > 0
+                                                        ? `${p.priceVariants.length} varyant`
+                                                        : `${p.price} ${p.currency || 'TRY'}`}
+                                                </span>
                                             </div>
                                         ))}
                                         {parsedProducts.length > 5 && <div className="py-1 text-center italic text-zinc-400">...ve {parsedProducts.length - 5} diğer</div>}

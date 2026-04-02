@@ -1,6 +1,23 @@
 import { supabase } from "@/lib/supabase";
-import { venues as mockVenues, Venue } from "@/data/db";
+import { venues as mockVenues, Venue, CurrencyCode } from "@/data/db";
+
+const normalizeCurrency = (currency: unknown): CurrencyCode => {
+    return currency === 'USD' || currency === 'EUR' ? currency : 'TRY';
+};
 import { isSupabaseConfigured, parseImageField, performActionViaApi } from "./db-utils";
+
+const parsePriceVariants = (raw: unknown) => {
+    if (!raw) return [];
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+        .filter(variant => variant && typeof variant === 'object')
+        .map(variant => ({
+            label: String((variant as { label?: unknown }).label || '').trim(),
+            price: Number((variant as { price?: unknown }).price || 0)
+        }))
+        .filter(variant => variant.label && Number.isFinite(variant.price));
+};
 
 export const VenueService = {
     // Get all venues (for landing page / admin list)
@@ -79,7 +96,9 @@ export const VenueService = {
             allergens: p.allergens as string[],
             isChefRecommendation: p.is_chef_recommendation as boolean,
             labels: p.labels as string[],
-            currency: 'TRY',
+            currency: normalizeCurrency(p.currency),
+            pricingMode: (p.pricing_mode as 'single' | 'variants' | null) || 'single',
+            priceVariants: parsePriceVariants(p.price_variants),
             translations: typeof p.translations === 'string' ? JSON.parse(p.translations as string) : p.translations,
             startTime: p.start_time as string,
             endTime: p.end_time as string,
@@ -171,7 +190,9 @@ export const VenueService = {
             allergens: p.allergens as string[],
             isChefRecommendation: p.is_chef_recommendation as boolean,
             labels: p.labels as string[],
-            currency: 'TRY',
+            currency: normalizeCurrency(p.currency),
+            pricingMode: (p.pricing_mode as 'single' | 'variants' | null) || 'single',
+            priceVariants: parsePriceVariants(p.price_variants),
             translations: typeof p.translations === 'string' ? JSON.parse(p.translations) : p.translations as any, // eslint-disable-line @typescript-eslint/no-explicit-any
             startTime: p.start_time as string,
             endTime: p.end_time as string,

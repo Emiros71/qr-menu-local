@@ -2,6 +2,19 @@ import { supabase } from "@/lib/supabase";
 import { isSupabaseConfigured, performActionViaApi } from "./db-utils";
 import { Venue, Product } from "@/data/db";
 
+const parsePriceVariants = (raw: unknown) => {
+    if (!raw) return [];
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+        .filter(variant => variant && typeof variant === 'object')
+        .map(variant => ({
+            label: String((variant as { label?: unknown }).label || '').trim(),
+            price: Number((variant as { price?: unknown }).price || 0)
+        }))
+        .filter(variant => variant.label && Number.isFinite(variant.price));
+};
+
 export const ProductService = {
     // Get single product mostly for audit logs
     getProductById: async (id: string): Promise<Product | null> => {
@@ -27,7 +40,9 @@ export const ProductService = {
             allergens: data.allergens,
             isChefRecommendation: data.is_chef_recommendation,
             labels: data.labels,
-            currency: 'TRY',
+            currency: data.currency || 'TRY',
+            pricingMode: data.pricing_mode || 'single',
+            priceVariants: parsePriceVariants(data.price_variants),
             translations: typeof data.translations === 'string' ? JSON.parse(data.translations) : data.translations,
             startTime: data.start_time,
             endTime: data.end_time,
@@ -55,8 +70,11 @@ export const ProductService = {
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.description !== undefined) dbUpdates.description = updates.description;
         if (updates.price !== undefined) dbUpdates.price = updates.price;
+        if (updates.currency !== undefined) dbUpdates.currency = updates.currency;
         if (updates.image !== undefined) dbUpdates.image = updates.image;
         if (updates.allergens !== undefined) dbUpdates.allergens = updates.allergens;
+        if (updates.pricingMode !== undefined) dbUpdates.pricing_mode = updates.pricingMode;
+        if (updates.priceVariants !== undefined) dbUpdates.price_variants = updates.priceVariants;
 
         // Mapped fields
         if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
@@ -91,9 +109,12 @@ export const ProductService = {
         if (product.name !== undefined) dbProduct.name = product.name;
         if (product.description !== undefined) dbProduct.description = product.description;
         if (product.price !== undefined) dbProduct.price = product.price;
+        if (product.currency !== undefined) dbProduct.currency = product.currency;
         if (product.image !== undefined) dbProduct.image = product.image;
         if (product.labels !== undefined) dbProduct.labels = product.labels;
         if (product.translations !== undefined) dbProduct.translations = product.translations;
+        if (product.pricingMode !== undefined) dbProduct.pricing_mode = product.pricingMode;
+        if (product.priceVariants !== undefined) dbProduct.price_variants = product.priceVariants;
 
         dbProduct.category_id = product.categoryId;
         dbProduct.venue_id = product.venueId;
@@ -125,7 +146,9 @@ export const ProductService = {
                 allergens: data.allergens,
                 isChefRecommendation: data.is_chef_recommendation,
                 labels: data.labels,
-                currency: 'TRY',
+                currency: data.currency || 'TRY',
+                pricingMode: data.pricing_mode || 'single',
+                priceVariants: parsePriceVariants(data.price_variants),
                 translations: data.translations,
                 startTime: data.start_time,
                 endTime: data.end_time,
@@ -149,7 +172,9 @@ export const ProductService = {
                 allergens: data.allergens,
                 isChefRecommendation: data.is_chef_recommendation,
                 labels: data.labels,
-                currency: 'TRY',
+                currency: data.currency || 'TRY',
+                pricingMode: data.pricing_mode || 'single',
+                priceVariants: parsePriceVariants(data.price_variants),
                 translations: data.translations,
                 startTime: data.start_time,
                 endTime: data.end_time

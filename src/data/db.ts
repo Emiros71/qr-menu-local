@@ -3,6 +3,13 @@ export type TranslationData = {
     description?: string;
 };
 
+export type CurrencyCode = 'TRY' | 'USD' | 'EUR';
+
+export type ProductPriceVariant = {
+    label: string;
+    price: number;
+};
+
 export type Theme = {
     primary: string;
     secondary: string;
@@ -37,7 +44,9 @@ export type Product = {
     name: string;
     description: string;
     price: number;
-    currency: string;
+    currency: CurrencyCode;
+    pricingMode?: 'single' | 'variants';
+    priceVariants?: ProductPriceVariant[];
     image?: string;
     labels?: string[];
     isAvailable: boolean;
@@ -75,6 +84,34 @@ export type Venue = {
     orderIndex?: number;
 };
 
+export const getCurrencySymbol = (currency?: string) => {
+    switch (currency) {
+        case 'USD':
+            return '$';
+        case 'EUR':
+            return '€';
+        case 'TRY':
+        default:
+            return '₺';
+    }
+};
+
+export const getNormalizedPriceVariants = (product: Pick<Product, 'pricingMode' | 'priceVariants'>) => {
+    if (product.pricingMode !== 'variants' || !Array.isArray(product.priceVariants)) return [];
+    return product.priceVariants
+        .filter(variant => variant && typeof variant.label === 'string' && variant.label.trim() !== '' && Number.isFinite(Number(variant.price)))
+        .map(variant => ({
+            label: variant.label.trim(),
+            price: Number(variant.price)
+        }));
+};
+
+export const getBaseProductPrice = (product: Pick<Product, 'price' | 'pricingMode' | 'priceVariants'>) => {
+    const variants = getNormalizedPriceVariants(product);
+    if (variants.length === 0) return Number(product.price || 0);
+    return Math.min(...variants.map(variant => variant.price));
+};
+
 export const venues: Venue[] = [
     {
         id: "v_aura",
@@ -106,7 +143,7 @@ export const venues: Venue[] = [
                 name: "Izgara Antrikot",
                 description: "250g dinlendirilmiş antrikot, patates püresi.",
                 price: 950,
-                currency: "₺",
+                currency: "TRY",
                 image: "https://images.unsplash.com/photo-1546241072-48010ad2862c?q=80&w=2574&auto=format&fit=crop",
                 isAvailable: true,
                 labels: ["Şefin Tavsiyesi"]
@@ -117,7 +154,7 @@ export const venues: Venue[] = [
                 name: "Signature Cocktail",
                 description: "Aura özel karışımı.",
                 price: 450,
-                currency: "₺",
+                currency: "TRY",
                 image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=2574&auto=format&fit=crop",
                 isAvailable: true,
             }
@@ -150,7 +187,7 @@ export const venues: Venue[] = [
                 name: "Negroni",
                 description: "Gin, Vermouth Rosso, Campari.",
                 price: 380,
-                currency: "₺",
+                currency: "TRY",
                 image: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?q=80&w=2670&auto=format&fit=crop",
                 isAvailable: true,
             },
@@ -160,7 +197,7 @@ export const venues: Venue[] = [
                 name: "Tapas Tabağı",
                 description: "Karışık İspanyol atıştırmalıkları.",
                 price: 420,
-                currency: "₺",
+                currency: "TRY",
                 image: "https://images.unsplash.com/photo-1621537272827-023a7be2904d?q=80&w=2670&auto=format&fit=crop",
                 isAvailable: true,
             }
@@ -189,7 +226,7 @@ export const venues: Venue[] = [
                 name: "Latte",
                 description: "Espresso ve buharda ısıtılmış süt.",
                 price: 120,
-                currency: "₺",
+                currency: "TRY",
                 image: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?q=80&w=2669&auto=format&fit=crop",
                 isAvailable: true,
             },
@@ -199,7 +236,7 @@ export const venues: Venue[] = [
                 name: "San Sebastian",
                 description: "Akışkan kıvamlı cheesecake.",
                 price: 180,
-                currency: "₺",
+                currency: "TRY",
                 image: "https://images.unsplash.com/photo-1551024601-564d6e67e252?q=80&w=2574&auto=format&fit=crop",
                 isAvailable: true,
             }

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState, useMemo } from "react";
 import { Search, Globe, Menu as MenuIcon, ChevronRight, ArrowLeft, Check, ArrowUp, CakeSlice, Coffee, Utensils, Pizza, Sandwich, IceCream, Soup, GlassWater, X, Home, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Venue } from "@/data/db";
+import { Venue, getBaseProductPrice, getCurrencySymbol } from "@/data/db";
 import { AnalyticsService } from "@/lib/analytics";
 import Link from "next/link";
 import { Clock } from "lucide-react";
@@ -570,18 +570,18 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                 {product.discount_type && product.discount_amount ? (
                                     <>
                                         <span className="text-[10px] text-[var(--foreground)]/50 line-through">
-                                            ₺{product.price}
+                                            {getCurrencySymbol(product.currency)}{product.price}
                                         </span>
                                         <span className="font-bold text-base text-[var(--primary)] flex items-center gap-1.5">
-                                            ₺{getDiscountedPrice(product.price, product.discount_type, product.discount_amount)?.toFixed(2).replace(/\.00$/, '')}
+                                            {getCurrencySymbol(product.currency)}{getDiscountedPrice(product.price, product.discount_type, product.discount_amount)?.toFixed(2).replace(/\.00$/, '')}
                                             <span className="text-[9px] bg-red-500 text-white px-1 py-0.5 rounded-full">
-                                                {product.discount_type === 'percentage' ? `%${product.discount_amount}` : `-${product.discount_amount}₺`}
+                                                {product.discount_type === 'percentage' ? `%${product.discount_amount}` : `-${product.discount_amount}${getCurrencySymbol(product.currency)}`}
                                             </span>
                                         </span>
                                     </>
                                 ) : (
                                     <span className="font-bold text-base text-[var(--primary)]">
-                                        ₺{product.price}
+                                        {getCurrencySymbol(product.currency)}{product.price}
                                     </span>
                                 )}
                             </div>
