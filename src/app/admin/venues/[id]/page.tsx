@@ -372,6 +372,35 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         }
     };
 
+    const handleDeleteAllProducts = async () => {
+        if (!venueData) return;
+        if (products.length === 0) {
+            alert("Bu mekanda silinecek ürün yok.");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `"${venueData.name}" mekanındaki tüm ürünleri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`
+        );
+        if (!confirmed) return;
+
+        try {
+            setSaving(true);
+            for (const product of products) {
+                await ProductService.deleteProduct(product.id);
+            }
+
+            setProducts([]);
+            setUnsavedChanges(new Set());
+            alert("Mekandaki tüm ürünler temizlendi.");
+        } catch (e) {
+            console.error("Toplu ürün silme hatası:", e);
+            alert("Ürünler temizlenirken bir hata oluştu.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleSaveAll = async () => {
         if (!venueSettingsChanged && unsavedChanges.size === 0 && unsavedCategoryChanges.size === 0) {
             alert("Kaydedilecek yeni bir değişiklik yok.");
@@ -1578,6 +1607,15 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     Tehlikeli Bölge
                                 </h4>
                                 <p className="text-sm text-zinc-500 mb-4">Mekanı tamamen silerseniz, içerisindeki tüm kategoriler, ürünler ve görseller de silinecektir. Bu işlem geri alınamaz.</p>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleDeleteAllProducts}
+                                    disabled={saving}
+                                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 mr-3"
+                                >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Tüm Ürünleri Temizle
+                                </Button>
                                 <Button
                                     variant="danger"
                                     onClick={handleDeleteVenue}
