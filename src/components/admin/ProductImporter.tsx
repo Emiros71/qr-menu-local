@@ -127,8 +127,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     };
                 }
 
+                const rawId = getVal("ID");
                 return {
-                    id: parseOptionalId(getVal("ID")), // Optional ID for updates
+                    id: parseOptionalId(rawId), // Optional ID for updates
+                    hasIdCell: rawId !== "",
                     name: getVal("Name") || getVal("Ürün Adı") || "İsimsiz Ürün",
                     description: getVal("Description") || getVal("Açıklama") || "",
                     price: parsePrice(getVal("Price") || getVal("Fiyat") || "0"),

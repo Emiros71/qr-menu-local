@@ -779,7 +779,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     const normalizedItemId = typeof item.id === "string" ? item.id.trim() : "";
                     let existingProduct = normalizedItemId ? existingProductsById.get(normalizedItemId) || null : null;
 
-                    if (!existingProduct) {
+                    const shouldTryFallbackMatch = item.hasIdCell === true;
+
+                    if (!existingProduct && shouldTryFallbackMatch) {
                         const fallbackKey = `${String(item.name || "").trim().toLowerCase()}::${categoryId}`;
                         existingProduct = existingProductsByNameAndCategory.get(fallbackKey) || null;
                     }
