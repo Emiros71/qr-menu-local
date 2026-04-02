@@ -683,8 +683,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
             const existingAllergens = await AllergenService.getAllergens();
             const knownAllergenLower = new Set(existingAllergens.map(a => a.name.toLowerCase()));
+            const existingProductsById = new Map(products.map(product => [product.id, product]));
             const failedItems: string[] = [];
             let processedCount = 0;
+            let createdCount = 0;
+            let updatedCount = 0;
 
             for (const item of importedData) {
                 try {
@@ -743,6 +746,15 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     const rawImage = String(item.image || "").trim();
 
                     if (item.id && String(item.id).trim() !== "") {
+                        let existingProduct = existingProductsById.get(String(item.id).trim()) || null;
+                        if (!existingProduct) {
+                            existingProduct = await ProductService.getProductById(String(item.id).trim());
+                        }
+
+                        if (!existingProduct) {
+                            throw new Error(`ID bulunamadı (${item.id}). Yeni ürün eklemek için ID hücresini boş bırak.`);
+                        }
+
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const updatePayload: any = {
                             name: item.name,
@@ -766,6 +778,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         }
 
                         await ProductService.updateProduct(item.id, updatePayload);
+                        updatedCount++;
                     } else {
                         const newImage = (rawImage.toLowerCase() === "delete" || rawImage.toLowerCase() === "sil") ? "" : rawImage;
 
@@ -785,6 +798,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             endTime: item.endTime,
                             translations: item.translations
                         });
+                        createdCount++;
                     }
 
                     processedCount++;
@@ -803,9 +817,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             }
 
             if (failedItems.length > 0) {
-                alert(`İçe aktarma tamamlandı. ${processedCount} satır işlendi, ${failedItems.length} satır hata verdi.\n\nİlk hata: ${failedItems[0]}`);
+                alert(`İçe aktarma tamamlandı. ${createdCount} yeni, ${updatedCount} güncelleme işlendi, ${failedItems.length} satır hata verdi.\n\nİlk hata: ${failedItems[0]}`);
             } else {
-                alert("İçe aktarma/güncelleme tamamlandı.");
+                alert(`İçe aktarma/güncelleme tamamlandı. ${createdCount} yeni, ${updatedCount} güncelleme işlendi.`);
             }
         } catch (err) {
             console.error(err);
