@@ -5,12 +5,13 @@ import { SettingsService } from "@/services/settings-service";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-import { Save, Loader2, Globe, Instagram as InstagramIcon } from "lucide-react";
+import { Save, Loader2, Globe, Instagram as InstagramIcon, Trash2, AlertTriangle } from "lucide-react";
 import ImageUpload from "@/components/ui/ImageUpload";
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [cleaningImages, setCleaningImages] = useState(false);
 
     const [settings, setSettings] = useState({
         backgroundImage: "",
@@ -48,6 +49,29 @@ export default function SettingsPage() {
 
     const handleChange = (field: string, value: string) => {
         setSettings(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleCleanupUnusedImages = async () => {
+        if (!window.confirm("Kullanılmayan görseller storage'dan silinsin mi? Bu işlem geri alınamaz.")) {
+            return;
+        }
+
+        setCleaningImages(true);
+        try {
+            const response = await fetch("/api/admin/storage/cleanup", { method: "POST" });
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data?.error || "Temizleme başarısız oldu.");
+            }
+
+            alert(data?.message || `${data.deletedCount || 0} kullanılmayan görsel silindi.`);
+        } catch (error) {
+            console.error(error);
+            alert(error instanceof Error ? error.message : "Görseller temizlenirken bir hata oluştu.");
+        } finally {
+            setCleaningImages(false);
+        }
     };
 
     if (loading) return <div>Yükleniyor...</div>;
@@ -156,6 +180,32 @@ export default function SettingsPage() {
                                     placeholder="https://..."
                                 />
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-red-200">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-red-600">
+                            <AlertTriangle className="h-5 w-5" />
+                            Danger Zone
+                        </CardTitle>
+                        <CardDescription>Kullanılmayan storage görsellerini topluca temizlemek için kullanın.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <p className="text-sm text-zinc-500">
+                                Veritabanında referansı kalmayan ürün, kategori, mekan ve ayar görsellerini siler.
+                            </p>
+                            <Button
+                                variant="outline"
+                                onClick={handleCleanupUnusedImages}
+                                disabled={cleaningImages}
+                                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            >
+                                {cleaningImages ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                                Kullanılmayan Resimleri Sil
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
