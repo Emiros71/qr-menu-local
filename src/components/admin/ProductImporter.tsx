@@ -294,6 +294,13 @@ export default function ProductImporter({ onImport, onExport, existingCategories
         if (!p.imageFilename || p.image) return false;
         return selectedImages.some(f => f.name.toLowerCase() === p.imageFilename.toLowerCase());
     }).length;
+    const imageRequirements = parsedProducts
+        .filter(p => p.imageFilename && !p.image)
+        .map(p => ({
+            productName: String(p.name || "Isimsiz Urun"),
+            filename: String(p.imageFilename),
+            matched: selectedImages.some(f => f.name.toLowerCase() === String(p.imageFilename).toLowerCase())
+        }));
 
 
     return (
@@ -415,6 +422,27 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                                                     {matchCount} / {totalWithImageRef} görsel eşleşti.
                                                 </div>
                                             )}
+
+                                            <div className="bg-white/80 border border-amber-200 rounded-md max-h-32 overflow-y-auto">
+                                                {imageRequirements.map((item, index) => (
+                                                    <div
+                                                        key={`${item.filename}-${index}`}
+                                                        className="flex items-center justify-between gap-3 px-3 py-2 text-xs border-b last:border-b-0 border-amber-100"
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <div className="font-medium text-zinc-900 truncate" title={item.productName}>
+                                                                {item.productName}
+                                                            </div>
+                                                            <div className="text-amber-800 truncate" title={item.filename}>
+                                                                {item.filename}
+                                                            </div>
+                                                        </div>
+                                                        <span className={item.matched ? "text-green-700 font-medium" : "text-zinc-500"}>
+                                                            {item.matched ? "Secildi" : "Bekleniyor"}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
 
