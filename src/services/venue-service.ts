@@ -89,6 +89,7 @@ export const VenueService = {
             name: p.name as string,
             description: p.description as string,
             price: p.price as number,
+            priceText: p.price_text as string | undefined,
             image: p.image as string,
             categoryId: p.category_id as string,
             venueId: p.venue_id as string,
@@ -103,7 +104,8 @@ export const VenueService = {
             startTime: p.start_time as string,
             endTime: p.end_time as string,
             discount_type: p.discount_type as 'percentage' | 'fixed' | null,
-            discount_amount: p.discount_amount as number
+            discount_amount: p.discount_amount as number,
+            orderIndex: typeof p.order_index === 'number' ? p.order_index : 0
         }));
 
         const categories = (catData || []).map((c: Record<string, unknown>) => {
@@ -183,6 +185,7 @@ export const VenueService = {
             name: p.name as string,
             description: p.description as string,
             price: p.price as number,
+            priceText: p.price_text as string | undefined,
             image: p.image as string,
             categoryId: p.category_id as string,
             venueId: p.venue_id as string,
@@ -197,7 +200,8 @@ export const VenueService = {
             startTime: p.start_time as string,
             endTime: p.end_time as string,
             discount_type: p.discount_type as 'percentage' | 'fixed' | null,
-            discount_amount: p.discount_amount as number
+            discount_amount: p.discount_amount as number,
+            orderIndex: typeof p.order_index === 'number' ? p.order_index : 0
         }));
 
         const categories = (catData || []).map((c: Record<string, unknown>) => {

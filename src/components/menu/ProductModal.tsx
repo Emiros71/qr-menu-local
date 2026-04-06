@@ -107,6 +107,8 @@ export default function ProductModal({
                                     </>
                                 ) : hasVariants ? (
                                     <span>Başlangıç {resolvedCurrencySymbol}{basePrice}</span>
+                                ) : product.priceText ? (
+                                    <span>{product.priceText}</span>
                                 ) : (
                                     <span>{resolvedCurrencySymbol}{product.price}</span>
                                 )}

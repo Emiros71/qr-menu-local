@@ -242,6 +242,15 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         if (filterStatus === 'inactive') result = result.filter(p => !p.isAvailable);
         if (filterChef) result = result.filter(p => p.isChefRecommendation);
         if (filterDiscount) result = result.filter(p => p.discount_type && p.discount_amount);
+        result.sort((a, b) => {
+            const categoryA = categories.find(c => c.id === a.categoryId)?.name || '';
+            const categoryB = categories.find(c => c.id === b.categoryId)?.name || '';
+            if (categoryA !== categoryB) return categoryA.localeCompare(categoryB, 'tr');
+            const orderA = typeof a.orderIndex === 'number' ? a.orderIndex : 0;
+            const orderB = typeof b.orderIndex === 'number' ? b.orderIndex : 0;
+            if (orderA !== orderB) return orderA - orderB;
+            return a.name.localeCompare(b.name, 'tr');
+        });
         return result;
     }, [products, searchQuery, filterCategory, filterStatus, filterChef, filterDiscount, categories]);
 
@@ -487,6 +496,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             const updatePayload: any = {
                                 name: product.name,
                                 price: product.price,
+                                priceText: product.priceText,
                                 currency: product.currency,
                                 pricingMode: product.pricingMode,
                                 priceVariants: product.priceVariants,
@@ -501,7 +511,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 startTime: product.startTime,
                                 endTime: product.endTime,
                                 translations: product.translations,
-                                labels: product.labels
+                                labels: product.labels,
+                                orderIndex: product.orderIndex
                             };
 
                             // Update DB
@@ -560,12 +571,14 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             name: "Yeni Ürün",
             description: "Ürün açıklaması buraya...",
             price: 150,
+            priceText: "",
             currency: 'TRY' as const,
             pricingMode: 'single' as const,
             priceVariants: [],
             isAvailable: true,
             venueId: venueData.id,
             categoryId: categories[0]?.id,
+            orderIndex: products.filter(product => product.categoryId === categories[0]?.id).length,
             image: ""
         };
 
@@ -713,6 +726,41 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         }
     };
 
+    const handleMoveProduct = async (productId: string, direction: 'up' | 'down') => {
+        const product = products.find(item => item.id === productId);
+        if (!product) return;
+
+        const siblings = products
+            .filter(item => item.categoryId === product.categoryId)
+            .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+
+        const currentIndex = siblings.findIndex(item => item.id === productId);
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (currentIndex === -1 || targetIndex < 0 || targetIndex >= siblings.length) return;
+
+        const reordered = [...siblings];
+        const [moved] = reordered.splice(currentIndex, 1);
+        reordered.splice(targetIndex, 0, moved);
+
+        const nextOrderMap = new Map<string, number>();
+        reordered.forEach((item, index) => nextOrderMap.set(item.id, index));
+
+        setProducts(prev => prev.map(item => (
+            nextOrderMap.has(item.id)
+                ? { ...item, orderIndex: nextOrderMap.get(item.id) }
+                : item
+        )));
+
+        try {
+            await Promise.all(
+                reordered.map((item, index) => ProductService.updateProduct(item.id, { orderIndex: index }))
+            );
+        } catch (e) {
+            console.error(e);
+            alert("ÃœrÃ¼n sÄ±ralamasÄ± gÃ¼ncellenemedi.");
+        }
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleImportProducts = async (importedData: any[]) => {
         if (!venueData) return;
@@ -812,9 +860,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             name: item.name,
                             description: item.description,
                             price: item.price,
+                            priceText: item.priceText,
                             currency: item.currency,
                             pricingMode: item.pricingMode,
                             priceVariants: item.priceVariants,
+                            orderIndex: item.orderIndex,
                             categoryId,
                             isAvailable: item.isAvailable,
                             isChefRecommendation: item.isChefRecommendation,
@@ -848,9 +898,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             name: item.name,
                             description: item.description,
                             price: item.price,
+                            priceText: item.priceText,
                             currency: item.currency,
                             pricingMode: item.pricingMode,
                             priceVariants: item.priceVariants,
+                            orderIndex: item.orderIndex,
                             image: newImage,
                             isAvailable: item.isAvailable,
                             isChefRecommendation: item.isChefRecommendation,
@@ -912,7 +964,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 "Açıklama": p.description,
                 "Açıklama (EN)": p.translations?.en?.description || "",
                 "Fiyatlandırma Tipi": p.pricingMode || 'single',
-                "Fiyat": p.price,
+                "Fiyat": p.priceText || p.price,
+                "Sıra": p.orderIndex ?? 0,
                 "Para Birimi": p.currency || 'TRY',
                 "Varyantlar": Array.isArray(p.priceVariants) ? p.priceVariants.map(v => `${v.label}:${v.price}`).join("|") : "",
                 "Kategori": catName,
@@ -1161,9 +1214,17 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             <div className="flex items-center gap-1">
                                                 <input
                                                     className="bg-transparent focus:bg-white border border-transparent focus:border-primary/20 rounded px-1 py-0.5 outline-none w-20 text-right font-mono text-zinc-900"
-                                                    type="number"
-                                                    value={product.price}
-                                                    onChange={(e) => handleProductChange(product.id, 'price', parseFloat(e.target.value))}
+                                                    type="text"
+                                                    value={product.priceText || product.price}
+                                                    onChange={(e) => {
+                                                        const rawValue = e.target.value;
+                                                        const trimmed = rawValue.trim();
+                                                        const normalized = trimmed.replace(/\s/g, "").replace(",", ".");
+                                                        const numericParts = trimmed.match(/[\d.,]+/g) || ['0'];
+                                                        const isNumeric = /^\d+(\.\d+)?$/.test(normalized);
+                                                        handleProductChange(product.id, 'priceText', isNumeric ? "" : rawValue);
+                                                        handleProductChange(product.id, 'price', isNumeric ? Number.parseFloat(normalized) : (Number.parseFloat(numericParts[0].replace(",", ".")) || 0));
+                                                    }}
                                                 />
                                                 <span className="text-zinc-500">₺</span>
                                             </div>
@@ -1191,9 +1252,17 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
                                         {/* Actions */}
                                         <td className="px-6 py-4 text-right">
-                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteProduct(product.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            <div className="flex justify-end gap-1">
+                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-500 hover:text-zinc-900" onClick={() => handleMoveProduct(product.id, 'up')}>
+                                                    <ArrowUp className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-500 hover:text-zinc-900" onClick={() => handleMoveProduct(product.id, 'down')}>
+                                                    <ArrowDown className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteProduct(product.id)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -1920,9 +1989,20 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium">Fiyat (₺)</label>
                                             <Input
-                                                type="number"
-                                                value={editingProduct.price}
-                                                onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, price: parseFloat(e.target.value) }) : null)}
+                                                type="text"
+                                                value={editingProduct.priceText || editingProduct.price}
+                                                onChange={(e) => {
+                                                    const rawValue = e.target.value;
+                                                    const trimmed = rawValue.trim();
+                                                    const normalized = trimmed.replace(/\s/g, "").replace(",", ".");
+                                                    const numericParts = trimmed.match(/[\d.,]+/g) || ['0'];
+                                                    const isNumeric = /^\d+(\.\d+)?$/.test(normalized);
+                                                    setEditingProduct(prev => prev ? ({
+                                                        ...prev,
+                                                        priceText: isNumeric ? "" : rawValue,
+                                                        price: isNumeric ? Number.parseFloat(normalized) : (Number.parseFloat(numericParts[0].replace(",", ".")) || 0)
+                                                    }) : null);
+                                                }}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -2337,6 +2417,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 const normalizedProduct = {
                                     ...editingProduct,
                                     currency: editingProduct.currency || 'TRY',
+                                    priceText: editingProduct.priceText || '',
                                     pricingMode: editingProduct.pricingMode || 'single',
                                     priceVariants: (editingProduct.pricingMode || 'single') === 'variants'
                                         ? (editingProduct.priceVariants || []).filter(variant => variant.label?.trim())

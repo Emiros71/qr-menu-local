@@ -57,6 +57,7 @@ create table if not exists public.products (
   name text not null,
   description text,
   price numeric not null default 0,
+  price_text text,
   currency text default 'TRY',
   pricing_mode text default 'single',
   price_variants jsonb default '[]'::jsonb,
@@ -128,6 +129,7 @@ alter table public.products add column if not exists allergens text[] default '{
 alter table public.products add column if not exists translations jsonb default '{}'::jsonb;
 alter table public.products add column if not exists is_available boolean default true;
 alter table public.products add column if not exists is_chef_recommendation boolean default false;
+alter table public.products add column if not exists price_text text;
 alter table public.products add column if not exists pricing_mode text default 'single';
 alter table public.products add column if not exists price_variants jsonb default '[]'::jsonb;
 alter table public.products add column if not exists start_time time;

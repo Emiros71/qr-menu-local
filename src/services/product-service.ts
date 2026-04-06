@@ -33,6 +33,7 @@ export const ProductService = {
             name: data.name,
             description: data.description,
             price: data.price,
+            priceText: data.price_text || undefined,
             image: data.image,
             categoryId: data.category_id,
             venueId: data.venue_id,
@@ -47,7 +48,8 @@ export const ProductService = {
             startTime: data.start_time,
             endTime: data.end_time,
             discount_type: data.discount_type,
-            discount_amount: data.discount_amount
+            discount_amount: data.discount_amount,
+            orderIndex: typeof data.order_index === 'number' ? data.order_index : 0
         };
     },
 
@@ -70,6 +72,7 @@ export const ProductService = {
         if (updates.name !== undefined) dbUpdates.name = updates.name;
         if (updates.description !== undefined) dbUpdates.description = updates.description;
         if (updates.price !== undefined) dbUpdates.price = updates.price;
+        if (updates.priceText !== undefined) dbUpdates.price_text = updates.priceText;
         if (updates.currency !== undefined) dbUpdates.currency = updates.currency;
         if (updates.image !== undefined) dbUpdates.image = updates.image;
         if (updates.allergens !== undefined) dbUpdates.allergens = updates.allergens;
@@ -90,6 +93,7 @@ export const ProductService = {
         // Discounts
         if (updates.discount_type !== undefined) dbUpdates.discount_type = updates.discount_type;
         if (updates.discount_amount !== undefined) dbUpdates.discount_amount = updates.discount_amount;
+        if (updates.orderIndex !== undefined) dbUpdates.order_index = updates.orderIndex;
 
         if (Object.keys(dbUpdates).length === 0) return;
 
@@ -109,6 +113,7 @@ export const ProductService = {
         if (product.name !== undefined) dbProduct.name = product.name;
         if (product.description !== undefined) dbProduct.description = product.description;
         if (product.price !== undefined) dbProduct.price = product.price;
+        if (product.priceText !== undefined) dbProduct.price_text = product.priceText;
         if (product.currency !== undefined) dbProduct.currency = product.currency;
         if (product.image !== undefined) dbProduct.image = product.image;
         if (product.labels !== undefined) dbProduct.labels = product.labels;
@@ -126,6 +131,7 @@ export const ProductService = {
         dbProduct.discount_amount = product.discount_amount !== undefined ? product.discount_amount : null;
         dbProduct.allergens = product.allergens !== undefined ? product.allergens : [];
         dbProduct.currency = product.currency !== undefined ? product.currency : 'TRY';
+        dbProduct.order_index = product.orderIndex !== undefined ? product.orderIndex : 0;
 
         // Use API to bypass RLS for Create
         try {
@@ -139,6 +145,7 @@ export const ProductService = {
                 name: data.name,
                 description: data.description,
                 price: data.price,
+                priceText: data.price_text || undefined,
                 image: data.image,
                 categoryId: data.category_id,
                 venueId: data.venue_id,
@@ -153,7 +160,8 @@ export const ProductService = {
                 startTime: data.start_time,
                 endTime: data.end_time,
                 discount_type: data.discount_type,
-                discount_amount: data.discount_amount
+                discount_amount: data.discount_amount,
+                orderIndex: typeof data.order_index === 'number' ? data.order_index : 0
             };
         } catch (e) {
             console.error("API Create Product failed:", e);
@@ -165,6 +173,7 @@ export const ProductService = {
                 name: data.name,
                 description: data.description,
                 price: data.price,
+                priceText: data.price_text || undefined,
                 image: data.image,
                 categoryId: data.category_id,
                 venueId: data.venue_id,
@@ -177,7 +186,8 @@ export const ProductService = {
                 priceVariants: parsePriceVariants(data.price_variants),
                 translations: data.translations,
                 startTime: data.start_time,
-                endTime: data.end_time
+                endTime: data.end_time,
+                orderIndex: typeof data.order_index === 'number' ? data.order_index : 0
             };
         }
     }

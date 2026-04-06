@@ -249,6 +249,15 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
             map[p.categoryId].push(p);
         });
 
+        Object.keys(map).forEach(categoryId => {
+            map[categoryId].sort((a, b) => {
+                const orderA = typeof a.orderIndex === 'number' ? a.orderIndex : 0;
+                const orderB = typeof b.orderIndex === 'number' ? b.orderIndex : 0;
+                if (orderA !== orderB) return orderA - orderB;
+                return String(a.name || '').localeCompare(String(b.name || ''), 'tr');
+            });
+        });
+
         return map;
     }, [filteredProducts, currentTimeTimezone]);
 
@@ -576,6 +585,10 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                             {product.priceVariants.length} boyut
                                         </span>
                                     </>
+                                ) : product.priceText ? (
+                                    <span className="font-bold text-base text-[var(--primary)]">
+                                        {product.priceText}
+                                    </span>
                                 ) : product.discount_type && product.discount_amount ? (
                                     <>
                                         <span className="text-[10px] text-[var(--foreground)]/50 line-through">

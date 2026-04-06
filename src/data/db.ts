@@ -44,6 +44,7 @@ export type Product = {
     name: string;
     description: string;
     price: number;
+    priceText?: string;
     currency: CurrencyCode;
     pricingMode?: 'single' | 'variants';
     priceVariants?: ProductPriceVariant[];
@@ -58,6 +59,7 @@ export type Product = {
     endTime?: string;   // "HH:mm:ss" format
     discount_type?: 'percentage' | 'fixed' | null;
     discount_amount?: number | null;
+    orderIndex?: number;
 };
 
 export type Allergen = {

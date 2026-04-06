@@ -28,6 +28,22 @@ const parsePrice = (rawValue: string) => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const parseFlexiblePrice = (rawValue: string) => {
+    const trimmed = String(rawValue || "").trim();
+    if (!trimmed) return { price: 0, priceText: "" };
+
+    const normalized = trimmed.replace(/\s/g, "").replace(",", ".");
+    if (/^\d+(\.\d+)?$/.test(normalized)) {
+        return { price: parsePrice(trimmed), priceText: "" };
+    }
+
+    const numericParts = trimmed.match(/[\d.,]+/g) || [];
+    return {
+        price: numericParts.length > 0 ? parsePrice(numericParts[0]!) : 0,
+        priceText: trimmed
+    };
+};
+
 const parseOptionalId = (rawValue: string) => {
     const normalized = rawValue.trim();
     if (!normalized) return "";
@@ -76,6 +92,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 "Açıklama (EN)": "A delicious meal",
                 "Fiyatlandırma Tipi": "single",
                 "Fiyat": 150,
+                "Sıra": 0,
                 "Para Birimi": "TRY",
                 "Varyantlar": "Small:130|Medium:150|Large:175",
                 "Kategori": "Ana Yemekler",
@@ -126,7 +143,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-            const mapped = jsonData.map(row => {
+            const mapped = jsonData.map((row, rowIndex) => {
                 const getVal = (key: string) => {
                     const trimmedKey = key.trim().toLowerCase();
                     const matchingKey = Object.keys(row).find(k => k.trim().toLowerCase() === trimmedKey);
@@ -143,6 +160,8 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     : "single";
                 const currency = (getVal("Para Birimi") || getVal("Currency") || "TRY").toUpperCase();
                 const priceVariants = parseVariantString(getVal("Varyantlar") || getVal("Variants"));
+                const parsedPrice = parseFlexiblePrice(getVal("Price") || getVal("Fiyat") || "0");
+                const orderIndexValue = Number.parseInt(getVal("Sıra") || getVal("Sira") || getVal("Order") || `${rowIndex}`, 10);
 
                 const translations: Record<string, unknown> = {};
                 if (nameEn || descEn) {
@@ -158,10 +177,12 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     hasIdCell: rawId !== "",
                     name: getVal("Name") || getVal("Ürün Adı") || "İsimsiz Ürün",
                     description: getVal("Description") || getVal("Açıklama") || "",
-                    price: parsePrice(getVal("Price") || getVal("Fiyat") || "0"),
+                    price: parsedPrice.price,
+                    priceText: parsedPrice.priceText,
                     currency: ['TRY', 'USD', 'EUR'].includes(currency) ? currency : 'TRY',
                     pricingMode,
                     priceVariants,
+                    orderIndex: Number.isFinite(orderIndexValue) ? orderIndexValue : rowIndex,
                     categoryName: getVal("Category") || getVal("Kategori") || "Genel",
                     categoryNameEn: catEn,
                     allergens: (getVal("Allergens") || getVal("Alerjenler") || "").split(",").map((s: string) => s.trim()).filter(Boolean),
