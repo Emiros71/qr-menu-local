@@ -1161,7 +1161,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
 
 
                     <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden shadow-sm">
-                        <table className="w-full text-left text-sm">
+                        <div className="overflow-x-auto">
+                        <table className="w-full min-w-[1120px] text-left text-sm">
                             <thead className="bg-zinc-50 border-b border-zinc-200">
                                 <tr>
                                     <th className="px-6 py-3 font-medium text-zinc-500 w-16">Görsel</th>
@@ -1262,8 +1263,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         </td>
 
                                         {/* Actions */}
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-1">
+                                        <td className="sticky right-0 bg-white px-4 py-4 text-right">
+                                            <div className="flex justify-end gap-1 whitespace-nowrap">
                                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-500 hover:text-zinc-900" onClick={() => handleMoveProduct(product.id, 'up')}>
                                                     <ArrowUp className="h-4 w-4" />
                                                 </Button>
@@ -1279,6 +1280,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 ))}
                             </tbody>
                         </table>
+                        </div>
 
                         {filteredProducts.length === 0 && (
                             <div className="py-12 text-center text-zinc-500 flex flex-col items-center">
