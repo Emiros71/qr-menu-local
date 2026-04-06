@@ -1979,7 +1979,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             <label className="text-sm font-medium">Varyantlı Fiyatlar</label>
                                             <div className="space-y-2 rounded-lg border border-zinc-200 p-3 bg-zinc-50">
                                                 {(Array.isArray(editingProduct.priceVariants) && editingProduct.priceVariants.length > 0 ? editingProduct.priceVariants : DEFAULT_PRICE_VARIANTS).map((variant, index) => (
-                                                    <div key={`${variant.label}-${index}`} className="grid grid-cols-[1fr_140px_40px] gap-2 items-center">
+                                                    <div key={index} className="grid grid-cols-[1fr_140px_40px] gap-2 items-center">
                                                         <Input
                                                             value={variant.label}
                                                             onChange={(e) => {

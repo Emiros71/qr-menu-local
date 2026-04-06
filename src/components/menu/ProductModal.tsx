@@ -34,11 +34,7 @@ export default function ProductModal({
     defaultImage
 }: ProductModalProps) {
     useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
+        document.body.style.overflow = isOpen ? 'hidden' : 'unset';
         return () => {
             document.body.style.overflow = 'unset';
         };
@@ -55,140 +51,140 @@ export default function ProductModal({
 
     return createPortal(
         <AnimatePresence>
-            {isOpen && product && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                    onClick={onClose}
+                />
+
+                <motion.div
+                    layoutId={`product-${product.id}`}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3, type: "spring", bounce: 0.3 }}
+                    className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+                >
+                    <button
                         onClick={onClose}
-                    />
-
-                    <motion.div
-                        layoutId={`product-${product.id}`}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ duration: 0.3, type: "spring", bounce: 0.3 }}
-                        className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col z-10"
+                        className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 text-white backdrop-blur-md transition-colors hover:bg-black/70"
                     >
-                        <button
-                            onClick={onClose}
-                            className="absolute top-4 right-4 z-10 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors backdrop-blur-md"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
+                        <X className="h-5 w-5" />
+                    </button>
 
-                        <div className="relative w-full h-64 md:h-80 shrink-0 bg-zinc-100">
-                            <Image
-                                src={product.image || defaultImage}
-                                alt={localize(product, 'name')}
-                                fill
-                                className={`object-cover ${!product.image ? 'p-8 opacity-50 object-contain' : ''}`}
-                            />
+                    <div className="relative h-64 w-full shrink-0 bg-zinc-100 md:h-80">
+                        <Image
+                            src={product.image || defaultImage}
+                            alt={localize(product, 'name')}
+                            fill
+                            className={`object-cover ${!product.image ? 'object-contain p-8 opacity-50' : ''}`}
+                        />
+                    </div>
+
+                    <div className="overflow-y-auto p-6">
+                        <div className="mb-2 flex items-start justify-between gap-4">
+                            <h2 className="text-2xl font-bold leading-tight text-zinc-900">
+                                {localize(product, 'name')}
+                            </h2>
+                            <span className="flex flex-col items-end whitespace-nowrap text-xl font-bold text-primary">
+                                {!hasVariants && product.discount_type && product.discount_amount ? (
+                                    <>
+                                        <span className="text-sm text-zinc-400 line-through">
+                                            {resolvedCurrencySymbol}{product.price}
+                                        </span>
+                                        <span className="flex items-center gap-2">
+                                            {resolvedCurrencySymbol}{getDiscountedPrice(product.price, product.discount_type, product.discount_amount)?.toFixed(2).replace(/\.00$/, '')}
+                                            <span className="inline-block rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white shadow-sm">
+                                                {product.discount_type === 'percentage'
+                                                    ? `%${product.discount_amount} İndirim`
+                                                    : `-${product.discount_amount}${resolvedCurrencySymbol}`}
+                                            </span>
+                                        </span>
+                                    </>
+                                ) : hasVariants ? (
+                                    <span>Başlangıç {resolvedCurrencySymbol}{basePrice}</span>
+                                ) : (
+                                    <span>{resolvedCurrencySymbol}{product.price}</span>
+                                )}
+                            </span>
                         </div>
 
-                        <div className="p-6 overflow-y-auto">
-                            <div className="flex justify-between items-start gap-4 mb-2">
-                                <h2 className="text-2xl font-bold text-zinc-900 leading-tight">
-                                    {localize(product, 'name')}
-                                </h2>
-                                <span className="text-xl font-bold text-primary whitespace-nowrap flex flex-col items-end">
-                                    {!hasVariants && product.discount_type && product.discount_amount ? (
-                                        <>
-                                            <span className="text-sm text-zinc-400 line-through">
-                                                {resolvedCurrencySymbol}{product.price}
-                                            </span>
-                                            <span className="flex items-center gap-2">
-                                                {resolvedCurrencySymbol}{getDiscountedPrice(product.price, product.discount_type, product.discount_amount)?.toFixed(2).replace(/\.00$/, '')}
-                                                <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full inline-block shadow-sm">
-                                                    {product.discount_type === 'percentage' ? `%${product.discount_amount} İndirim` : `-${product.discount_amount}${resolvedCurrencySymbol}`}
-                                                </span>
-                                            </span>
-                                        </>
-                                    ) : hasVariants ? (
-                                        <span>{resolvedCurrencySymbol}{basePrice}+</span>
-                                    ) : (
-                                        <span>{resolvedCurrencySymbol}{product.price}</span>
-                                    )}
-                                </span>
-                            </div>
+                        <p className="mb-6 leading-relaxed text-zinc-600">
+                            {localize(product, 'description')}
+                        </p>
 
-                            <p className="text-zinc-600 leading-relaxed mb-6">
-                                {localize(product, 'description')}
-                            </p>
-
-                            {hasVariants && (
-                                <div className="mb-6">
-                                    <h4 className="text-sm font-semibold text-zinc-900 mb-2 uppercase tracking-wide opacity-70">
-                                        Boyut Seçenekleri
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {product.priceVariants!.map(variant => {
-                                            const discountedVariantPrice = getDiscountedPrice(variant.price, product.discount_type, product.discount_amount);
-                                            return (
-                                                <div key={variant.label} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
-                                                    <span className="font-medium text-zinc-800">{variant.label}</span>
-                                                    <div className="text-right">
-                                                        {discountedVariantPrice !== null ? (
-                                                            <>
-                                                                <div className="text-xs text-zinc-400 line-through">
-                                                                    {resolvedCurrencySymbol}{variant.price}
-                                                                </div>
-                                                                <div className="font-semibold text-primary">
-                                                                    {resolvedCurrencySymbol}{discountedVariantPrice.toFixed(2).replace(/\.00$/, '')}
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="font-semibold text-primary">
+                        {hasVariants && (
+                            <div className="mb-6">
+                                <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-900 opacity-70">
+                                    Boyut Seçenekleri
+                                </h4>
+                                <div className="space-y-2">
+                                    {product.priceVariants!.map(variant => {
+                                        const discountedVariantPrice = getDiscountedPrice(variant.price, product.discount_type, product.discount_amount);
+                                        return (
+                                            <div key={variant.label} className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+                                                <span className="font-medium text-zinc-800">{variant.label}</span>
+                                                <div className="text-right">
+                                                    {discountedVariantPrice !== null ? (
+                                                        <>
+                                                            <div className="text-xs text-zinc-400 line-through">
                                                                 {resolvedCurrencySymbol}{variant.price}
                                                             </div>
-                                                        )}
-                                                    </div>
+                                                            <div className="font-semibold text-primary">
+                                                                {resolvedCurrencySymbol}{discountedVariantPrice.toFixed(2).replace(/\.00$/, '')}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="font-semibold text-primary">
+                                                            {resolvedCurrencySymbol}{variant.price}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            )}
-
-                            {product.allergens && product.allergens.length > 0 && (
-                                <div className="mb-6">
-                                    <h4 className="text-sm font-semibold text-zinc-900 mb-2 uppercase tracking-wide opacity-70">
-                                        Alerjenler & İçerik
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {product.allergens.map(allergen => (
-                                            <span
-                                                key={allergen}
-                                                className="text-xs px-3 py-1.5 bg-zinc-50 text-zinc-700 rounded-md border border-zinc-200 font-medium flex items-center gap-1.5 shadow-sm"
-                                            >
-                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500/50" />
-                                                {localizeAllergen(allergen)}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex gap-2">
-                                {product.isChefRecommendation && (
-                                    <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full border border-amber-200">
-                                        ★ Şefin Tavsiyesi
-                                    </span>
-                                )}
-                                {(product as Product & { calories?: number }).calories && (
-                                    <span className="px-3 py-1 bg-zinc-100 text-zinc-600 text-xs font-bold rounded-full border border-zinc-200">
-                                        {(product as Product & { calories?: number }).calories} kcal
-                                    </span>
-                                )}
                             </div>
+                        )}
+
+                        {product.allergens && product.allergens.length > 0 && (
+                            <div className="mb-6">
+                                <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-900 opacity-70">
+                                    Alerjenler & İçerik
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {product.allergens.map(allergen => (
+                                        <span
+                                            key={allergen}
+                                            className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm"
+                                        >
+                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500/50" />
+                                            {localizeAllergen(allergen)}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            {product.isChefRecommendation && (
+                                <span className="rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                                    ★ Şefin Tavsiyesi
+                                </span>
+                            )}
+                            {(product as Product & { calories?: number }).calories && (
+                                <span className="rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600">
+                                    {(product as Product & { calories?: number }).calories} kcal
+                                </span>
+                            )}
                         </div>
-                    </motion.div>
-                </div>
-            )}
+                    </div>
+                </motion.div>
+            </div>
         </AnimatePresence>,
         document.body
     );

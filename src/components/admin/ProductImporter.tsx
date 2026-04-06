@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import JSZip, { type JSZipObject } from "jszip";
 import * as XLSX from "xlsx";
 import { Download, FileSpreadsheet, Image as ImageIcon, Loader2, Check, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -54,6 +55,7 @@ const parseVariantString = (rawValue: string) => {
 export default function ProductImporter({ onImport, onExport, existingCategories }: ProductImporterProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
+    const zipInputRef = useRef<HTMLInputElement>(null);
 
     const [importing, setImporting] = useState(false);
     const [step, setStep] = useState<'idle' | 'validate' | 'review' | 'uploading'>('idle');
@@ -225,6 +227,43 @@ export default function ProductImporter({ onImport, onExport, existingCategories
     const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             setSelectedImages(Array.from(e.target.files));
+        }
+    };
+
+    const handleZipSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const zip = await JSZip.loadAsync(file);
+            const extractedFiles: File[] = [];
+
+            for (const entry of Object.values(zip.files) as JSZipObject[]) {
+                if (entry.dir) continue;
+
+                const entryName = entry.name.split("/").pop() || entry.name;
+                if (!entryName) continue;
+                if (!/\.(png|jpe?g|webp|gif|avif|bmp|svg)$/i.test(entryName)) continue;
+
+                const blob = await entry.async("blob");
+                extractedFiles.push(new File([blob], entryName, {
+                    type: blob.type || "application/octet-stream",
+                    lastModified: Date.now()
+                }));
+            }
+
+            setSelectedImages(prev => {
+                const next = new Map<string, File>();
+                [...prev, ...extractedFiles].forEach(imageFile => {
+                    next.set(imageFile.name.toLowerCase(), imageFile);
+                });
+                return Array.from(next.values());
+            });
+        } catch (err) {
+            console.error("ZIP parse error:", err);
+            alert("ZIP dosyasi okunamadi.");
+        } finally {
+            if (zipInputRef.current) zipInputRef.current.value = "";
         }
     };
 
@@ -414,13 +453,28 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                                                     accept="image/*"
                                                     className="hidden"
                                                 />
+                                                <input
+                                                    type="file"
+                                                    ref={zipInputRef}
+                                                    onChange={handleZipSelection}
+                                                    accept=".zip,application/zip"
+                                                    className="hidden"
+                                                />
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => imageInputRef.current?.click()}
-                                                    className="w-full"
+                                                    className="flex-1"
                                                 >
                                                     Görselleri Seç ({selectedImages.length} seçildi)
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => zipInputRef.current?.click()}
+                                                    className="flex-1"
+                                                >
+                                                    .zip SeÃ§
                                                 </Button>
                                             </div>
 

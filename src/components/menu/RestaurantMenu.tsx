@@ -567,7 +567,16 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
 
                         <div className="flex items-center justify-between mt-auto pt-1">
                             <div className="flex flex-col">
-                                {product.discount_type && product.discount_amount ? (
+                                {product.pricingMode === 'variants' && Array.isArray(product.priceVariants) && product.priceVariants.length > 0 ? (
+                                    <>
+                                        <span className="font-bold text-base text-[var(--primary)]">
+                                            Başlangıç {getCurrencySymbol(product.currency)}{getBaseProductPrice(product)}
+                                        </span>
+                                        <span className="text-[10px] text-[var(--foreground)]/50">
+                                            {product.priceVariants.length} boyut
+                                        </span>
+                                    </>
+                                ) : product.discount_type && product.discount_amount ? (
                                     <>
                                         <span className="text-[10px] text-[var(--foreground)]/50 line-through">
                                             {getCurrencySymbol(product.currency)}{product.price}
