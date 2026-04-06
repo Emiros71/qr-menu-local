@@ -495,7 +495,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                                                     onClick={() => zipInputRef.current?.click()}
                                                     className="flex-1"
                                                 >
-                                                    .zip SeÃ§
+                                                    .zip Seç
                                                 </Button>
                                             </div>
 
