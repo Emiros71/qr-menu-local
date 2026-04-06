@@ -44,6 +44,13 @@ const DEFAULT_PRICE_VARIANTS = [
     { label: 'Large', price: 0 }
 ];
 
+const slugifyValue = (value: string) =>
+    value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
 const AdminProductImage = ({ product, defaultImage, onClick }: { product: Product, defaultImage?: string, onClick: () => void }) => {
     const [imgState, setImgState] = useState({ src: product.image || defaultImage, hasError: false, productImg: product.image, defImg: defaultImage });
 
@@ -428,6 +435,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const changes: any = {};
             if (oldV.name !== newV.name) changes.name = { from: oldV.name, to: newV.name };
+            if (oldV.slug !== newV.slug) changes.slug = { from: oldV.slug, to: newV.slug };
             if (oldV.theme !== newV.theme) changes.theme = { from: oldV.theme, to: newV.theme };
             if (oldV.defaultLanguage !== newV.defaultLanguage) changes.language = { from: oldV.defaultLanguage, to: newV.defaultLanguage };
             return Object.keys(changes).length > 0 ? changes : null;
@@ -437,7 +445,8 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         try {
             // 1. Save Venue Settings
             if (unwrappedParams.id === 'new' && venueData) {
-                const newSlug = venueData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
+                const baseSlug = slugifyValue(venueData.slug || venueData.name || 'yeni-mekan');
+                const newSlug = `${baseSlug || 'yeni-mekan'}-${Math.random().toString(36).substring(2, 7)}`;
                 const createdInfo = await VenueService.createVenue({
                     name: venueData.name,
                     slug: newSlug,
@@ -472,8 +481,10 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                     }
                 } catch (e) { console.error("Validation log failed", e); }
 
+                const normalizedSlug = slugifyValue(venueData.slug || venueData.name || '');
                 await VenueService.updateVenue(venueData.id, {
                     name: venueData.name,
+                    slug: normalizedSlug || venueData.slug,
                     description: venueData.description,
                     theme: venueData.theme,
                     coverImage: venueData.coverImage,
@@ -1509,6 +1520,28 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Açıklama</label>
                                     <Input value={venueData.description || ""} onChange={(e) => handleVenueChange('description', e.target.value)} placeholder="Örn: Taze kahve ve günlük tatlılar..." className="bg-white text-zinc-900" />
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <label className="text-sm font-medium">Mekan URL&apos;si</label>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleVenueChange('slug', slugifyValue(venueData.name || ''))}
+                                        >
+                                            İsimden Üret
+                                        </Button>
+                                    </div>
+                                    <Input
+                                        value={venueData.slug || ""}
+                                        onChange={(e) => handleVenueChange('slug', slugifyValue(e.target.value))}
+                                        placeholder="aura-restoran"
+                                        className="bg-white text-zinc-900 font-mono"
+                                    />
+                                    <p className="text-xs text-zinc-500">
+                                        Genel link: <span className="font-mono text-zinc-700">/{slugifyValue(venueData.slug || venueData.name || '') || 'ornek-mekan'}</span>
+                                    </p>
                                 </div>
                                 <div className="space-y-4 col-span-2">
                                     <div className="flex items-center justify-between border-b pb-2 mb-2 mt-2">
