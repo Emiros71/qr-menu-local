@@ -22,6 +22,16 @@ const chunkArray = (array: unknown[], size: number) => {
     return chunked;
 };
 
+const normalizeFilename = (value: string) => {
+    return decodeURIComponent(String(value || ""))
+        .trim()
+        .split(/[\\/]/)
+        .pop()
+        ?.normalize("NFKC")
+        .replace(/\s+/g, " ")
+        .toLocaleLowerCase("tr-TR") || "";
+};
+
 const parsePrice = (rawValue: string) => {
     if (!rawValue) return 0;
     const normalized = rawValue.replace(/\s/g, "").replace(",", ".");
@@ -194,7 +204,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     categoryNameEn: catEn,
                     allergens: (getVal("Allergens") || getVal("Alerjenler") || "").split(",").map((s: string) => s.trim()).filter(Boolean),
                     isChefRecommendation: ["evet", "yes", "true", "1"].includes(String(getVal("Chef") || getVal("Şef")).toLowerCase()),
-                    imageFilename: imgFile,
+                    imageFilename: normalizeFilename(imgFile),
                     image: imgFile.startsWith("http") ? imgFile : "",
                     translations,
                     isAvailable: true,
@@ -283,7 +293,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             setSelectedImages(prev => {
                 const next = new Map<string, File>();
                 [...prev, ...extractedFiles].forEach(imageFile => {
-                    next.set(imageFile.name.toLowerCase(), imageFile);
+                    next.set(normalizeFilename(imageFile.name), imageFile);
                 });
                 return Array.from(next.values());
             });
@@ -308,10 +318,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 const totalToUpload = productsWithImages.length;
                 let uploadedCount = 0;
                 const fileMap = new Map<string, File>();
-                selectedImages.forEach(file => fileMap.set(file.name.toLowerCase(), file));
+                selectedImages.forEach(file => fileMap.set(normalizeFilename(file.name), file));
 
                 const uploadFile = async (productIndex: number, filename: string) => {
-                    const rawFile = fileMap.get(filename.toLowerCase());
+                    const rawFile = fileMap.get(normalizeFilename(filename));
                     if (!rawFile) {
                         throw new Error(`Gorsel dosyasi secilmedi: ${filename}`);
                     }
@@ -378,14 +388,14 @@ export default function ProductImporter({ onImport, onExport, existingCategories
     const totalWithImageRef = parsedProducts.filter(p => p.imageFilename && !p.image).length;
     const matchCount = parsedProducts.filter(p => {
         if (!p.imageFilename || p.image) return false;
-        return selectedImages.some(f => f.name.toLowerCase() === p.imageFilename.toLowerCase());
+        return selectedImages.some(f => normalizeFilename(f.name) === normalizeFilename(String(p.imageFilename)));
     }).length;
     const imageRequirements = parsedProducts
         .filter(p => p.imageFilename && !p.image)
         .map(p => ({
             productName: String(p.name || "Isimsiz Urun"),
             filename: String(p.imageFilename),
-            matched: selectedImages.some(f => f.name.toLowerCase() === String(p.imageFilename).toLowerCase())
+            matched: selectedImages.some(f => normalizeFilename(f.name) === normalizeFilename(String(p.imageFilename)))
         }));
 
     return (
