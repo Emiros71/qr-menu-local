@@ -25,11 +25,19 @@ const chunkArray = (array: unknown[], size: number) => {
 const normalizeFilename = (value: string) => {
     return decodeURIComponent(String(value || ""))
         .trim()
+        .split("?")[0]
+        .split("#")[0]
         .split(/[\\/]/)
         .pop()
         ?.normalize("NFKC")
         .replace(/\s+/g, " ")
         .toLocaleLowerCase("tr-TR") || "";
+};
+
+const getFilenameStem = (value: string) => {
+    const normalized = normalizeFilename(value);
+    const lastDot = normalized.lastIndexOf(".");
+    return lastDot >= 0 ? normalized.slice(0, lastDot) : normalized;
 };
 
 const stripGeneratedSuffix = (value: string) => {
@@ -46,7 +54,15 @@ const matchesFilename = (expected: string, actual: string) => {
     const normalizedActual = normalizeFilename(actual);
     if (!normalizedExpected || !normalizedActual) return false;
     if (normalizedExpected === normalizedActual) return true;
-    return stripGeneratedSuffix(normalizedExpected) === stripGeneratedSuffix(normalizedActual);
+    const strippedExpected = stripGeneratedSuffix(normalizedExpected);
+    const strippedActual = stripGeneratedSuffix(normalizedActual);
+    if (strippedExpected === strippedActual) return true;
+
+    const expectedStem = getFilenameStem(strippedExpected);
+    const actualStem = getFilenameStem(strippedActual);
+    if (!expectedStem || !actualStem) return false;
+
+    return expectedStem.startsWith(actualStem) || actualStem.startsWith(expectedStem);
 };
 
 const parsePrice = (rawValue: string) => {
