@@ -32,6 +32,23 @@ const normalizeFilename = (value: string) => {
         .toLocaleLowerCase("tr-TR") || "";
 };
 
+const stripGeneratedSuffix = (value: string) => {
+    const normalized = normalizeFilename(value);
+    const lastDot = normalized.lastIndexOf(".");
+    const stem = lastDot >= 0 ? normalized.slice(0, lastDot) : normalized;
+    const ext = lastDot >= 0 ? normalized.slice(lastDot) : "";
+    const strippedStem = stem.replace(/-[a-z0-9]{5,12}$/i, "");
+    return `${strippedStem}${ext}`;
+};
+
+const matchesFilename = (expected: string, actual: string) => {
+    const normalizedExpected = normalizeFilename(expected);
+    const normalizedActual = normalizeFilename(actual);
+    if (!normalizedExpected || !normalizedActual) return false;
+    if (normalizedExpected === normalizedActual) return true;
+    return stripGeneratedSuffix(normalizedExpected) === stripGeneratedSuffix(normalizedActual);
+};
+
 const parsePrice = (rawValue: string) => {
     if (!rawValue) return 0;
     const normalized = rawValue.replace(/\s/g, "").replace(",", ".");
@@ -317,11 +334,12 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             if (selectedImages.length > 0 && productsWithImages.length > 0) {
                 const totalToUpload = productsWithImages.length;
                 let uploadedCount = 0;
-                const fileMap = new Map<string, File>();
-                selectedImages.forEach(file => fileMap.set(normalizeFilename(file.name), file));
+                const findMatchingFile = (filename: string) => {
+                    return selectedImages.find(file => matchesFilename(filename, file.name)) || null;
+                };
 
                 const uploadFile = async (productIndex: number, filename: string) => {
-                    const rawFile = fileMap.get(normalizeFilename(filename));
+                    const rawFile = findMatchingFile(filename);
                     if (!rawFile) {
                         throw new Error(`Gorsel dosyasi secilmedi: ${filename}`);
                     }
@@ -388,14 +406,14 @@ export default function ProductImporter({ onImport, onExport, existingCategories
     const totalWithImageRef = parsedProducts.filter(p => p.imageFilename && !p.image).length;
     const matchCount = parsedProducts.filter(p => {
         if (!p.imageFilename || p.image) return false;
-        return selectedImages.some(f => normalizeFilename(f.name) === normalizeFilename(String(p.imageFilename)));
+        return selectedImages.some(f => matchesFilename(String(p.imageFilename), f.name));
     }).length;
     const imageRequirements = parsedProducts
         .filter(p => p.imageFilename && !p.image)
         .map(p => ({
             productName: String(p.name || "Isimsiz Urun"),
             filename: String(p.imageFilename),
-            matched: selectedImages.some(f => normalizeFilename(f.name) === normalizeFilename(String(p.imageFilename)))
+            matched: selectedImages.some(f => matchesFilename(String(p.imageFilename), f.name))
         }));
 
     return (
