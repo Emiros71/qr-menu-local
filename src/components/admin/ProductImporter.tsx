@@ -11,6 +11,7 @@ interface ProductImporterProps {
     onImport: (products: unknown[]) => Promise<void>;
     onExport?: () => void;
     existingCategories: { id: string; name: string }[];
+    venueId: string;
 }
 
 const chunkArray = (array: unknown[], size: number) => {
@@ -68,7 +69,7 @@ const parseVariantString = (rawValue: string) => {
         .filter(variant => variant.label && Number.isFinite(variant.price));
 };
 
-export default function ProductImporter({ onImport, onExport, existingCategories }: ProductImporterProps) {
+export default function ProductImporter({ onImport, onExport, existingCategories, venueId }: ProductImporterProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const zipInputRef = useRef<HTMLInputElement>(null);
@@ -314,6 +315,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                         const formData = new FormData();
                         formData.append("file", file);
                         formData.append("folder", "qr-menu/products");
+                        formData.append("venueId", venueId);
 
                         const res = await fetch("/api/upload-supabase", {
                             method: "POST",
