@@ -1406,7 +1406,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                             <Card
                                 key={cat.id}
                                 className={cn(
-                                    "group relative overflow-hidden border-zinc-200 bg-white/95 transition-colors hover:border-primary/40 dark:border-zinc-800 dark:bg-zinc-950/90",
+                                    "group relative overflow-hidden border-zinc-200 bg-white transition-colors hover:border-primary/40",
                                     depth > 0 ? "border-l-[3px] border-l-primary/40 rounded-l-sm" : ""
                                 )}
                                 style={{ marginLeft: `${depth * 2}rem` }}
@@ -1417,7 +1417,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 w-7 p-0 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
+                                            className="h-7 w-7 p-0 text-zinc-400 hover:text-zinc-900"
                                             onClick={(e) => { e.stopPropagation(); handleMoveCategory(cat.id, 'up'); }}
                                             disabled={isFirstSibling}
                                         >
@@ -1426,7 +1426,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 w-7 p-0 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
+                                            className="h-7 w-7 p-0 text-zinc-400 hover:text-zinc-900"
                                             onClick={(e) => { e.stopPropagation(); handleMoveCategory(cat.id, 'down'); }}
                                             disabled={isLastSibling}
                                         >
@@ -1439,7 +1439,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         className="flex min-w-0 flex-1 cursor-pointer items-start gap-4"
                                         onClick={() => handleEditCategory(cat)}
                                     >
-                                        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-300 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-600">
+                                        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-300 shadow-sm">
                                             {cat.image ? (
                                                 <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
                                             ) : (
@@ -1448,17 +1448,17 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2">
-                                                <div className="truncate text-lg font-bold text-zinc-900 dark:text-zinc-50">{cat.name}</div>
+                                                <div className="truncate text-lg font-bold text-zinc-900">{cat.name}</div>
                                                 {cat.parentId && (
-                                                    <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                                                    <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
                                                         Alt Kategori
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+                                            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
                                                 <span>{totalProds} Ürün {depth === 0 && categories.filter(c => c.parentId === cat.id).length > 0 ? `(${categories.filter(c => c.parentId === cat.id).length} Alt Kategori)` : ''}</span>
                                                 {(cat.startTime || cat.endTime) && (
-                                                    <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 font-mono text-amber-600 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+                                                    <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 font-mono text-amber-600">
                                                         ⏱ {cat.startTime?.substring(0, 5) || '00:00'} - {cat.endTime?.substring(0, 5) || '23:59'}
                                                     </span>
                                                 )}
@@ -1467,7 +1467,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 <div className="mt-2 flex flex-wrap items-center gap-3">
                                                 <button
                                                     type="button"
-                                                    className="inline-flex h-8 items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10 dark:border-primary/30 dark:bg-primary/10"
+                                                    className="inline-flex h-8 items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         toggleCategoryProducts(cat.id);
@@ -1475,7 +1475,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 >
                                                     {isExpanded ? 'Ürünleri Gizle' : `Ürünleri Göster (${directProds.length})`}
                                                 </button>
-                                                <div className="min-w-0 flex-1 truncate text-[11px] text-zinc-400 dark:text-zinc-500" title={directProds.map(p => p.name).join(', ')}>
+                                                <div className="min-w-0 flex-1 truncate text-[11px] text-zinc-400" title={directProds.map(p => p.name).join(', ')}>
                                                     İçerik: {directProds.map(p => p.name).join(', ')}
                                                 </div>
                                                 </div>
@@ -1484,9 +1484,9 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     </div>
 
                                     {/* Right Controls - Fixed Layout */}
-                                    <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-3 border-zinc-100 pt-2 lg:w-auto lg:border-l lg:pl-4 lg:pt-0 dark:lg:border-zinc-800">
-                                        <div className="flex min-h-[36px] items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 dark:border-zinc-800 dark:bg-zinc-900">
-                                            <span className={cn("min-w-[42px] text-right text-xs font-medium transition-colors", cat.isAvailable !== false ? 'text-primary' : 'text-zinc-400 dark:text-zinc-500')}>
+                                    <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-3 border-zinc-100 pt-2 lg:w-auto lg:border-l lg:pl-4 lg:pt-0">
+                                        <div className="flex min-h-[36px] items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1">
+                                            <span className={cn("min-w-[42px] text-right text-xs font-medium transition-colors", cat.isAvailable !== false ? 'text-primary' : 'text-zinc-400')}>
                                                 {cat.isAvailable !== false ? 'Aktif' : 'Gizli'}
                                             </span>
                                             <Switch
@@ -1497,17 +1497,17 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             />
                                         </div>
                                         <div className="flex items-center gap-1.5">
-                                            <Button variant="outline" size="sm" className="h-9 w-9 border-zinc-200 bg-white p-0 dark:border-zinc-700 dark:bg-zinc-950" onClick={() => handleEditCategory(cat)}>
+                                            <Button variant="outline" size="sm" className="h-9 w-9 border-zinc-200 bg-white p-0" onClick={() => handleEditCategory(cat)}>
                                                 <Edit2 className="h-4 w-4 text-zinc-500" />
                                             </Button>
-                                            <Button variant="outline" size="sm" className="h-9 w-9 border-zinc-200 bg-white p-0 hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-zinc-700 dark:bg-zinc-950 dark:hover:border-red-900 dark:hover:bg-red-950/40" onClick={() => handleDeleteCategory(cat.id)}>
+                                            <Button variant="outline" size="sm" className="h-9 w-9 border-zinc-200 bg-white p-0 hover:border-red-200 hover:bg-red-50 hover:text-red-600" onClick={() => handleDeleteCategory(cat.id)}>
                                                 <Trash2 className="h-4 w-4 text-red-500" />
                                             </Button>
                                         </div>
                                     </div>
                                 </div>
                                 {isExpanded && directProds.length > 0 && (
-                                    <div className="border-t border-zinc-100 bg-zinc-50/70 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/60">
+                                    <div className="border-t border-zinc-100 bg-zinc-50/70 px-4 py-3">
                                         <div className="space-y-2">
                                             {directProds
                                                 .sort((a, b) => {
@@ -1517,10 +1517,10 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                     return String(a.name || '').localeCompare(String(b.name || ''), 'tr');
                                                 })
                                                 .map(product => (
-                                                    <div key={product.id} className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-zinc-950">
+                                                    <div key={product.id} className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                                                         <div className="min-w-0 flex-1">
-                                                            <div className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">{product.name}</div>
-                                                            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                            <div className="truncate text-sm font-medium text-zinc-900">{product.name}</div>
+                                                            <div className="text-xs text-zinc-500">
                                                                 {product.startTime || product.endTime ? `Saat: ${formatTimeWindow(product.startTime, product.endTime)}` : 'Her zaman görünür'}
                                                             </div>
                                                         </div>
@@ -1528,7 +1528,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                             type="button"
                                                             variant="outline"
                                                             size="sm"
-                                                            className="min-w-[112px] justify-center self-start border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950 sm:self-auto"
+                                                            className="min-w-[112px] justify-center self-start border-zinc-200 bg-white sm:self-auto"
                                                             onClick={() => openProductEditor(product)}
                                                         >
                                                             Ürüne Git

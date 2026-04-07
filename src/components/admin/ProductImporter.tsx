@@ -65,8 +65,8 @@ const matchesFilename = (expected: string, actual: string) => {
     return expectedStem.startsWith(actualStem) || actualStem.startsWith(expectedStem);
 };
 
-const BULK_COMPRESSION_SKIP_BYTES = 2 * 1024 * 1024;
-const BULK_UPLOAD_CONCURRENCY = 10;
+const BULK_COMPRESSION_SKIP_BYTES = 15 * 1024 * 1024;
+const BULK_UPLOAD_CONCURRENCY = 20;
 
 const parsePrice = (rawValue: string) => {
     if (!rawValue) return 0;
@@ -373,7 +373,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     try {
                         const file = rawFile.size <= BULK_COMPRESSION_SKIP_BYTES
                             ? rawFile
-                            : await compressImage(rawFile, { maxSizeMB: 1.5, maxWidthOrHeight: 1600 });
+                            : await compressImage(rawFile, { maxSizeMB: 8, maxWidthOrHeight: 2200 });
                         const formData = new FormData();
                         formData.append("file", file);
                         formData.append("folder", "qr-menu/products");
@@ -426,7 +426,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             setSelectedImages([]);
 
             if (skippedImages.length > 0) {
-                alert(`Bazı görseller atlandı. ${skippedImages.length} dosya eşleşmedi.\n\nİlk eksik dosya: ${skippedImages[0]}`);
+                alert(`Bazı görseller atlandı. ${skippedImages.length} dosya eşleşmedi.\n\nİlk eksik dosya: ${skippedImages[0]}\n\nNot: Eski bir export dosyası kullanıyorsanız önce menüyü yeniden dışa aktarın.`);
             }
         } catch (err) {
             console.error("Import process failed:", err);
