@@ -23,6 +23,12 @@ export default function ImageUpload({
 }: ImageUploadProps) {
     const [isUploading, setIsUploading] = useState(false);
 
+    const parseErrorMessage = (error: unknown) => {
+        if (error instanceof Error && error.message) return error.message;
+        if (typeof error === "string" && error.trim()) return error;
+        return "Bilinmeyen hata";
+    };
+
     const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const rawFile = e.target.files?.[0];
         if (!rawFile) return;
@@ -43,17 +49,23 @@ export default function ImageUpload({
                 body: formData,
             });
 
-            const data = await response.json();
+            const rawText = await response.text();
+            let data: Record<string, unknown> = {};
+            try {
+                data = rawText ? JSON.parse(rawText) : {};
+            } catch {
+                data = {};
+            }
 
-            if (response.ok && data.secure_url) {
+            if (response.ok && typeof data.secure_url === "string" && data.secure_url) {
                 onChange(data.secure_url);
             } else {
                 console.error("Supabase upload failed", data);
-                alert("Resim yuklenemedi: " + (data.error || "Bilinmeyen hata"));
+                alert("Resim yüklenemedi: " + (data.error || "Bilinmeyen hata"));
             }
         } catch (error) {
             console.error("Error uploading image:", error);
-            alert("Yukleme sirasinda hata olustu.");
+            alert("Yükleme sırasında hata oluştu: " + parseErrorMessage(error));
         } finally {
             setIsUploading(false);
         }
@@ -91,7 +103,7 @@ export default function ImageUpload({
             ) : (
                 <>
                     <ImageIcon className="h-8 w-8 text-zinc-400" />
-                    <span className="text-xs text-zinc-500 font-medium">Resim Yukle</span>
+                    <span className="text-xs font-medium text-zinc-500">Resim Yükle</span>
                 </>
             )}
         </div>

@@ -83,6 +83,12 @@ export default function ProductImporter({ onImport, onExport, existingCategories
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [uploadProgress, setUploadProgress] = useState(0);
 
+    const toReadableError = (error: unknown) => {
+        if (error instanceof Error && error.message) return error.message;
+        if (typeof error === "string" && error.trim()) return error;
+        return "Bilinmeyen hata";
+    };
+
     const handleDownloadTemplate = () => {
         const headers = [
             {
@@ -283,7 +289,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             });
         } catch (err) {
             console.error("ZIP parse error:", err);
-            alert("ZIP dosyasi okunamadi.");
+            alert(`ZIP dosyası okunamadı: ${toReadableError(err)}`);
         } finally {
             if (zipInputRef.current) zipInputRef.current.value = "";
         }
@@ -322,8 +328,15 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                             body: formData
                         });
 
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data?.error || "Upload failed");
+                        const rawText = await res.text();
+                        let data: Record<string, unknown> = {};
+                        try {
+                            data = rawText ? JSON.parse(rawText) : {};
+                        } catch {
+                            data = {};
+                        }
+
+                        if (!res.ok) throw new Error(String(data?.error || rawText || "Upload failed"));
                         if (!data?.secure_url) throw new Error("Upload URL not returned");
                         finalProducts[productIndex].image = data.secure_url;
                     } catch (err) {
@@ -355,7 +368,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             setSelectedImages([]);
         } catch (err) {
             console.error("Import process failed:", err);
-            alert("İşlem sırasında bir hata oluştu.");
+            alert(`İşlem sırasında bir hata oluştu: ${toReadableError(err)}`);
             setStep('review');
         } finally {
             setImporting(false);
