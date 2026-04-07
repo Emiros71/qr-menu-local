@@ -856,7 +856,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-white p-6 text-center">
                                                 <Clock className="w-12 h-12 mb-3 text-white/50" />
                                                 <h4 className="text-xl font-bold mb-1">Şu An Servis Dışı</h4>
-                                                <p className="text-white/80 text-sm">Bu menü servis saatleri dışındadır. ({cat.startTime?.substring(0, 5)} - {cat.endTime?.substring(0, 5)})</p>
+                                                <p className="text-white/80 text-sm">Bu menü şu an servis dışındadır.</p>
                                             </div>
                                         )}
                                     </div>

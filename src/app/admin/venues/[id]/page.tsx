@@ -51,6 +51,16 @@ const slugifyValue = (value: string) =>
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
 
+const formatTimeWindow = (start?: string, end?: string) => {
+    if (!start && !end) return '';
+    return `${start?.substring(0, 5) || '00:00'} - ${end?.substring(0, 5) || '23:59'}`;
+};
+
+const withTimeLabel = (name: string, start?: string, end?: string) => {
+    const timeWindow = formatTimeWindow(start, end);
+    return timeWindow ? `${name} (${timeWindow})` : name;
+};
+
 const AdminProductImage = ({ product, defaultImage, onClick }: { product: Product, defaultImage?: string, onClick: () => void }) => {
     const [imgState, setImgState] = useState({ src: product.image || defaultImage, hasError: false, productImg: product.image, defImg: defaultImage });
 
@@ -608,6 +618,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [categoryModalTab, setCategoryModalTab] = useState<'general' | 'translations'>('general');
+    const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<string>>(new Set());
 
     const handleCreateCategory = () => {
         if (!venueData) return;
@@ -620,6 +631,23 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         setEditingCategory({ ...cat, translations: cat.translations || {} });
         setCategoryModalTab('general');
         setIsCategoryModalOpen(true);
+    };
+
+    const toggleCategoryProducts = (categoryId: string) => {
+        setExpandedCategoryIds(prev => {
+            const next = new Set(prev);
+            if (next.has(categoryId)) next.delete(categoryId);
+            else next.add(categoryId);
+            return next;
+        });
+    };
+
+    const openProductEditor = (product: Product) => {
+        setActiveTab('products');
+        setFilterCategory(product.categoryId || '');
+        setModalTab('general');
+        setEditingProduct({ ...product, translations: product.translations || {} });
+        setIsAllergenModalOpen(true);
     };
 
     const handleSaveCategory = async () => {
@@ -1090,6 +1118,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     onImport={handleImportProducts}
                                     onExport={handleExportProducts}
                                     existingCategories={categories}
+                                    venueId={venueData.id}
                                 />
                                 <Button onClick={handleCreateProduct}>
                                     <Plus className="h-4 w-4 mr-2" />
@@ -1122,7 +1151,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                     <option value="">Tümü</option>
                                     {treeSortedCategories.map(cat => (
                                         <option key={cat.id} value={cat.id}>
-                                            {getCategoryBreadcrumb(cat.id, categories)}
+                                            {withTimeLabel(getCategoryBreadcrumb(cat.id, categories), cat.startTime, cat.endTime)}
                                         </option>
                                     ))}
                                 </select>
@@ -1216,7 +1245,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 onChange={(e) => handleProductChange(product.id, 'categoryId', e.target.value)}
                                             >
                                                 {categories.map(c => (
-                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                    <option key={c.id} value={c.id}>{withTimeLabel(c.name, c.startTime, c.endTime)}</option>
                                                 ))}
                                             </select>
                                         </td>
@@ -1356,6 +1385,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                         };
                         const totalProds = getCatAndSubcatsProductsCount(cat.id);
                         const directProds = products.filter(p => p.categoryId === cat.id);
+                        const isExpanded = expandedCategoryIds.has(cat.id);
 
                         const siblings = categories.filter(c => (c.parentId || null) === (cat.parentId || null));
                         const siblingIndex = siblings.findIndex(c => c.id === cat.id);
@@ -1424,9 +1454,21 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 )}
                                             </div>
                                             {directProds.length > 0 && (
+                                                <>
+                                                <button
+                                                    type="button"
+                                                    className="text-[11px] font-medium text-primary hover:text-primary/80 mr-2"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleCategoryProducts(cat.id);
+                                                    }}
+                                                >
+                                                    {isExpanded ? 'Ürünleri Gizle' : `Ürünleri Göster (${directProds.length})`}
+                                                </button>
                                                 <div className="text-[11px] text-zinc-400 mt-1.5 truncate max-w-xl" title={directProds.map(p => p.name).join(', ')}>
                                                     İçerik: {directProds.map(p => p.name).join(', ')}
                                                 </div>
+                                                </>
                                             )}
                                         </div>
                                     </div>
@@ -1454,6 +1496,37 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         </div>
                                     </div>
                                 </div>
+                                {isExpanded && directProds.length > 0 && (
+                                    <div className="border-t border-zinc-100 bg-zinc-50/70 px-4 py-3">
+                                        <div className="space-y-2">
+                                            {directProds
+                                                .sort((a, b) => {
+                                                    const orderA = typeof a.orderIndex === 'number' ? a.orderIndex : 0;
+                                                    const orderB = typeof b.orderIndex === 'number' ? b.orderIndex : 0;
+                                                    if (orderA !== orderB) return orderA - orderB;
+                                                    return String(a.name || '').localeCompare(String(b.name || ''), 'tr');
+                                                })
+                                                .map(product => (
+                                                    <div key={product.id} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2">
+                                                        <div className="min-w-0">
+                                                            <div className="truncate text-sm font-medium text-zinc-900">{product.name}</div>
+                                                            <div className="text-xs text-zinc-500">
+                                                                {product.startTime || product.endTime ? `Saat: ${formatTimeWindow(product.startTime, product.endTime)}` : 'Her zaman görünür'}
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => openProductEditor(product)}
+                                                        >
+                                                            Ürüne Git
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    </div>
+                                )}
                             </Card>
                         );
                     })}
@@ -1484,6 +1557,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         onChange={(url) => handleVenueChange('coverImage', url)}
                                         onRemove={() => handleVenueChange('coverImage', "")}
                                         folder="qr-menu/venues"
+                                        venueId={venueData.id}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1493,6 +1567,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         onChange={(url) => handleVenueChange('logo', url)}
                                         onRemove={() => handleVenueChange('logo', "")}
                                         folder="qr-menu/venues/logos"
+                                        venueId={venueData.id}
                                     />
                                     <div className="flex flex-col gap-3 mt-4">
                                         <div className="flex items-center gap-2">
@@ -1658,6 +1733,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         onChange={(url) => handleVenueChange('theme', { defaultProductImage: url })}
                                         onRemove={() => handleVenueChange('theme', { defaultProductImage: "" })}
                                         folder="qr-menu/venues"
+                                        venueId={venueData.id}
                                     />
                                 </div>
                                 <div className="space-y-4 col-span-2">
@@ -1899,6 +1975,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                             handleVenueChange('popup_settings', currentPopups);
                                         }}
                                         folder="qr-menu/campaigns"
+                                        venueId={venueData.id}
                                     />
                                 </div>
 
@@ -1922,12 +1999,12 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                         <option value="">🔥 Kampanyalar Kategorisine Yönlendir</option>
                                         <optgroup label="İndirimli Ürünler (Kampanyalar)">
                                             {products.filter(p => p.discount_type && p.discount_amount).map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                                <option key={p.id} value={p.id}>{withTimeLabel(p.name, p.startTime, p.endTime)}</option>
                                             ))}
                                         </optgroup>
                                         <optgroup label="Standart Ürünler">
                                             {products.filter(p => !(p.discount_type && p.discount_amount)).map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                                <option key={p.id} value={p.id}>{withTimeLabel(p.name, p.startTime, p.endTime)}</option>
                                             ))}
                                         </optgroup>
                                         <option value="custom">🌐 Farklı Bir Web Adresine Yönlendir (URL)</option>
@@ -2048,7 +2125,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 onChange={(e) => setEditingProduct(prev => prev ? ({ ...prev, categoryId: e.target.value }) : null)}
                                             >
                                                 {categories.map(c => (
-                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                    <option key={c.id} value={c.id}>{withTimeLabel(c.name, c.startTime, c.endTime)}</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -2269,6 +2346,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 onChange={(url) => setEditingProduct(prev => prev ? ({ ...prev, image: url }) : null)}
                                                 onRemove={() => setEditingProduct(prev => prev ? ({ ...prev, image: "" }) : null)}
                                                 folder="qr-menu/products"
+                                                venueId={venueData.id}
                                             />
                                         </div>
 
@@ -2553,11 +2631,11 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                     {treeSortedCategories
                                                         .filter(c => c.id !== editingCategory.id && !wouldCreateCircle(editingCategory.id, c.id, categories))
                                                         .map(c => (
-                                                            <option key={c.id} value={c.id}>
-                                                                {getCategoryBreadcrumb(c.id, categories)}
-                                                            </option>
-                                                        ))
-                                                    }
+                                                                <option key={c.id} value={c.id}>
+                                                                    {withTimeLabel(getCategoryBreadcrumb(c.id, categories), c.startTime, c.endTime)}
+                                                                </option>
+                                                            ))
+                                                        }
                                                 </select>
                                             </div>
                                         </div>
@@ -2597,6 +2675,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 onChange={(url) => setEditingCategory(prev => prev ? ({ ...prev, image: url }) : null)}
                                                 onRemove={() => setEditingCategory(prev => prev ? ({ ...prev, image: "" }) : null)}
                                                 folder="qr-menu/categories"
+                                                venueId={venueData.id}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -2607,6 +2686,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                                                 onChange={(url) => setEditingCategory(prev => prev ? ({ ...prev, coverImage: url }) : null)}
                                                 onRemove={() => setEditingCategory(prev => prev ? ({ ...prev, coverImage: "" }) : null)}
                                                 folder="qr-menu/categories/covers"
+                                                venueId={venueData.id}
                                             />
                                         </div>
                                     </div>
