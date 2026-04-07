@@ -65,6 +65,9 @@ const matchesFilename = (expected: string, actual: string) => {
     return expectedStem.startsWith(actualStem) || actualStem.startsWith(expectedStem);
 };
 
+const BULK_COMPRESSION_SKIP_BYTES = 2 * 1024 * 1024;
+const BULK_UPLOAD_CONCURRENCY = 10;
+
 const parsePrice = (rawValue: string) => {
     if (!rawValue) return 0;
     const normalized = rawValue.replace(/\s/g, "").replace(",", ".");
@@ -368,7 +371,9 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     }
 
                     try {
-                        const file = await compressImage(rawFile, { maxSizeMB: 1 });
+                        const file = rawFile.size <= BULK_COMPRESSION_SKIP_BYTES
+                            ? rawFile
+                            : await compressImage(rawFile, { maxSizeMB: 1.5, maxWidthOrHeight: 1600 });
                         const formData = new FormData();
                         formData.append("file", file);
                         formData.append("folder", "qr-menu/products");
@@ -409,7 +414,7 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                     }
                 }
 
-                const chunks = chunkArray(tasks, 5);
+                const chunks = chunkArray(tasks, BULK_UPLOAD_CONCURRENCY);
                 for (const chunk of chunks) {
                     await Promise.all((chunk as Array<() => Promise<unknown>>).map(task => task()));
                 }
