@@ -346,9 +346,13 @@ export default function ProductImporter({ onImport, onExport, existingCategories
         try {
             const finalProducts = [...parsedProducts];
             const productsWithImages = finalProducts.filter(p => p.imageFilename && !p.image);
+            const skippedImages: string[] = [];
 
             if (selectedImages.length > 0 && productsWithImages.length > 0) {
-                const totalToUpload = productsWithImages.length;
+                const matchedProducts = productsWithImages.filter(p =>
+                    selectedImages.some(file => matchesFilename(String(p.imageFilename), file.name))
+                );
+                const totalToUpload = matchedProducts.length;
                 let uploadedCount = 0;
                 const findMatchingFile = (filename: string) => {
                     return selectedImages.find(file => matchesFilename(filename, file.name)) || null;
@@ -357,7 +361,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 const uploadFile = async (productIndex: number, filename: string) => {
                     const rawFile = findMatchingFile(filename);
                     if (!rawFile) {
-                        throw new Error(`Gorsel dosyasi secilmedi: ${filename}`);
+                        skippedImages.push(filename);
+                        uploadedCount++;
+                        setUploadProgress(totalToUpload > 0 ? Math.round((uploadedCount / totalToUpload) * 100) : 100);
+                        return;
                     }
 
                     try {
@@ -395,8 +402,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 const tasks = [];
                 for (let i = 0; i < finalProducts.length; i++) {
                     const p = finalProducts[i];
-                    if (p.imageFilename && !p.image) {
+                    if (p.imageFilename && !p.image && selectedImages.some(file => matchesFilename(String(p.imageFilename), file.name))) {
                         tasks.push(() => uploadFile(i, p.imageFilename));
+                    } else if (p.imageFilename && !p.image) {
+                        skippedImages.push(String(p.imageFilename));
                     }
                 }
 
@@ -410,6 +419,10 @@ export default function ProductImporter({ onImport, onExport, existingCategories
             setStep('idle');
             setParsedProducts([]);
             setSelectedImages([]);
+
+            if (skippedImages.length > 0) {
+                alert(`Bazı görseller atlandı. ${skippedImages.length} dosya eşleşmedi.\n\nİlk eksik dosya: ${skippedImages[0]}`);
+            }
         } catch (err) {
             console.error("Import process failed:", err);
             alert(`İşlem sırasında bir hata oluştu: ${toReadableError(err)}`);

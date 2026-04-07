@@ -994,6 +994,16 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
         // Dynamic import to avoid large bundle size on initial load if not needed
         const XLSX = await import("xlsx");
 
+        const toExportImageName = (image?: string) => {
+            if (!image) return "";
+            const raw = decodeURIComponent(String(image).split("?")[0].split("#")[0]);
+            const fileName = raw.split(/[\\/]/).pop() || raw;
+            const lastDot = fileName.lastIndexOf(".");
+            if (lastDot < 0) return fileName;
+            const stem = fileName.slice(0, lastDot).replace(/-[a-z0-9]{5,12}$/i, "");
+            return `${stem}${fileName.slice(lastDot)}`;
+        };
+
         const exportData = products.map(p => {
             const catName = categories.find(c => c.id === p.categoryId)?.name || "Genel";
             return {
@@ -1016,7 +1026,7 @@ export default function VenueEditor({ params }: { params: Promise<{ id: string }
                 "Başlama Saati": p.startTime || "",
                 "Bitiş Saati": p.endTime || "",
                 "Durum": p.isAvailable ? "Aktif" : "Pasif",
-                "Görsel Dosya Adı": p.image ? p.image : "" // Export current URL as filename reference
+                "Görsel Dosya Adı": toExportImageName(p.image)
             };
         });
 
