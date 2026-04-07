@@ -11,13 +11,15 @@ interface ImageUploadProps {
     onChange: (url: string) => void;
     onRemove: () => void;
     folder?: string;
+    venueId?: string;
 }
 
 export default function ImageUpload({
     value,
     onChange,
     onRemove,
-    folder = "qr-menu"
+    folder = "qr-menu/products",
+    venueId
 }: ImageUploadProps) {
     const [isUploading, setIsUploading] = useState(false);
 
@@ -28,86 +30,30 @@ export default function ImageUpload({
         setIsUploading(true);
 
         try {
-            // Sıkıştırma adımı eklendi: max 1.5MB hedefiyle (logolar, mekan fotoları için ideal)
             const file = await compressImage(rawFile, { maxSizeMB: 1.5 });
-            const storageProvider = process.env.NEXT_PUBLIC_STORAGE_PROVIDER || 'cloudinary';
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("folder", folder);
+            if (venueId) {
+                formData.append("venueId", venueId);
+            }
 
-            if (storageProvider === 'supabase') {
-                // 1. Supabase Upload (Güvenli Sunucu API'si üzerinden)
-                const formData = new FormData();
-                formData.append("file", file);
-                formData.append("folder", folder);
+            const response = await fetch("/api/upload-supabase", {
+                method: "POST",
+                body: formData,
+            });
 
-                const response = await fetch('/api/upload-supabase', {
-                    method: 'POST',
-                    body: formData,
-                });
+            const data = await response.json();
 
-                const data = await response.json();
-
-                if (response.ok && data.secure_url) {
-                    onChange(data.secure_url);
-                } else {
-                    console.error("Supabase Upload failed", data);
-                    alert("Resim Supabase'e yüklenemedi: " + (data.error || "Bilinmeyen hata"));
-                }
+            if (response.ok && data.secure_url) {
+                onChange(data.secure_url);
             } else {
-                // 2. Mevcut Cloudinary Yüklemesi (İmzalı)
-                const safeName = rawFile.name
-                    .split('.')[0]
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]/g, '-')
-                    .replace(/-+/g, '-')
-                    .replace(/^-|-$/g, '')
-                    .substring(0, 50) || 'image';
-                const publicId = `${safeName}-${Math.random().toString(36).substring(2, 8)}`;
-
-                const timestamp = Math.round((new Date()).getTime() / 1000);
-
-                const signRes = await fetch('/api/sign-cloudinary', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        paramsToSign: {
-                            timestamp,
-                            folder,
-                            public_id: publicId
-                        }
-                    })
-                });
-
-                if (!signRes.ok) throw new Error("Signature failed");
-                const { signature } = await signRes.json();
-
-                const formData = new FormData();
-                formData.append("file", file);
-                formData.append("timestamp", timestamp.toString());
-                formData.append("folder", folder);
-                formData.append("public_id", publicId);
-                formData.append("signature", signature);
-                formData.append("api_key", process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || "");
-
-                const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
-
-                const response = await fetch(
-                    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-                    {
-                        method: "POST",
-                        body: formData,
-                    }
-                );
-
-                const data = await response.json();
-
-                if (data.secure_url) {
-                    onChange(data.secure_url);
-                } else {
-                    console.error("Upload failed", data);
-                    alert("Resim yüklenemedi: " + (data.error?.message || "Bilinmeyen hata"));
-                }
+                console.error("Supabase upload failed", data);
+                alert("Resim yuklenemedi: " + (data.error || "Bilinmeyen hata"));
             }
         } catch (error) {
             console.error("Error uploading image:", error);
-            alert("Yükleme sırasında hata oluştu. API Key/Secret kontrol edin.");
+            alert("Yukleme sirasinda hata olustu.");
         } finally {
             setIsUploading(false);
         }
@@ -145,7 +91,7 @@ export default function ImageUpload({
             ) : (
                 <>
                     <ImageIcon className="h-8 w-8 text-zinc-400" />
-                    <span className="text-xs text-zinc-500 font-medium">Resim Yükle</span>
+                    <span className="text-xs text-zinc-500 font-medium">Resim Yukle</span>
                 </>
             )}
         </div>
