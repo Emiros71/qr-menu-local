@@ -1,45 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { createClient as createServerClient } from "@/utils/supabase/server";
-import { getServerSupabaseUrl } from "@/utils/supabase/config";
+import { getAuthenticatedActor, getSupabaseAdminClient, isSuperAdmin } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
-
-function getSupabaseAdmin() {
-    const supabaseUrl = getServerSupabaseUrl();
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-        throw new Error("Supabase admin configuration is missing.");
-    }
-
-    return createSupabaseClient(supabaseUrl, serviceRoleKey, {
-        auth: {
-            autoRefreshToken: false,
-            persistSession: false
-        }
-    });
-}
-
-async function isSuperAdmin() {
-    const supabase = await createServerClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
-    if (!user) return false;
-
-    try {
-        const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", user.id)
-            .single();
-
-        const resolvedRole = profile?.role || user.user_metadata?.role || "SUPER_ADMIN";
-        return resolvedRole === "SUPER_ADMIN";
-    } catch {
-        return (user.user_metadata?.role || "SUPER_ADMIN") === "SUPER_ADMIN";
-    }
-}
 
 function extractPathFromPublicUrl(url: string, bucketName: string) {
     try {
@@ -77,7 +39,7 @@ type StorageEntry = {
 };
 
 async function listFilesRecursively(
-    supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+    supabaseAdmin: ReturnType<typeof getSupabaseAdminClient>,
     bucketName: string,
     folder: string
 ): Promise<string[]> {
@@ -105,12 +67,12 @@ async function listFilesRecursively(
 }
 
 export async function POST() {
-    if (!await isSuperAdmin()) {
+    if (!isSuperAdmin(await getAuthenticatedActor())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     try {
-        const supabaseAdmin = getSupabaseAdmin();
+        const supabaseAdmin = getSupabaseAdminClient();
         const bucketName = process.env.NEXT_PUBLIC_SUPABASE_BUCKET || "qr-menu";
         const referencedPaths = new Set<string>();
 

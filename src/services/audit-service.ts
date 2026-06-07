@@ -30,24 +30,24 @@ export const AuditService = {
      */
     async log(entry: LogEntry) {
         try {
-            // Get user from client side first to ensure we send it
-            // This fixes issues where cookies might not be read correctly by the API route
             let userEmail = 'anonymous';
             let userId = null;
+            let accessToken = '';
 
             try {
                 const supabase = createClient();
                 const { data: { user } } = await supabase.auth.getUser();
+                const { data: { session } } = await supabase.auth.getSession();
                 if (user) {
                     userEmail = user.email || 'unknown';
                     userId = user.id;
                 }
+                accessToken = session?.access_token || '';
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (_e) {
                 // Ignore auth checking errors
             }
 
-            // Enrich details with user info
             const enrichedDetails = {
                 ...entry.details,
                 user_email: entry.details?.user_email || userEmail,
@@ -56,7 +56,10 @@ export const AuditService = {
 
             await fetch('/api/log', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+                },
                 body: JSON.stringify({
                     ...entry,
                     details: enrichedDetails

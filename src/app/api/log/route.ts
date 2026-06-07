@@ -1,81 +1,111 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
-import { getServerSupabaseUrl } from '@/utils/supabase/config';
+import { getAuthenticatedUser, getSupabaseAdminClient } from '@/server/auth';
 
 export const dynamic = 'force-dynamic';
 
-// Admin client to bypass RLS for writing logs
-function getSupabaseAdmin() {
-    const supabaseUrl = getServerSupabaseUrl();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 30;
+const MAX_DETAILS_LENGTH = 8_000;
+const TRUST_PROXY_HEADERS = process.env.TRUST_PROXY_HEADERS === 'true';
+const ALLOWED_ACTIONS = new Set([
+    'LOGIN',
+    'LOGOUT',
+    'CREATE_PRODUCT',
+    'UPDATE_PRODUCT',
+    'DELETE_PRODUCT',
+    'CREATE_CATEGORY',
+    'UPDATE_CATEGORY',
+    'DELETE_CATEGORY',
+    'UPDATE_VENUE',
+    'CREATE_ALLERGEN',
+    'UPDATE_ALLERGEN',
+    'DELETE_ALLERGEN',
+    'IMPORT_EXCEL',
+    'OTHER',
+]);
+const ALLOWED_RESOURCES = new Set(['auth', 'products', 'categories', 'venues', 'allergens', 'app_settings']);
 
-    if (!supabaseUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        return null;
+const requestCounts = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = requestCounts.get(ip);
+
+    if (!entry || now > entry.resetAt) {
+        requestCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+        return true;
     }
 
-    return createClient(
-        supabaseUrl,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
+        return false;
+    }
+
+    entry.count++;
+    return true;
+}
+
+function getIp(request: Request): string {
+    if (!TRUST_PROXY_HEADERS) {
+        return 'unknown';
+    }
+
+    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
+        || 'unknown';
 }
 
 export async function POST(request: Request) {
     try {
-        const supabaseAdmin = getSupabaseAdmin();
+        const ip = getIp(request);
+        if (!checkRateLimit(ip)) {
+            return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+        }
+
         const body = await request.json();
         const { action, resource, details } = body;
+        const serializedDetails = JSON.stringify(details ?? {});
 
-        // Logging should never block app usage in partially bootstrapped local installs.
-        if (!supabaseAdmin) {
-            return NextResponse.json({ success: true, skipped: 'missing_service_role_key' });
+        if (typeof action !== 'string' || !ALLOWED_ACTIONS.has(action)) {
+            return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
         }
 
-        // Try to get current user if exists (for CREATE/UPDATE actions)
-        const cookieStore = await cookies();
-        const supabaseUrl = getServerSupabaseUrl();
-        if (!supabaseUrl || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-            return NextResponse.json({ success: true, skipped: 'missing_supabase_url_or_anon_key' });
+        if (typeof resource !== 'string' || !ALLOWED_RESOURCES.has(resource)) {
+            return NextResponse.json({ error: 'Invalid resource' }, { status: 400 });
         }
-        const supabase = createServerClient(
-            supabaseUrl,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() { return cookieStore.getAll() },
-                    setAll() { } // Read-only here
-                }
-            }
-        );
 
-        const { data: { user } } = await supabase.auth.getUser();
+        if (serializedDetails.length > MAX_DETAILS_LENGTH) {
+            return NextResponse.json({ error: 'Details payload is too large' }, { status: 400 });
+        }
 
-        // Enrich details with user info if available
+        const user = await getAuthenticatedUser(request);
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const supabaseAdmin = getSupabaseAdminClient();
         const enrichedDetails = {
-            ...details,
-            user_email: user?.email || 'anonymous',
-            // We could also duplicate user_id here for easier access
-            log_user_id: user?.id
+            ...(details && typeof details === 'object' ? details : {}),
+            user_email: user.email || 'anonymous',
+            log_user_id: user.id,
+            ip_address: ip,
         };
 
-        // Insert log using Admin Client
         const { error } = await supabaseAdmin.from('audit_logs').insert({
             action_type: action,
-            resource: resource,
+            resource,
             details: enrichedDetails,
-            user_id: user?.id || null, // FK is still good to have but details is safer for display
-            // ip_address header can be read here if needed: request.headers.get('x-forwarded-for')
+            user_id: user.id,
         });
 
         if (error) {
             console.error("API Log Insert Error:", error);
-            return NextResponse.json({ success: true, skipped: error.message });
+            return NextResponse.json({ error: 'Log insert failed' }, { status: 500 });
         }
 
         return NextResponse.json({ success: true });
 
     } catch (err) {
         console.error("API Log Error:", err);
-        return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

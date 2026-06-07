@@ -1,31 +1,27 @@
 import type { NextConfig } from "next";
+import type { RemotePattern } from "next/dist/shared/lib/image-config";
 import withBundleAnalyzer from "@next/bundle-analyzer";
 
-// Supabase URL'inden hostname ve protokol çıkarmak için
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-let supabasePattern = null;
+let supabasePattern: RemotePattern | null = null;
 
 if (supabaseUrl) {
   try {
     const url = new URL(supabaseUrl);
     supabasePattern = {
-      protocol: url.protocol.replace(':', '') as "http" | "https",
+      protocol: url.protocol.replace(":", "") as "http" | "https",
       hostname: url.hostname,
       ...(url.port ? { port: url.port } : {}),
     };
-  } catch (error) {
-    console.warn("Geçersiz NEXT_PUBLIC_SUPABASE_URL değeri yapılandırıldı:", supabaseUrl);
+  } catch {
+    console.warn("Invalid NEXT_PUBLIC_SUPABASE_URL value configured:", supabaseUrl);
   }
 }
 
-const remotePatterns: any[] = [
+const remotePatterns: RemotePattern[] = [
   {
     protocol: "https",
     hostname: "images.unsplash.com",
-  },
-  {
-    protocol: "https",
-    hostname: "res.cloudinary.com",
   },
   {
     protocol: "https",
@@ -39,8 +35,6 @@ if (supabasePattern) {
 
 const nextConfig: NextConfig = {
   images: {
-    loader: "custom",
-    loaderFile: "./src/cloudinary-loader.ts",
     remotePatterns,
   },
 };

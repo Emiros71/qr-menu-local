@@ -83,12 +83,6 @@ export default function LoginPage() {
                 setFailedAttempts(newAttempts);
                 localStorage.setItem('login_failed_attempts', newAttempts.toString());
 
-                AuditService.log({
-                    action: 'LOGIN_FAILED',
-                    resource: 'auth',
-                    details: { email, error: signInError.message, attempt: newAttempts }
-                });
-
                 if (newAttempts >= 3) {
                     const lockoutTime = Date.now() + 30000;
                     setLockoutUntil(lockoutTime);

@@ -1,75 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getServerSupabaseUrl } from "@/utils/supabase/config";
-import { createClient as createServerClient } from "@/utils/supabase/server";
+import { canAccessVenue, getAuthenticatedActor, getSupabaseAdminClient } from "@/server/auth";
 
 export const dynamic = 'force-dynamic';
 
-// Initialize Supabase with Service Role Key (Bypasses RLS)
-function getSupabaseAdmin() {
-    const supabaseUrl = getServerSupabaseUrl();
-    return createClient(
-        supabaseUrl!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-}
-
 export async function POST(req: NextRequest) {
     try {
-        const supabaseAdmin = getSupabaseAdmin();
+        const supabaseAdmin = getSupabaseAdminClient();
         // --- 1. Authenticaton & RBAC Validation ---
-        let profile = null;
-        let authenticatedUser: { id: string; user_metadata?: Record<string, unknown> } | null = null;
+        let actor = null as Awaited<ReturnType<typeof getAuthenticatedActor>>;
         const bypassKey = req.headers.get('x-e2e-bypass');
+        const e2eBypassKey = process.env.E2E_BYPASS_KEY;
 
-        if (process.env.NODE_ENV !== 'production' && bypassKey === 'super-secret-e2e-bypass') {
+        if (process.env.NODE_ENV !== 'production' && e2eBypassKey && bypassKey === e2eBypassKey) {
             // E2E Test Mock Authentication
-            profile = { role: 'SUPER_ADMIN', venue_ids: null };
+            actor = {
+                user: null as never,
+                profile: { id: 'e2e', email: null, full_name: null, role: 'SUPER_ADMIN', venue_ids: [], tags: [] }
+            };
         } else {
-            const serverSupabase = await createServerClient();
-            const { data: { session } } = await serverSupabase.auth.getSession();
-            let user = session?.user ?? null;
-
-            if (!user) {
-                const authHeader = req.headers.get('authorization');
-                if (authHeader?.startsWith('Bearer ')) {
-                    const token = authHeader.split(' ')[1];
-                    const supabaseAuth = createClient(getServerSupabaseUrl()!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-                    const { data, error: userError } = await supabaseAuth.auth.getUser(token);
-                    if (!userError) {
-                        user = data.user;
-                    }
-                }
-            }
-
-            if (!user) {
+            actor = await getAuthenticatedActor(req);
+            if (!actor) {
                 return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
             }
-
-            authenticatedUser = user;
-
-            // Fetch User Profile
-            try {
-                const { data } = await supabaseAdmin.from('profiles').select('role, venue_ids').eq('id', user.id).single();
-                profile = data;
-            } catch {
-                profile = null;
-            }
-
-            if (!profile) {
-                profile = {
-                    role: user.user_metadata?.role || 'SUPER_ADMIN',
-                    venue_ids: user.user_metadata?.venue_ids || []
-                };
-            }
-
-            if (!['SUPER_ADMIN', 'VENUE_MANAGER'].includes(profile.role)) {
+            if (!['SUPER_ADMIN', 'VENUE_MANAGER'].includes(actor.profile.role)) {
                 return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
             }
         }
 
+        const profile = actor.profile;
+        const authenticatedUser = actor.user;
         const body = await req.json();
-        const { id, updates, table, action = 'update', user_email } = body;
+        const { id, updates, table, action = 'update' } = body;
 
         // Table is always required. ID is required for update/delete but not create.
         if (!table) {
@@ -115,8 +76,11 @@ export async function POST(req: NextRequest) {
             if (table === 'venues' && action === 'create') {
                 return NextResponse.json({ error: "Venue Managers cannot create new venues" }, { status: 403 });
             }
+            if (table === 'allergens' && !venueIdToCheck) {
+                return NextResponse.json({ error: "Venue context is required" }, { status: 403 });
+            }
             // Check if they own the venue they are trying to manipulate
-            if (venueIdToCheck && (!profile.venue_ids || !profile.venue_ids.includes(venueIdToCheck))) {
+            if (!canAccessVenue(actor, venueIdToCheck)) {
                 return NextResponse.json({ error: "You don't have permission to modify this venue's data" }, { status: 403 });
             }
         }
@@ -171,13 +135,14 @@ export async function POST(req: NextRequest) {
         } else {
             if (!updates) return NextResponse.json({ error: "Missing updates" }, { status: 400 });
 
-            let query = supabaseAdmin.from(table).update(updates);
             if (table === 'app_settings') {
-                query = query.eq('key', id);
+                result = await supabaseAdmin
+                    .from(table)
+                    .upsert({ key: id, ...updates }, { onConflict: 'key' })
+                    .select();
             } else {
-                query = query.eq('id', id);
+                result = await supabaseAdmin.from(table).update(updates).eq('id', id).select();
             }
-            result = await query.select();
         }
         const { data, error } = result;
 
@@ -257,8 +222,9 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            // Enrich with User Email
-            if (user_email) logDetails.user_email = user_email;
+            // Enrich with User Email (resolved server-side, not from client)
+            const resolvedEmail = authenticatedUser?.email;
+            if (resolvedEmail) logDetails.user_email = resolvedEmail;
 
             // Enrich with Venue Name
             let venueIdToLookup = null;

@@ -7,22 +7,16 @@ interface CompressionOptions {
 }
 
 const defaultOptions: CompressionOptions = {
-    maxSizeMB: 1, // Max 1MB
-    maxWidthOrHeight: 1200, // Max 1200px (genişlik veya yüksekliğe göre orantılı küçültür)
+    maxSizeMB: 1,
+    maxWidthOrHeight: 1200,
     useWebWorker: true,
 };
 
 /**
- * İstemci tarafında (tarayıcıda) görsel dosyalarını sıkıştırır.
- * Cloudinary gibi bulut hizmetlerine yüklemeden önce kota tasarrufu sağlamak ve 
- * yükleme hızlarını artırmak için kullanılır.
- * 
- * @param file Sıkıştırılacak görsel dosyası
- * @param customOptions Özel sıkıştırma ayarları (opsiyonel)
- * @returns Sıkıştırılmış dosya (veya hata durumunda orijinal dosyanın kendisi)
+ * Istemci tarafinda gorsel dosyalarini sikistirir.
+ * Yukleme kotasini azaltmak ve aktarim hizini iyilestirmek icin kullanilir.
  */
 export async function compressImage(file: File, customOptions?: CompressionOptions): Promise<File> {
-    // Sadece görselleri sıkıştır (PDF, vs. geldiyse atla)
     if (!file.type.startsWith('image/')) {
         return file;
     }
@@ -30,27 +24,24 @@ export async function compressImage(file: File, customOptions?: CompressionOptio
     const options = { ...defaultOptions, ...customOptions };
 
     try {
-        console.log(`[Compression] Orijinal dosya boyutu: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`[Compression] Original file size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
         const compressedBlob = await imageCompression(file, options);
 
-        // return blob as File object ensuring name and lastModified are kept
         const compressedFile = new File([compressedBlob], file.name, {
             type: compressedBlob.type,
             lastModified: Date.now(),
         });
 
-        console.log(`[Compression] Sıkıştırılmış dosya boyutu: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`[Compression] Compressed file size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
 
-        // Eğer sıkıştırma sonucu dosya büyüdüyse (nadiren olur: çok küçük görsellerde) orijinali dön
         if (compressedFile.size > file.size) {
-            console.warn("[Compression] Sıkıştırılmış dosya orijinalden büyük oldu, orijinal kullanılıyor.");
+            console.warn("[Compression] Compressed file is larger than the original; using the original.");
             return file;
         }
 
         return compressedFile;
     } catch (error) {
-        console.error("[Compression] Görsel sıkıştırma hatası:", error);
-        // Hata durumunda yüklemenin durmaması için orijinal dosyayı döndür
+        console.error("[Compression] Image compression failed:", error);
         return file;
     }
 }

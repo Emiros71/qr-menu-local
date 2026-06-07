@@ -37,22 +37,31 @@ export default function SettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await SettingsService.updateAppSettings('landing_page', settings);
-            alert("Ayarlar güncellendi!");
+            const normalizedSettings = {
+                ...settings,
+                title: settings.title.trim(),
+                subtitle: settings.subtitle.trim(),
+                instagramUrl: settings.instagramUrl.trim(),
+                websiteUrl: settings.websiteUrl.trim()
+            };
+
+            await SettingsService.updateAppSettings("landing_page", normalizedSettings);
+            setSettings(normalizedSettings);
+            alert("Ayarlar guncellendi!");
         } catch (err) {
             console.error(err);
-            alert("Bir hata oluştu.");
+            alert(err instanceof Error ? err.message : "Bir hata olustu.");
         } finally {
             setSaving(false);
         }
     };
 
     const handleChange = (field: string, value: string) => {
-        setSettings(prev => ({ ...prev, [field]: value }));
+        setSettings((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleCleanupUnusedImages = async () => {
-        if (!window.confirm("Kullanılmayan görseller storage'dan silinsin mi? Bu işlem geri alınamaz.")) {
+        if (!window.confirm("Kullanilmayan gorseller storage'dan silinsin mi? Bu islem geri alinamaz.")) {
             return;
         }
 
@@ -62,26 +71,26 @@ export default function SettingsPage() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data?.error || "Temizleme başarısız oldu.");
+                throw new Error(data?.error || "Temizleme basarisiz oldu.");
             }
 
-            alert(data?.message || `${data.deletedCount || 0} kullanılmayan görsel silindi.`);
+            alert(data?.message || `${data.deletedCount || 0} kullanilmayan gorsel silindi.`);
         } catch (error) {
             console.error(error);
-            alert(error instanceof Error ? error.message : "Görseller temizlenirken bir hata oluştu.");
+            alert(error instanceof Error ? error.message : "Gorseller temizlenirken bir hata olustu.");
         } finally {
             setCleaningImages(false);
         }
     };
 
-    if (loading) return <div>Yükleniyor...</div>;
+    if (loading) return <div>Yukleniyor...</div>;
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Ayarlar</h1>
-                    <p className="text-zinc-500 mt-2">Giriş sayfası ve genel site ayarları.</p>
+                    <p className="text-zinc-500 mt-2">Giris sayfasi ve genel site ayarlari.</p>
                 </div>
                 <Button onClick={handleSave} disabled={saving} className="flex items-center gap-2">
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -90,12 +99,10 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid gap-6">
-
-                {/* Visual Settings */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Görsel & Marka</CardTitle>
-                        <CardDescription>Ana sayfada görünecek resim ve başlıklar.</CardDescription>
+                        <CardTitle>Gorsel ve Marka</CardTitle>
+                        <CardDescription>Ana sayfada gorunecek resim ve basliklar.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="flex flex-col md:flex-row gap-8">
@@ -103,42 +110,42 @@ export default function SettingsPage() {
                                 <label className="text-sm font-medium text-zinc-700">Arka Plan Resmi</label>
                                 <ImageUpload
                                     value={settings.backgroundImage}
-                                    onChange={(url) => handleChange('backgroundImage', url)}
-                                    onRemove={() => handleChange('backgroundImage', '')}
+                                    onChange={(url) => handleChange("backgroundImage", url)}
+                                    onRemove={() => handleChange("backgroundImage", "")}
                                     folder="qr-menu-settings"
                                 />
                                 <p className="text-xs text-zinc-500 max-w-[200px]">
-                                    Yüksek kaliteli bir dikey veya kare fotoğraf önerilir. (JPG/PNG)
+                                    Yuksek kaliteli bir dikey veya kare fotograf onerilir. (JPG/PNG)
                                 </p>
                             </div>
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-zinc-700">Ana Logo</label>
                                 <ImageUpload
-                                    value={(settings as any).landingLogo}
-                                    onChange={(url) => handleChange('landingLogo', url)}
-                                    onRemove={() => handleChange('landingLogo', '')}
+                                    value={settings.landingLogo}
+                                    onChange={(url) => handleChange("landingLogo", url)}
+                                    onRemove={() => handleChange("landingLogo", "")}
                                     folder="qr-menu-settings"
                                 />
                                 <p className="text-xs text-zinc-500 max-w-[200px]">
-                                    Oturum sayfasının tam ortasında görünen marka logosu (Tercihen PNG/SVG).
+                                    Oturum sayfasinin ortasinda gorunen marka logosu. (Tercihen PNG/SVG)
                                 </p>
                             </div>
 
                             <div className="flex-1 space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-700">Ana Başlık (Otel/Restoran Adı)</label>
+                                    <label className="text-sm font-medium text-zinc-700">Ana Baslik (Otel/Restoran Adi)</label>
                                     <Input
                                         value={settings.title}
-                                        onChange={(e) => handleChange('title', e.target.value)}
+                                        onChange={(e) => handleChange("title", e.target.value)}
                                         placeholder="CROWNE PLAZA"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-700">Alt Başlık (Şehir/Şube)</label>
+                                    <label className="text-sm font-medium text-zinc-700">Alt Baslik (Sehir/Sube)</label>
                                     <Input
                                         value={settings.subtitle}
-                                        onChange={(e) => handleChange('subtitle', e.target.value)}
+                                        onChange={(e) => handleChange("subtitle", e.target.value)}
                                         placeholder="ANKARA"
                                     />
                                 </div>
@@ -147,11 +154,10 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
 
-                {/* Social Links */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Sosyal Medya & Linkler</CardTitle>
-                        <CardDescription>Müşterileri yönlendireceğiniz dış bağlantılar.</CardDescription>
+                        <CardTitle>Sosyal Medya ve Linkler</CardTitle>
+                        <CardDescription>Musterileri yonlendireceginiz dis baglantilar.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-3">
@@ -162,7 +168,7 @@ export default function SettingsPage() {
                                 <label className="text-xs font-medium text-zinc-500">Instagram URL</label>
                                 <Input
                                     value={settings.instagramUrl}
-                                    onChange={(e) => handleChange('instagramUrl', e.target.value)}
+                                    onChange={(e) => handleChange("instagramUrl", e.target.value)}
                                     placeholder="https://instagram.com/..."
                                 />
                             </div>
@@ -176,7 +182,7 @@ export default function SettingsPage() {
                                 <label className="text-xs font-medium text-zinc-500">Web Sitesi URL</label>
                                 <Input
                                     value={settings.websiteUrl}
-                                    onChange={(e) => handleChange('websiteUrl', e.target.value)}
+                                    onChange={(e) => handleChange("websiteUrl", e.target.value)}
                                     placeholder="https://..."
                                 />
                             </div>
@@ -190,12 +196,12 @@ export default function SettingsPage() {
                             <AlertTriangle className="h-5 w-5" />
                             Danger Zone
                         </CardTitle>
-                        <CardDescription>Kullanılmayan storage görsellerini topluca temizlemek için kullanın.</CardDescription>
+                        <CardDescription>Kullanilmayan storage gorsellerini topluca temizlemek icin kullanin.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <p className="text-sm text-zinc-500">
-                                Veritabanında referansı kalmayan ürün, kategori, mekan ve ayar görsellerini siler.
+                                Veritabaninda referansi kalmayan urun, kategori, mekan ve ayar gorsellerini siler.
                             </p>
                             <Button
                                 variant="outline"
@@ -204,7 +210,7 @@ export default function SettingsPage() {
                                 className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                             >
                                 {cleaningImages ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
-                                Kullanılmayan Resimleri Sil
+                                Kullanilmayan Resimleri Sil
                             </Button>
                         </div>
                     </CardContent>

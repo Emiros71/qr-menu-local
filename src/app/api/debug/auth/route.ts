@@ -2,10 +2,21 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { getServerSupabaseUrl } from '@/utils/supabase/config';
+import { getAuthenticatedActor, isSuperAdmin } from '@/server/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+    const debugRouteEnabled = process.env.DEBUG_AUTH_ROUTE_ENABLED === 'true';
+    if (process.env.NODE_ENV === 'production' || !debugRouteEnabled) {
+        return NextResponse.json({ error: 'Disabled in production' }, { status: 403 });
+    }
+
+    const actor = await getAuthenticatedActor();
+    if (!isSuperAdmin(actor)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabaseUrl = getServerSupabaseUrl();
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const cookieStore = await cookies();

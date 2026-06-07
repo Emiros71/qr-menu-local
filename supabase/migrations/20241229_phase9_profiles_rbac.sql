@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     email TEXT,
     full_name TEXT,
     role user_role DEFAULT 'VENUE_MANAGER',
-    venue_id UUID REFERENCES public.venues(id) ON DELETE SET NULL, -- Null for super_admin
+    venue_id UUID REFERENCES public.venues(id) ON DELETE SET NULL, -- Legacy column
+    venue_ids UUID[] DEFAULT '{}'::UUID[],
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -37,7 +38,7 @@ BEGIN
         NEW.id,
         NEW.email,
         NEW.raw_user_meta_data->>'full_name',
-        COALESCE((NEW.raw_user_meta_data->>'role')::public.user_role, 'VENUE_MANAGER'::public.user_role)
+        'VENUE_MANAGER'::public.user_role
     );
     RETURN NEW;
 END;

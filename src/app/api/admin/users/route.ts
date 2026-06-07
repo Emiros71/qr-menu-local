@@ -1,69 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { createClient as createServerClient } from "@/utils/supabase/server";
-import { getServerSupabaseUrl } from "@/utils/supabase/config";
+import { getAuthenticatedActor, getSupabaseAdminClient, isSuperAdmin, type AppRole } from "@/server/auth";
 
 export const dynamic = "force-dynamic";
 
-// Initialize Supabase Admin Client (Bypasses RLS & can manage users)
-function getSupabaseAdmin() {
-    const supabaseUrl = getServerSupabaseUrl();
-    return createClient(
-        supabaseUrl!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false
-            }
-        }
-    );
-}
+const VALID_ROLES: AppRole[] = ["SUPER_ADMIN", "VENUE_MANAGER", "STAFF"];
 
-// Helper to check if the requester is a SUPER_ADMIN
-async function isSuperAdmin() {
-    const supabase = await createServerClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
-
-    if (!user) return false;
-
-    try {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-
-        const resolvedRole = profile?.role || user.user_metadata?.role || 'SUPER_ADMIN';
-        return resolvedRole === 'SUPER_ADMIN';
-    } catch {
-        return (user.user_metadata?.role || 'SUPER_ADMIN') === 'SUPER_ADMIN';
+function normalizeRole(value: unknown): AppRole {
+    if (typeof value === "string" && VALID_ROLES.includes(value as AppRole)) {
+        return value as AppRole;
     }
+
+    return "VENUE_MANAGER";
 }
 
 // GET all users (with their profiles)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_req: NextRequest) {
-    if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!isSuperAdmin(await getAuthenticatedActor())) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
-        const supabaseAdmin = getSupabaseAdmin();
+        const supabaseAdmin = getSupabaseAdminClient();
         // Fetch auth users
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
         if (authError) throw authError;
 
         // Fetch profiles
-        let profiles: Array<Record<string, unknown>> = [];
         const { data: profileData, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('id, full_name, role, tags, venue_ids');
 
         if (profileError) {
-            console.warn("Profiles query failed in users API, falling back to auth metadata.", profileError);
-        } else {
-            profiles = profileData || [];
+            throw profileError;
         }
+
+        const profiles = profileData || [];
 
         // Merge data
         const users = authData.users.map(u => {
@@ -73,7 +43,7 @@ export async function GET(_req: NextRequest) {
                 email: u.email,
                 created_at: u.created_at,
                 full_name: p?.full_name || u.user_metadata?.full_name,
-                role: p?.role || u.user_metadata?.role || 'SUPER_ADMIN',
+                role: p?.role || null,
                 tags: Array.isArray(p?.tags) ? p.tags : [],
                 venue_ids: Array.isArray(p?.venue_ids) ? p.venue_ids : []
             };
@@ -87,15 +57,34 @@ export async function GET(_req: NextRequest) {
 
 // CREATE a new user
 export async function POST(req: NextRequest) {
-    if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!isSuperAdmin(await getAuthenticatedActor())) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
-        const supabaseAdmin = getSupabaseAdmin();
+        const supabaseAdmin = getSupabaseAdminClient();
         const body = await req.json();
         const { email, password, full_name, role, venue_ids, tags } = body;
+        const normalizedRole = normalizeRole(role);
+        const normalizedVenueIds = Array.isArray(venue_ids) ? venue_ids.filter((id): id is string => typeof id === "string") : [];
+        const normalizedTags = Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === "string") : [];
 
         if (!email || !password) {
             return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+        }
+
+        if (typeof password !== 'string' || password.length < 8) {
+            return NextResponse.json({ error: "Password must be at least 8 characters long" }, { status: 400 });
+        }
+
+        if (!/[A-Z]/.test(password)) {
+            return NextResponse.json({ error: "Password must contain at least one uppercase letter" }, { status: 400 });
+        }
+
+        if (!/[a-z]/.test(password)) {
+            return NextResponse.json({ error: "Password must contain at least one lowercase letter" }, { status: 400 });
+        }
+
+        if (!/[0-9]/.test(password)) {
+            return NextResponse.json({ error: "Password must contain at least one number" }, { status: 400 });
         }
 
         // 1. Create User in Auth
@@ -103,7 +92,7 @@ export async function POST(req: NextRequest) {
             email,
             password,
             email_confirm: true,
-            user_metadata: { full_name, role }
+            user_metadata: { full_name }
         });
 
         if (authError) throw authError;
@@ -116,9 +105,9 @@ export async function POST(req: NextRequest) {
                     id: authData.user.id,
                     email,
                     full_name,
-                    role,
-                    venue_ids: venue_ids || [],
-                    tags: tags || []
+                    role: normalizedRole,
+                    venue_ids: normalizedRole === "SUPER_ADMIN" ? [] : normalizedVenueIds,
+                    tags: normalizedTags
                 });
 
             if (profileError) {
@@ -134,12 +123,15 @@ export async function POST(req: NextRequest) {
 
 // UPDATE an existing user (Role, Tags, Password, etc.)
 export async function PUT(req: NextRequest) {
-    if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!isSuperAdmin(await getAuthenticatedActor())) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
-        const supabaseAdmin = getSupabaseAdmin();
+        const supabaseAdmin = getSupabaseAdminClient();
         const body = await req.json();
         const { id, email, password, full_name, role, venue_ids, tags } = body;
+        const normalizedRole = role === undefined ? undefined : normalizeRole(role);
+        const normalizedVenueIds = Array.isArray(venue_ids) ? venue_ids.filter((item): item is string => typeof item === "string") : undefined;
+        const normalizedTags = Array.isArray(tags) ? tags.filter((item): item is string => typeof item === "string") : undefined;
 
         if (!id) return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
 
@@ -156,9 +148,9 @@ export async function PUT(req: NextRequest) {
 
         // Update Profile Data
         const profileUpdates: Record<string, unknown> = {};
-        if (role !== undefined) profileUpdates.role = role;
-        if (venue_ids !== undefined) profileUpdates.venue_ids = venue_ids;
-        if (tags !== undefined) profileUpdates.tags = tags;
+        if (normalizedRole !== undefined) profileUpdates.role = normalizedRole;
+        if (normalizedVenueIds !== undefined) profileUpdates.venue_ids = normalizedRole === "SUPER_ADMIN" ? [] : normalizedVenueIds;
+        if (normalizedTags !== undefined) profileUpdates.tags = normalizedTags;
         if (full_name !== undefined) profileUpdates.full_name = full_name;
 
         if (Object.keys(profileUpdates).length > 0) {
@@ -179,10 +171,10 @@ export async function PUT(req: NextRequest) {
 
 // DELETE a user
 export async function DELETE(req: NextRequest) {
-    if (!await isSuperAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!isSuperAdmin(await getAuthenticatedActor())) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     try {
-        const supabaseAdmin = getSupabaseAdmin();
+        const supabaseAdmin = getSupabaseAdminClient();
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
 

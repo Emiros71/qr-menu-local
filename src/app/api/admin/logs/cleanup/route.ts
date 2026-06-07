@@ -1,32 +1,26 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getAuthenticatedActor, getSupabaseAdminClient, isSuperAdmin } from '@/server/auth';
 
 export const dynamic = 'force-dynamic';
 
-function getSupabaseAdmin() {
-    return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-}
-
 export async function POST(req: Request) {
+    if (!isSuperAdmin(await getAuthenticatedActor())) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
-        const supabaseAdmin = getSupabaseAdmin();
+        const supabaseAdmin = getSupabaseAdminClient();
         const body = await req.json();
         const { daysToKeep = 30 } = body;
 
-        // Geçerli bir sayı mı?
         if (isNaN(daysToKeep) || daysToKeep < 1) {
             return NextResponse.json({ error: 'Geçersiz gün sayısı' }, { status: 400 });
         }
 
-        // Hesaplanacak tarih
         const dateThreshold = new Date();
         dateThreshold.setDate(dateThreshold.getDate() - parseInt(daysToKeep));
         const isoThreshold = dateThreshold.toISOString();
 
-        // Eski logları sil (ON DELETE CASCADE olmadığı için sadece bu tablodan silinir)
         const { data, error } = await supabaseAdmin
             .from('audit_logs')
             .delete()

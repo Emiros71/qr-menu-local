@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getServerSupabaseUrl } from '@/utils/supabase/config';
+import { getAuthenticatedActor, isSuperAdmin } from '@/server/auth';
 
 export const dynamic = 'force-dynamic';
 
-// Servislerin eriştiği ana tablolar
 const SERVICES_MAP = {
     VenueService: 'venues',
     CategoryService: 'categories',
@@ -14,18 +14,23 @@ const SERVICES_MAP = {
 };
 
 export async function GET() {
+    if (!isSuperAdmin(await getAuthenticatedActor())) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabaseUrl = getServerSupabaseUrl();
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseServiceKey) {
         return NextResponse.json({
             status: 'error',
-            message: 'Supabase çevresel değişkenleri eksik.'
+            message: 'Supabase yapılandırması eksik.'
         }, { status: 500 });
     }
 
-    // Admin işlemleri için yetkili client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+    });
 
     const results = [];
     let allHealthy = true;
@@ -33,7 +38,6 @@ export async function GET() {
     for (const [serviceName, tableName] of Object.entries(SERVICES_MAP)) {
         const start = Date.now();
         try {
-            // Sadece tek bir sütun alarak en hafif DB çağrısını yapıyoruz
             const { error } = await supabase.from(tableName).select('*', { count: 'exact', head: true });
             const end = Date.now();
             const latencyMs = end - start;
@@ -43,7 +47,6 @@ export async function GET() {
                 results.push({
                     name: serviceName,
                     status: 'error',
-                    error: error.message,
                     latencyMs
                 });
             } else {
@@ -53,13 +56,12 @@ export async function GET() {
                     latencyMs
                 });
             }
-        } catch (err) {
+        } catch {
             allHealthy = false;
             const latencyMs = Date.now() - start;
             results.push({
                 name: serviceName,
                 status: 'error',
-                error: (err as Error).message || 'Bilinmeyen hata',
                 latencyMs
             });
         }

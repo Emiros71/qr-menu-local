@@ -51,7 +51,8 @@ export async function updateSession(request: NextRequest) {
 
     // Allow E2E tests to bypass authentication
     const bypassKey = request.headers.get('x-e2e-bypass');
-    if (process.env.NODE_ENV !== 'production' && bypassKey === 'super-secret-e2e-bypass') {
+    const e2eBypassKey = process.env.E2E_BYPASS_KEY;
+    if (process.env.NODE_ENV !== 'production' && e2eBypassKey && bypassKey === e2eBypassKey) {
         return response;
     }
 

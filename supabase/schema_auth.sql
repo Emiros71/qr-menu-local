@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, full_name, role)
-  VALUES (new.id, new.raw_user_meta_data->>'full_name', 'venue_manager'); -- Default to venue_manager for now
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', 'venue_manager'); -- Default to venue_manager for all self-signups
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;

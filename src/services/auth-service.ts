@@ -44,13 +44,16 @@ export const AuthService = {
                 console.error("Error fetching profile:", error);
             }
 
-            // Fallback object if profile doesn't exist yet
+            if (!data) {
+                return null;
+            }
+
             return {
                 id: user.id,
                 email: user.email || '',
-                full_name: data?.full_name || user.user_metadata?.full_name || 'Admin User',
-                role: data?.role || user.user_metadata?.role || 'SUPER_ADMIN',
-                venue_ids: data?.venue_ids || []
+                full_name: data.full_name || null,
+                role: data.role || null,
+                venue_ids: data.venue_ids || []
             };
         } catch (e) {
             console.error("Profile fetch error:", e);
