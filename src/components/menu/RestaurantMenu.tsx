@@ -758,7 +758,7 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                     id={`btn-${cat.id}`}
                                     onClick={() => available ? scrollToCategory(cat.id) : null}
                                     className={cn(
-                                        "flex flex-col items-center gap-2 group min-w-[80px] shrink-0 snap-start self-start",
+                                        "flex flex-col items-center gap-2 group w-20 shrink-0 snap-start self-start",
                                         available ? "cursor-pointer" : "cursor-not-allowed opacity-50 grayscale"
                                     )}
                                 >
@@ -782,10 +782,10 @@ export default function RestaurantMenu({ venue }: RestaurantMenuProps) {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex flex-col items-center px-1 max-w-[9.5rem]">
+                                    <div className="flex w-20 flex-col items-center px-0.5">
                                         <span
                                             className={cn(
-                                                "inline-flex min-h-[2.6rem] w-fit max-w-[9.5rem] items-start justify-center px-2 py-1 text-center text-[10px] font-bold leading-snug break-words whitespace-normal rounded-[8px] transition-colors",
+                                                "inline-flex min-h-[2.6rem] w-full items-start justify-center px-1 py-1 text-center text-[10px] font-bold leading-snug break-words whitespace-normal rounded-[8px] transition-colors",
                                                 activeCategory === cat.id && available
                                                     ? "text-white bg-[var(--primary)] shadow-sm"
                                                     : "text-zinc-500 group-hover:text-zinc-900"

@@ -71,8 +71,7 @@ export async function POST(req: Request) {
             .upsert(
                 {
                     key: SETTINGS_KEY,
-                    value: normalizedSettings,
-                    updated_at: new Date().toISOString()
+                    value: normalizedSettings
                 },
                 { onConflict: "key" }
             )
