@@ -25,11 +25,17 @@ export default function SettingsPage() {
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const data = await SettingsService.getAppSettings();
-            if (data) {
-                setSettings(data);
+            try {
+                const data = await SettingsService.getAdminAppSettings();
+                if (data) {
+                    setSettings(data);
+                }
+            } catch (error) {
+                console.error(error);
+                alert(error instanceof Error ? error.message : "Ayarlar yuklenemedi.");
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         }
         load();
     }, []);
@@ -45,7 +51,7 @@ export default function SettingsPage() {
                 websiteUrl: settings.websiteUrl.trim()
             };
 
-            await SettingsService.updateAppSettings("landing_page", normalizedSettings);
+            await SettingsService.updateAdminAppSettings(normalizedSettings);
             setSettings(normalizedSettings);
             alert("Ayarlar guncellendi!");
         } catch (err) {

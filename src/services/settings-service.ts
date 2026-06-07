@@ -2,6 +2,29 @@ import { supabase } from "@/lib/supabase";
 import { isSupabaseConfigured, performActionViaApi } from "./db-utils";
 
 export const SettingsService = {
+    getAdminAppSettings: async () => {
+        const response = await fetch('/api/admin/settings', { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result?.error || 'Settings fetch failed');
+        }
+        return result.data;
+    },
+
+    updateAdminAppSettings: async (value: unknown) => {
+        const response = await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result?.error || 'Settings update failed');
+        }
+        return result.data;
+    },
+
     // App Settings (Landing Page)
     getAppSettings: async (key: string = 'landing_page') => {
         if (!isSupabaseConfigured()) {
