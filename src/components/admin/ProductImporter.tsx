@@ -40,12 +40,25 @@ const getFilenameStem = (value: string) => {
     return lastDot >= 0 ? normalized.slice(0, lastDot) : normalized;
 };
 
+const normalizeStemForCompare = (value: string) => {
+    return getFilenameStem(value)
+        .normalize("NFKC")
+        .replace(/[_\s]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+};
+
 const stripGeneratedSuffix = (value: string) => {
     const normalized = normalizeFilename(value);
     const lastDot = normalized.lastIndexOf(".");
     const stem = lastDot >= 0 ? normalized.slice(0, lastDot) : normalized;
     const ext = lastDot >= 0 ? normalized.slice(lastDot) : "";
-    const strippedStem = stem.replace(/-[a-z0-9]{5,12}$/i, "");
+    const lastDash = stem.lastIndexOf("-");
+    if (lastDash < 0) return `${stem}${ext}`;
+
+    const suffix = stem.slice(lastDash + 1);
+    const looksGenerated = /^[a-z0-9]{5,12}$/i.test(suffix) && /\d/.test(suffix);
+    const strippedStem = looksGenerated ? stem.slice(0, lastDash) : stem;
     return `${strippedStem}${ext}`;
 };
 
@@ -58,11 +71,28 @@ const matchesFilename = (expected: string, actual: string) => {
     const strippedActual = stripGeneratedSuffix(normalizedActual);
     if (strippedExpected === strippedActual) return true;
 
-    const expectedStem = getFilenameStem(strippedExpected);
-    const actualStem = getFilenameStem(strippedActual);
+    const expectedStem = normalizeStemForCompare(strippedExpected);
+    const actualStem = normalizeStemForCompare(strippedActual);
     if (!expectedStem || !actualStem) return false;
 
-    return expectedStem.startsWith(actualStem) || actualStem.startsWith(expectedStem);
+    return expectedStem === actualStem;
+};
+
+const getFilenameMatchScore = (expected: string, actual: string) => {
+    const normalizedExpected = normalizeFilename(expected);
+    const normalizedActual = normalizeFilename(actual);
+    if (!normalizedExpected || !normalizedActual) return -1;
+    if (normalizedExpected === normalizedActual) return 3;
+
+    const strippedExpected = stripGeneratedSuffix(normalizedExpected);
+    const strippedActual = stripGeneratedSuffix(normalizedActual);
+    if (strippedExpected === strippedActual) return 2;
+
+    const expectedStem = normalizeStemForCompare(strippedExpected);
+    const actualStem = normalizeStemForCompare(strippedActual);
+    if (expectedStem && actualStem && expectedStem === actualStem) return 1;
+
+    return -1;
 };
 
 const BULK_COMPRESSION_SKIP_BYTES = 15 * 1024 * 1024;
@@ -358,7 +388,19 @@ export default function ProductImporter({ onImport, onExport, existingCategories
                 const totalToUpload = matchedProducts.length;
                 let uploadedCount = 0;
                 const findMatchingFile = (filename: string) => {
-                    return selectedImages.find(file => matchesFilename(filename, file.name)) || null;
+                    let bestMatch: File | null = null;
+                    let bestScore = -1;
+
+                    for (const file of selectedImages) {
+                        const score = getFilenameMatchScore(filename, file.name);
+                        if (score > bestScore) {
+                            bestMatch = file;
+                            bestScore = score;
+                            if (score === 3) break;
+                        }
+                    }
+
+                    return bestScore >= 0 ? bestMatch : null;
                 };
 
                 const uploadFile = async (productIndex: number, filename: string) => {
